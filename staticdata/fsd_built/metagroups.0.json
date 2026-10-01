@@ -1,0 +1,288 @@
+{
+  "1": {
+    "color": {
+      "a": 1.0, 
+      "b": 0.04313725605607033, 
+      "g": 0.6666666865348816, 
+      "r": 0.7803921699523926
+    }, 
+    "name": {
+      "de": "Tech I", 
+      "en-us": "Tech I", 
+      "es": "T1", 
+      "fr": "Tech I", 
+      "ja": "T1", 
+      "ko": "테크 I", 
+      "ru": "Tech I", 
+      "zh": "一级科技"
+    }, 
+    "nameID": 66672
+  }, 
+  "2": {
+    "color": {
+      "a": 1.0, 
+      "b": 0.003921568859368563, 
+      "g": 0.3803921639919281, 
+      "r": 0.6196078658103943
+    }, 
+    "iconID": 24150, 
+    "iconSuffix": "t2", 
+    "name": {
+      "de": "Tech II", 
+      "en-us": "Tech II", 
+      "es": "T2", 
+      "fr": "Tech II", 
+      "ja": "T2", 
+      "ko": "테크 II", 
+      "ru": "Tech II", 
+      "zh": "二级科技"
+    }, 
+    "nameID": 66673
+  }, 
+  "3": {
+    "color": {
+      "a": 1.0, 
+      "b": 0.11764705926179886, 
+      "g": 0.4313725531101227, 
+      "r": 0.2666666805744171
+    }, 
+    "iconID": 24147, 
+    "iconSuffix": "storyline", 
+    "name": {
+      "de": "Geschichte", 
+      "en-us": "Storyline", 
+      "es": "Historia", 
+      "fr": "Scénario", 
+      "ja": "ストーリーライン", 
+      "ko": "스토리라인", 
+      "ru": "Наградные", 
+      "zh": "故事线"
+    }, 
+    "nameID": 66674
+  }, 
+  "4": {
+    "color": {
+      "a": 1.0, 
+      "b": 0.05098039284348488, 
+      "g": 0.27843138575553894, 
+      "r": 0.06666667014360428
+    }, 
+    "iconID": 24146, 
+    "iconSuffix": "faction", 
+    "name": {
+      "de": "Fraktion", 
+      "en-us": "Faction", 
+      "es": "Facción", 
+      "fr": "Faction", 
+      "ja": "勢力", 
+      "ko": "팩션", 
+      "ru": "Особых модификаций", 
+      "zh": "势力"
+    }, 
+    "nameID": 66675
+  }, 
+  "5": {
+    "color": {
+      "a": 1.0, 
+      "b": 0.45098039507865906, 
+      "g": 0.054901961237192154, 
+      "r": 0.20392157137393951
+    }, 
+    "iconID": 24149, 
+    "iconSuffix": "officer", 
+    "name": {
+      "de": "Offizier", 
+      "en-us": "Officer", 
+      "es": "Oficial", 
+      "fr": "Officier", 
+      "ja": "士官", 
+      "ko": "장교급", 
+      "ru": "Командирские", 
+      "zh": "官员"
+    }, 
+    "nameID": 66676
+  }, 
+  "6": {
+    "color": {
+      "a": 1.0, 
+      "b": 0.545098066329956, 
+      "g": 0.27843138575553894, 
+      "r": 0.16078431904315948
+    }, 
+    "description": {
+      "de": "Module, die man in Raumverwerfungen findet.", 
+      "en-us": "Modules found in deadspace.", 
+      "es": "Módulos encontrados en el espacio muerto.", 
+      "fr": "Modules figurant dans le Deadspace.", 
+      "ja": "デッドスペースで見つかったモジュール。", 
+      "ko": "데드스페이스에서 발견되는 모듈입니다.", 
+      "ru": "Модули дэдспейса.", 
+      "zh": "死亡空间里的装备"
+    }, 
+    "descriptionID": 66671, 
+    "iconID": 24148, 
+    "iconSuffix": "deadspace", 
+    "name": {
+      "de": "Raumverwerfung", 
+      "en-us": "Deadspace", 
+      "es": "Espacio muerto", 
+      "fr": "Deadspace", 
+      "ja": "デッドスペース", 
+      "ko": "데드스페이스", 
+      "ru": "Экспериментальные", 
+      "zh": "死亡空间"
+    }, 
+    "nameID": 66677
+  }, 
+  "14": {
+    "color": {
+      "a": 1.0, 
+      "b": 0.0117647061124444, 
+      "g": 0.22745098173618317, 
+      "r": 0.6235294342041016
+    }, 
+    "iconID": 24151, 
+    "iconSuffix": "t3", 
+    "name": {
+      "de": "Tech III", 
+      "en-us": "Tech III", 
+      "es": "T3", 
+      "fr": "Tech III", 
+      "ja": "T3", 
+      "ko": "테크 III", 
+      "ru": "Tech III", 
+      "zh": "三级科技"
+    }, 
+    "nameID": 66685
+  }, 
+  "15": {
+    "color": {
+      "a": 1.0, 
+      "b": 0.125490203499794, 
+      "g": 0.125490203499794, 
+      "r": 0.529411792755127
+    }, 
+    "iconID": 24152, 
+    "iconSuffix": "abyssal", 
+    "name": {
+      "de": "Abgrund", 
+      "en-us": "Abyssal", 
+      "es": "Abisal", 
+      "fr": "Abîme", 
+      "ja": "アビサル", 
+      "ko": "어비설", 
+      "ru": "Бездна", 
+      "zh": "深渊"
+    }, 
+    "nameID": 317771
+  }, 
+  "17": {
+    "color": {
+      "a": 1.0, 
+      "b": 0.8549019694328308, 
+      "g": 0.34117648005485535, 
+      "r": 0.6196078658103943
+    }, 
+    "description": {
+      "de": "Dieser Gegenstand ist nur über den New Eden Store oder exklusive Angebote verfügbar.", 
+      "en-us": "This item is only available through the New Eden Store or exclusive offers.", 
+      "es": "Este objeto solo está disponible a través de la tienda de Nuevo Edén u ofertas exclusivas.", 
+      "fr": "Cet objet n'est disponible que dans le magasin New Eden ou lors d'offres exclusives.", 
+      "ja": "このアイテムは、ニューエデンストアまたは限定特典でしか手に入らないアイテムです。", 
+      "ko": "뉴에덴 스토어 및 특별한 오퍼를 통해서만 획득가능한 아이템입니다.", 
+      "ru": "Этот предмет доступен только в игровом магазине и в составе эксклюзивного предложения.", 
+      "zh": "此物品只能通过新伊甸商城或专享活动获得。"
+    }, 
+    "descriptionID": 317894, 
+    "iconID": 24153, 
+    "iconSuffix": "premium", 
+    "name": {
+      "de": "Premium", 
+      "en-us": "Premium", 
+      "es": "Prémium", 
+      "fr": "Premium", 
+      "ja": "プレミアム", 
+      "ko": "프리미엄", 
+      "ru": "Эксклюзив", 
+      "zh": "高级"
+    }, 
+    "nameID": 317893
+  }, 
+  "19": {
+    "color": {
+      "a": 1.0, 
+      "b": 0.8745098114013672, 
+      "g": 0.7058823704719543, 
+      "r": 0.18039216101169586
+    }, 
+    "description": {
+      "de": "Dieser Gegenstand ist nur für eine begrenzte Zeit verfügbar.", 
+      "en-us": "This item is only available for a limited time.", 
+      "es": "Este objeto solo está disponible durante un tiempo limitado.", 
+      "fr": "Cet objet n'est disponible que pour une durée limitée.", 
+      "ja": "このアイテムは期間限定です。", 
+      "ko": "한정판 아이템입니다.", 
+      "ru": "Этот предмет доступен только в течение ограниченного времени.", 
+      "zh": "此物品只能在特定的有限时间内获得。"
+    }, 
+    "descriptionID": 317896, 
+    "iconID": 24154, 
+    "iconSuffix": "limited", 
+    "name": {
+      "de": "Begrenzte Zeit", 
+      "en-us": "Limited Time", 
+      "es": "Tiempo limitado", 
+      "fr": "Durée limitée", 
+      "ja": "期間限定", 
+      "ko": "한정기간", 
+      "ru": "Ограниченное время", 
+      "zh": "限时提供"
+    }, 
+    "nameID": 317895
+  }, 
+  "52": {
+    "iconID": 24155, 
+    "iconSuffix": "struct_faction", 
+    "name": {
+      "de": "Strukturfraktion", 
+      "en-us": "Structure Faction", 
+      "es": "Estructura faccionaria", 
+      "fr": "Faction de structure", 
+      "ja": "ストラクチャ勢力", 
+      "ko": "팩션 구조물", 
+      "ru": "Армейское сооружение", 
+      "zh": "势力建筑"
+    }, 
+    "nameID": 550638
+  }, 
+  "53": {
+    "iconID": 24156, 
+    "iconSuffix": "struct_t2", 
+    "name": {
+      "de": "Strukturtechnologie II", 
+      "en-us": "Structure Tech II", 
+      "es": "Estructura T2", 
+      "fr": "Structure de Tech II", 
+      "ja": "ストラクチャT2", 
+      "ko": "구조물 테크 II", 
+      "ru": "Сооружение второй техкатегории", 
+      "zh": "二级科技建筑"
+    }, 
+    "nameID": 550639
+  }, 
+  "54": {
+    "iconID": 24157, 
+    "iconSuffix": "struct", 
+    "name": {
+      "de": "Strukturtechnologie I", 
+      "en-us": "Structure Tech I", 
+      "es": "Estructura T1", 
+      "fr": "Structure de Tech I", 
+      "ja": "ストラクチャT1", 
+      "ko": "구조물 테크 I", 
+      "ru": "Сооружение первой техкатегории", 
+      "zh": "一级科技建筑"
+    }, 
+    "nameID": 550644
+  }
+}

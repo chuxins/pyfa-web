@@ -1,0 +1,736 @@
+{
+  "0": {
+    "categoryID": 0, 
+    "categoryName": {
+      "de": "#System", 
+      "en-us": "#System", 
+      "es": "#System", 
+      "fr": "#Système", 
+      "ja": "#システム", 
+      "ko": "#항성계", 
+      "ru": "#Система", 
+      "zh": "#星系"
+    }, 
+    "categoryNameID": 63539, 
+    "published": 0
+  }, 
+  "1": {
+    "categoryID": 1, 
+    "categoryName": {
+      "de": "Besitzer", 
+      "en-us": "Owner", 
+      "es": "Propietario", 
+      "fr": "Propriétaire", 
+      "ja": "所有者", 
+      "ko": "소유자", 
+      "ru": "Владелец", 
+      "zh": "拥有者"
+    }, 
+    "categoryNameID": 63540, 
+    "published": 0
+  }, 
+  "2": {
+    "categoryID": 2, 
+    "categoryName": {
+      "de": "Interstellar", 
+      "en-us": "Celestial", 
+      "es": "Celestial", 
+      "fr": "Céleste", 
+      "ja": "セレスチャル", 
+      "ko": "천체", 
+      "ru": "Небесное тело", 
+      "zh": "天体"
+    }, 
+    "categoryNameID": 63541, 
+    "published": 1
+  }, 
+  "3": {
+    "categoryID": 3, 
+    "categoryName": {
+      "de": "Station", 
+      "en-us": "Station", 
+      "es": "Estación", 
+      "fr": "Station", 
+      "ja": "ステーション", 
+      "ko": "정거장", 
+      "ru": "Станция", 
+      "zh": "空间站"
+    }, 
+    "categoryNameID": 63542, 
+    "published": 0
+  }, 
+  "4": {
+    "categoryID": 4, 
+    "categoryName": {
+      "de": "Material", 
+      "en-us": "Material", 
+      "es": "Material", 
+      "fr": "Matériau", 
+      "ja": "資源", 
+      "ko": "자원", 
+      "ru": "Материал", 
+      "zh": "材料"
+    }, 
+    "categoryNameID": 63543, 
+    "iconID": 22, 
+    "published": 1
+  }, 
+  "5": {
+    "categoryID": 5, 
+    "categoryName": {
+      "de": "Zubehör", 
+      "en-us": "Accessories", 
+      "es": "Accesorios", 
+      "fr": "Accessoires", 
+      "ja": "アクセサリー", 
+      "ko": "악세서리", 
+      "ru": "Вспомогательные предметы", 
+      "zh": "附件"
+    }, 
+    "categoryNameID": 63560, 
+    "iconID": 33, 
+    "published": 1
+  }, 
+  "6": {
+    "categoryID": 6, 
+    "categoryName": {
+      "de": "Schiff", 
+      "en-us": "Ship", 
+      "es": "Nave", 
+      "fr": "Vaisseau", 
+      "ja": "艦船", 
+      "ko": "함선", 
+      "ru": "Корабль", 
+      "zh": "舰船"
+    }, 
+    "categoryNameID": 63544, 
+    "published": 1
+  }, 
+  "7": {
+    "categoryID": 7, 
+    "categoryName": {
+      "de": "Modul", 
+      "en-us": "Module", 
+      "es": "Módulo", 
+      "fr": "Module", 
+      "ja": "モジュール", 
+      "ko": "모듈", 
+      "ru": "Модуль", 
+      "zh": "装备"
+    }, 
+    "categoryNameID": 63545, 
+    "iconID": 67, 
+    "published": 1
+  }, 
+  "8": {
+    "categoryID": 8, 
+    "categoryName": {
+      "de": "Ladung", 
+      "en-us": "Charge", 
+      "es": "Carga", 
+      "fr": "Charge", 
+      "ja": "チャージ", 
+      "ko": "차지", 
+      "ru": "Заряд", 
+      "zh": "弹药"
+    }, 
+    "categoryNameID": 63546, 
+    "published": 1
+  }, 
+  "9": {
+    "categoryID": 9, 
+    "categoryName": {
+      "de": "Blueprint", 
+      "en-us": "Blueprint", 
+      "es": "Plano", 
+      "fr": "Plan de construction", 
+      "ja": "ブループリント", 
+      "ko": "블루프린트", 
+      "ru": "Чертеж", 
+      "zh": "蓝图"
+    }, 
+    "categoryNameID": 63547, 
+    "iconID": 21, 
+    "published": 1
+  }, 
+  "10": {
+    "categoryID": 10, 
+    "categoryName": {
+      "de": "Handel", 
+      "en-us": "Trading", 
+      "es": "Comercio", 
+      "fr": "Commerce", 
+      "ja": "トレード", 
+      "ko": "거래", 
+      "ru": "Торговля", 
+      "zh": "贸易"
+    }, 
+    "categoryNameID": 63548, 
+    "published": 0
+  }, 
+  "11": {
+    "categoryID": 11, 
+    "categoryName": {
+      "de": "Einheit", 
+      "en-us": "Entity", 
+      "es": "Entidad", 
+      "fr": "Entité", 
+      "ja": "エンティティ", 
+      "ko": "객체", 
+      "ru": "Объект", 
+      "zh": "空间实体"
+    }, 
+    "categoryNameID": 63549, 
+    "published": 0
+  }, 
+  "14": {
+    "categoryID": 14, 
+    "categoryName": {
+      "de": "Bonus", 
+      "en-us": "Bonus", 
+      "es": "Bonificación", 
+      "fr": "Bonus", 
+      "ja": "ボーナス", 
+      "ko": "보너스", 
+      "ru": "Бонус", 
+      "zh": "加成"
+    }, 
+    "categoryNameID": 63550, 
+    "iconID": 0, 
+    "published": 0
+  }, 
+  "16": {
+    "categoryID": 16, 
+    "categoryName": {
+      "de": "Skill", 
+      "en-us": "Skill", 
+      "es": "Habilidad", 
+      "fr": "Compétence", 
+      "ja": "スキル", 
+      "ko": "스킬", 
+      "ru": "Навык", 
+      "zh": "技能"
+    }, 
+    "categoryNameID": 63551, 
+    "iconID": 33, 
+    "published": 1
+  }, 
+  "17": {
+    "categoryID": 17, 
+    "categoryName": {
+      "de": "Bedarfsartikel", 
+      "en-us": "Commodity", 
+      "es": "Mercancía", 
+      "fr": "Marchandise", 
+      "ja": "商品", 
+      "ko": "물품", 
+      "ru": "Товар", 
+      "zh": "常用物品"
+    }, 
+    "categoryNameID": 63552, 
+    "iconID": 0, 
+    "published": 1
+  }, 
+  "18": {
+    "categoryID": 18, 
+    "categoryName": {
+      "de": "Drohne", 
+      "en-us": "Drone", 
+      "es": "Dron", 
+      "fr": "Drone", 
+      "ja": "ドローン", 
+      "ko": "드론", 
+      "ru": "Дрон", 
+      "zh": "无人机"
+    }, 
+    "categoryNameID": 63553, 
+    "iconID": 0, 
+    "published": 1, 
+    "sofBuildClass": "ship"
+  }, 
+  "20": {
+    "categoryID": 20, 
+    "categoryName": {
+      "de": "Implantat", 
+      "en-us": "Implant", 
+      "es": "Implante", 
+      "fr": "Implant", 
+      "ja": "インプラント", 
+      "ko": "임플란트", 
+      "ru": "Имплантат", 
+      "zh": "植入体"
+    }, 
+    "categoryNameID": 63554, 
+    "iconID": 0, 
+    "published": 1
+  }, 
+  "22": {
+    "categoryID": 22, 
+    "categoryName": {
+      "de": "Einsetzbar", 
+      "en-us": "Deployable", 
+      "es": "Desplegable", 
+      "fr": "Déployable", 
+      "ja": "配置型ユニット", 
+      "ko": "전개형 구조물", 
+      "ru": "Сбрасываемые предметы", 
+      "zh": "可部署物品"
+    }, 
+    "categoryNameID": 63555, 
+    "iconID": 0, 
+    "published": 1
+  }, 
+  "23": {
+    "categoryID": 23, 
+    "categoryName": {
+      "de": "Sternenbasis", 
+      "en-us": "Starbase", 
+      "es": "Base estelar", 
+      "fr": "Base stellaire", 
+      "ja": "スターベース", 
+      "ko": "스타베이스", 
+      "ru": "ПОСы", 
+      "zh": "母星"
+    }, 
+    "categoryNameID": 63556, 
+    "iconID": 0, 
+    "published": 1
+  }, 
+  "24": {
+    "categoryID": 24, 
+    "categoryName": {
+      "de": "Reaktion", 
+      "en-us": "Reaction", 
+      "es": "Reacción", 
+      "fr": "Réaction", 
+      "ja": "化学反応", 
+      "ko": "합성", 
+      "ru": "Реакция", 
+      "zh": "化学反应"
+    }, 
+    "categoryNameID": 63557, 
+    "iconID": 0, 
+    "published": 1
+  }, 
+  "25": {
+    "categoryID": 25, 
+    "categoryName": {
+      "de": "Asteroid", 
+      "en-us": "Asteroid", 
+      "es": "Asteroide", 
+      "fr": "Astéroïde", 
+      "ja": "アステロイド", 
+      "ko": "소행성", 
+      "ru": "Астероид", 
+      "zh": "小行星"
+    }, 
+    "categoryNameID": 63558, 
+    "published": 1
+  }, 
+  "26": {
+    "categoryID": 26, 
+    "categoryName": {
+      "de": "WeltRaum", 
+      "en-us": "WorldSpace", 
+      "es": "WorldSpace", 
+      "fr": "Espace planétaire", 
+      "ja": "ワールドスペース", 
+      "ko": "월드스페이스", 
+      "ru": "WorldSpace", 
+      "zh": "内部空间"
+    }, 
+    "categoryNameID": 63568, 
+    "published": 0
+  }, 
+  "29": {
+    "categoryID": 29, 
+    "categoryName": {
+      "de": "Kurzbeschreibung", 
+      "en-us": "Abstract", 
+      "es": "Resumen", 
+      "fr": "Résumé", 
+      "ja": "アブストラクト", 
+      "ko": "개요", 
+      "ru": "Общее", 
+      "zh": "抽象"
+    }, 
+    "categoryNameID": 63559, 
+    "published": 0
+  }, 
+  "30": {
+    "categoryID": 30, 
+    "categoryName": {
+      "de": "Bekleidung", 
+      "en-us": "Apparel", 
+      "es": "Indumentaria", 
+      "fr": "Équipement", 
+      "ja": "アパレル", 
+      "ko": "의류", 
+      "ru": "Одежда", 
+      "zh": "服饰"
+    }, 
+    "categoryNameID": 63572, 
+    "published": 1
+  }, 
+  "32": {
+    "categoryID": 32, 
+    "categoryName": {
+      "de": "Untersystem", 
+      "en-us": "Subsystem", 
+      "es": "Subsistema", 
+      "fr": "Sous-système", 
+      "ja": "サブシステム", 
+      "ko": "서브시스템", 
+      "ru": "Подсистема", 
+      "zh": "子系统"
+    }, 
+    "categoryNameID": 63562, 
+    "published": 1
+  }, 
+  "34": {
+    "categoryID": 34, 
+    "categoryName": {
+      "de": "Alte Reliquien", 
+      "en-us": "Ancient Relics", 
+      "es": "Reliquias antiguas", 
+      "fr": "Reliques antiques", 
+      "ja": "古代の遺物", 
+      "ko": "고대 유물", 
+      "ru": "Древние устройства", 
+      "zh": "古文物"
+    }, 
+    "categoryNameID": 63561, 
+    "published": 1
+  }, 
+  "35": {
+    "categoryID": 35, 
+    "categoryName": {
+      "de": "Entzifferer", 
+      "en-us": "Decryptors", 
+      "es": "Desencriptadores", 
+      "fr": "Décrypteurs", 
+      "ja": "解読器", 
+      "ko": "해독기", 
+      "ru": "Файлы данных", 
+      "zh": "解码器"
+    }, 
+    "categoryNameID": 63563, 
+    "published": 1
+  }, 
+  "39": {
+    "categoryID": 39, 
+    "categoryName": {
+      "de": "Infrastruktur-Upgrades", 
+      "en-us": "Infrastructure Upgrades", 
+      "es": "Mejoras de infraestructuras", 
+      "fr": "Améliorations d'infrastructure", 
+      "ja": "領域施設強化", 
+      "ko": "인프라 업그레이드", 
+      "ru": "Расширения инфраструктуры", 
+      "zh": "基础设施升级件"
+    }, 
+    "categoryNameID": 63565, 
+    "published": 1
+  }, 
+  "40": {
+    "categoryID": 40, 
+    "categoryName": {
+      "de": "Souveränitätsstrukturen", 
+      "en-us": "Sovereignty Structures", 
+      "es": "Estructuras de soberanía", 
+      "fr": "Structures de souveraineté", 
+      "ja": "領有権管理設備", 
+      "ko": "소버린티 구조물", 
+      "ru": "Модули воздействия на право владения", 
+      "zh": "主权设施"
+    }, 
+    "categoryNameID": 63564, 
+    "published": 1
+  }, 
+  "41": {
+    "categoryID": 41, 
+    "categoryName": {
+      "de": "Planetare Industrie", 
+      "en-us": "Planetary Industry", 
+      "es": "Industria planetaria", 
+      "fr": "Industrie planétaire", 
+      "ja": "惑星インダストリー", 
+      "ko": "행성 개발", 
+      "ru": "Планетарная промышленность", 
+      "zh": "行星工业"
+    }, 
+    "categoryNameID": 63569, 
+    "published": 1
+  }, 
+  "42": {
+    "categoryID": 42, 
+    "categoryName": {
+      "de": "Planetarische Ressourcen", 
+      "en-us": "Planetary Resources", 
+      "es": "Recursos planetarios", 
+      "fr": "Ressources planétaires", 
+      "ja": "惑星資源", 
+      "ko": "행성 자원", 
+      "ru": "Планетарные ресурсы", 
+      "zh": "行星资源"
+    }, 
+    "categoryNameID": 63566, 
+    "published": 1
+  }, 
+  "43": {
+    "categoryID": 43, 
+    "categoryName": {
+      "de": "Planetarische Güter", 
+      "en-us": "Planetary Commodities", 
+      "es": "Mercancías planetarias", 
+      "fr": "Marchandises planétaires", 
+      "ja": "惑星商品", 
+      "ko": "행성 생산품", 
+      "ru": "Планетарные товары", 
+      "zh": "行星商品"
+    }, 
+    "categoryNameID": 63567, 
+    "published": 1
+  }, 
+  "46": {
+    "categoryID": 46, 
+    "categoryName": {
+      "de": "Orbitale", 
+      "en-us": "Orbitals", 
+      "es": "Orbitales", 
+      "fr": "Orbitaux", 
+      "ja": "軌道施設", 
+      "ko": "궤도 시설", 
+      "ru": "Орбитальные станции", 
+      "zh": "轨道类"
+    }, 
+    "categoryNameID": 63570, 
+    "published": 1
+  }, 
+  "49": {
+    "categoryID": 49, 
+    "categoryName": {
+      "de": "Platzierbares", 
+      "en-us": "Placeables", 
+      "es": "Objetos colocables", 
+      "fr": "Éléments", 
+      "ja": "配置可能", 
+      "ko": "배치물", 
+      "ru": "Декорации", 
+      "zh": "可放置物品"
+    }, 
+    "categoryNameID": 63571, 
+    "published": 0
+  }, 
+  "53": {
+    "categoryID": 53, 
+    "categoryName": {
+      "de": "Effekte", 
+      "en-us": "Effects", 
+      "es": "Efectos", 
+      "fr": "Effets", 
+      "ja": "効果", 
+      "ko": "효과", 
+      "ru": "Спецэффекты", 
+      "zh": "效果"
+    }, 
+    "categoryNameID": 63573, 
+    "published": 0
+  }, 
+  "54": {
+    "categoryID": 54, 
+    "categoryName": {
+      "de": "Beleuchtung", 
+      "en-us": "Lights", 
+      "es": "Luces", 
+      "fr": "Lumières", 
+      "ja": "ライト", 
+      "ko": "조명", 
+      "ru": "Освещение", 
+      "zh": "灯光"
+    }, 
+    "categoryNameID": 63574, 
+    "published": 0
+  }, 
+  "59": {
+    "categoryID": 59, 
+    "categoryName": {
+      "de": "Zellen", 
+      "en-us": "Cells", 
+      "es": "Celdas", 
+      "fr": "Cellules", 
+      "ja": "セル", 
+      "ko": "세포", 
+      "ru": "Клетки", 
+      "zh": "单元"
+    }, 
+    "categoryNameID": 235965, 
+    "published": 0
+  }, 
+  "63": {
+    "categoryID": 63, 
+    "categoryName": {
+      "de": "Sonderversionen", 
+      "en-us": "Special Edition Assets", 
+      "es": "Artículos de edición especial", 
+      "fr": "Actifs édition spéciale", 
+      "ja": "特別版資産", 
+      "ko": "스페셜 에디션 아이템", 
+      "ru": "Предметы из особых изданий", 
+      "zh": "特别版用品"
+    }, 
+    "categoryNameID": 285070, 
+    "published": 1
+  }, 
+  "65": {
+    "categoryID": 65, 
+    "categoryName": {
+      "de": "Struktur", 
+      "en-us": "Structure", 
+      "es": "Estructura", 
+      "fr": "Structure", 
+      "ja": "ストラクチャ", 
+      "ko": "구조물", 
+      "ru": "Сооружения", 
+      "zh": "建筑"
+    }, 
+    "categoryNameID": 308338, 
+    "published": 1
+  }, 
+  "66": {
+    "categoryID": 66, 
+    "categoryName": {
+      "de": "Strukturmodul", 
+      "en-us": "Structure Module", 
+      "es": "Módulo de estructura", 
+      "fr": "Module de structure", 
+      "ja": "ストラクチャモジュール", 
+      "ko": "구조물 모듈", 
+      "ru": "Блоки сооружений", 
+      "zh": "建筑装备"
+    }, 
+    "categoryNameID": 308340, 
+    "published": 1
+  }, 
+  "87": {
+    "categoryID": 87, 
+    "categoryName": {
+      "de": "Jäger", 
+      "en-us": "Fighter", 
+      "es": "Caza", 
+      "fr": "Combattant", 
+      "ja": "戦闘機", 
+      "ko": "파이터", 
+      "ru": "Истребители", 
+      "zh": "铁骑舰载机"
+    }, 
+    "categoryNameID": 510368, 
+    "published": 1
+  }, 
+  "91": {
+    "categoryID": 91, 
+    "categoryName": {
+      "de": "SKINs", 
+      "en-us": "SKINs", 
+      "es": "SKIN", 
+      "fr": "SKINS", 
+      "ja": "SKIN", 
+      "ko": "SKIN", 
+      "ru": "Окраски", 
+      "zh": "涂装"
+    }, 
+    "categoryNameID": 531338, 
+    "published": 1
+  }, 
+  "2100": {
+    "categoryID": 2100, 
+    "categoryName": {
+      "de": "Expertensysteme", 
+      "en-us": "Expert Systems", 
+      "es": "Sistemas expertos", 
+      "fr": "Systèmes experts", 
+      "ja": "エキスパートシステム", 
+      "ko": "전문가 시스템", 
+      "ru": "Экспертные системы", 
+      "zh": "专家系统"
+    }, 
+    "categoryNameID": 573416, 
+    "published": 1
+  }, 
+  "2107": {
+    "categoryID": 2107, 
+    "categoryName": {
+      "de": "Bergbau", 
+      "en-us": "Mining", 
+      "es": "Minería", 
+      "fr": "Extraction", 
+      "ja": "採掘", 
+      "ko": "채굴", 
+      "ru": "Бурение", 
+      "zh": "采矿"
+    }, 
+    "categoryNameID": 587126, 
+    "published": 0
+  }, 
+  "2118": {
+    "categoryID": 2118, 
+    "categoryName": {
+      "de": "Anpassung", 
+      "en-us": "Personalization", 
+      "es": "Personalización", 
+      "fr": "Personnalisation", 
+      "ja": "カスタマイズ", 
+      "ko": "개인화", 
+      "ru": "Персонализация", 
+      "zh": "个性化定制"
+    }, 
+    "categoryNameID": 631766, 
+    "published": 1
+  }, 
+  "2143": {
+    "categoryID": 2143, 
+    "categoryName": {
+      "de": "Kolonie-Ressourcen", 
+      "en-us": "Colony Resources", 
+      "es": "Recursos de la colonia", 
+      "fr": "Ressources de colonie", 
+      "ja": "コロニーのリソース", 
+      "ko": "콜로니 자원", 
+      "ru": "Ресурсы колоний", 
+      "zh": "殖民地资源"
+    }, 
+    "categoryNameID": 709447, 
+    "iconID": 24296, 
+    "published": 1
+  }, 
+  "2152": {
+    "categoryID": 2152, 
+    "categoryName": {
+      "de": "QA- und Dev-Gruppen", 
+      "en-us": "QA and Dev Groups", 
+      "es": "Control de calidad y grupos de desarrolladores", 
+      "fr": "Groupes QA et Dev", 
+      "ja": "QAと開発者グループ", 
+      "ko": "QA and Dev Groups", 
+      "ru": "Группы разработки и КК", 
+      "zh": "质量保证和开发团队"
+    }, 
+    "categoryNameID": 1025580, 
+    "published": 0
+  }, 
+  "350001": {
+    "categoryID": 350001, 
+    "categoryName": {
+      "de": "Infanterie", 
+      "en-us": "Infantry", 
+      "es": "Infantería", 
+      "fr": "Infanterie", 
+      "ja": "歩兵", 
+      "ko": "보병", 
+      "ru": "Пехотное", 
+      "zh": "Infantry"
+    }, 
+    "categoryNameID": 267649, 
+    "published": 0
+  }
+}

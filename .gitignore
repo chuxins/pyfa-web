@@ -1,0 +1,46 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+env/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# ---- 本地部署数据（绝不提交）----
+# EVE SSO 应用密钥（PYFA_WEB_SSO_*）：systemd EnvironmentFile
+web.env
+.env
+.env.*
+# 生产部署配置（模板见 web.yml.example）；compose.yml 以只读方式挂载此文件
+web.yml
+# 运行期数据：账号库 app.db、每用户 saveddata.db、设置、日志、会话签名密钥
+webdata/
+saveddata/
+session.key
+*.db
+*.db-wal
+*.db-shm
+*.sqlite*
+logs/
+*.log
+
+# ---- 首启从 staticdata/ 生成的 SQLite 静态库（97 MB，可删）----
+eve.db
+eve.db-*
+
+# ---- 构建 / 打包产物 ----
+build/
+dist/
+dist_assets/
+web/frontend/node_modules/
+web/frontend/dist/
+
+# ---- 编辑器 / 系统 ----
+.idea/
+.vscode/
+*.swp
+*~
