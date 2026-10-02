@@ -110,8 +110,12 @@ def main(argv=None):
         port=config.port,
         log_level=(config.log_level or "info").lower(),
         reload=args.reload,
-        # None (not "") when unmounted: uvicorn treats an empty string as a root path
-        root_path=config.root_path or None,
+        # Pass the normalized string ("" when unmounted). Passing None here breaks
+        # the httptools parser: the protocol does ``self.root_path + path``, and a
+        # NoneType there is wrapped by the C parser as HttpParserError, so every
+        # request is answered with 400 "Invalid HTTP request received." (uvicorn
+        # 0.54.0 / httptools 0.8.0, reproduced locally on Windows).
+        root_path=config.root_path,
     )
     return 0
 
