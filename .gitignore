@@ -27,6 +27,7 @@ session.key
 *.sqlite*
 logs/
 *.log
+*.pid
 
 # ---- 首启从 staticdata/ 生成的 SQLite 静态库（97 MB，可删）----
 eve.db
