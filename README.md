@@ -295,7 +295,7 @@ cd /opt/pyfa-web && .venv/bin/python -c \
 | 回调：真 state + 假 code | 303 → `?sso_error=loginFailed`（EVE 以 HTTP 500 拒掉假 code，见下） |
 | OpenID 元数据 / JWKS | `issuer=https://login.eveonline.com`、`jwks_uri=…/oauth/jwks`，返回 RSA/RS256 + EC/ES256 两把键，可用于 RS256 的 1 把（验签路径可用） |
 | 凭据是否有效 | 同一 client 用 `grant_type=refresh_token`（假 token）→ **JSON 400 `invalid_grant: Invalid refresh token. Unable to migrate grant.`**，说明 client_id/secret 已被 CCP 承认并进入 grant 处理；未知 client 的答复是 `Grant type authorization_code is not supported.` |
-| 未登录接口 | `/api/auth/me` → `{"authenticated":false}`；`/api/commands`、`/api/events` → 401 |
+| 未登录接口 | `/api/auth/me` → `{"authenticated":false}`；游客可读可写装配（共享 guest 库），`/api/commands`、`/api/events` 均可用；仅 `POST /api/esi/fittings/import`、`/api/esi/fittings/export` 需登录 → 401 |
 | 登出 | `POST /api/auth/logout` → 303 到 `/eveskillplanner/` 并清 `pyfa_session`（会话 cookie：`HttpOnly`、`SameSite=lax`、`Secure`、`Path=/`） |
 | 前端 | bundle 里登录入口为 `/eveskillplanner/api/auth/login`，且含 `sso_error` 与四个错误码（loginExpired / loginCancelled / loginFailed / ssoUnreachable），可渲染提示句 |
 

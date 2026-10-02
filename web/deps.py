@@ -24,6 +24,9 @@ pyfalog = Logger(__name__)
 APP_STATE_KEY = "pyfaAppState"
 USER_KEY = "pyfaUser"
 USER_DATA_KEY = "pyfaUserData"
+#: Set when a session cookie named an account that was locked out (disabled), so
+#: writes can refuse it instead of demoting the pilot to a guest.
+USER_LOCKED_OUT_KEY = "pyfaUserLockedOut"
 
 
 def route_path(scope):
@@ -90,40 +93,50 @@ class UserContextMiddleware:
             return
 
         scope.setdefault("state", {})
-        user = self._resolve_user(scope)
+        user, locked_out = self._resolve_user(scope)
         scope["state"][USER_KEY] = user
+        if locked_out:
+            scope["state"][USER_LOCKED_OUT_KEY] = True
         await self.app(scope, receive, send)
 
     def _resolve_user(self, scope):
+        """The account behind this request, and whether a cookie named one that was locked out.
+
+        Returns ``(user, locked_out)``: a guest is ``(None, False)``, and a session
+        cookie that named a disabled account is ``(None, True)``, so a write can refuse
+        it instead of quietly demoting the pilot to a guest with write access.
+        """
         path = route_path(scope)
         if not path.startswith("/api"):
-            return None
+            return None, False
         header = None
         for key, value in scope.get("headers") or ():
             if key == b"cookie":
                 header = value.decode("latin-1")
                 break
         if not header:
-            return None
+            return None, False
         cookies = SimpleCookie()
         try:
             cookies.load(header)
         except Exception:
-            return None
+            return None, False
         morsel = cookies.get(self.state.config.cookie_name)
         if morsel is None:
-            return None
+            return None, False
         user_id = self.state.tokens.read(morsel.value)
         if user_id is None:
-            return None
+            return None, False
         try:
             user = self.state.users.get(user_id)
         except Exception:
             pyfalog.exception("Failed to load account {}", user_id)
-            return None
-        if user is None or user.is_disabled:
-            return None
-        return user
+            return None, False
+        if user is None:
+            return None, False
+        if user.is_disabled:
+            return None, True
+        return user, False
 
 
 @asynccontextmanager
@@ -176,6 +189,28 @@ def require_user(request: Request) -> User:
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sign in with EVE to continue")
     return user
+
+
+def user_or_guest(request: Request) -> User | None:
+    """The account behind a write, or ``None`` for an anonymous guest.
+
+    Writes are open to guests, but a session cookie that named a locked-out account is
+    a refusal, not a demotion: a pilot whose account was disabled must not be quietly
+    turned into a guest with write access to the shared database.
+    """
+    if getattr(request.state, USER_LOCKED_OUT_KEY, False):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sign in with EVE to continue")
+    return current_user(request)
+
+
+#: The SSE channel every anonymous visitor shares. Guests all work in one shared
+#: database (see `UserDataRegistry.get_guest`), so they share one event stream too.
+GUEST_EVENT_CHANNEL = "guest"
+
+
+def event_channel(user: User | None) -> str:
+    """The SSE channel a request's browsers listen on; guests all share one."""
+    return user.id if user is not None else GUEST_EVENT_CHANNEL
 
 
 def get_user_data(request: Request) -> UserData:

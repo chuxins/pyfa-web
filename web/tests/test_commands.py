@@ -333,11 +333,23 @@ def test_undo_stacks_are_per_user(user_client, second_user_client):
                    "/api/fits/{}".format(second_fit)).json()["racks"]["high"])
 
 
-def test_commands_require_login(client):
-    fit_id = 1
-    response = client.post("/api/fits/{}/commands".format(fit_id),
-                           json={"command": "addLocalModule", "args": {"itemId": AUTOCANNON_ID}})
-    assert response.status_code == 401
+def test_commands_are_open_to_guests_but_stay_in_the_guest_database(client, user_client):
+    """A guest edits the shared guest database, not a pilot's.
+
+    Commands no longer ask for a login: a guest can fit modules onto a fit of the
+    guest database. What still holds is the database wall, so a command aimed at a
+    pilot's fit is the same 404 as one aimed at nothing.
+    """
+    guest_fit = make_fit(client, "Guest Edit")
+    response = run_command(client, guest_fit, "addLocalModule", itemId=AUTOCANNON_ID)
+    assert response.status_code == 200, response.text
+    # Leave the shared guest database as it was found
+    assert client.delete("/api/fits/{}".format(guest_fit)).status_code == 204
+
+    # A pilot's fit id means nothing in the guest database
+    pilot_fit = make_fit(user_client, "Pilot Edit")
+    response = run_command(client, pilot_fit, "addLocalModule", itemId=AUTOCANNON_ID)
+    assert response.status_code == 404
 
 
 def test_deleting_a_fit_forgets_its_undo_history(user_client):

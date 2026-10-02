@@ -139,17 +139,20 @@ itself -- including the tooltips, banners and empty states in the panels -- is t
 EVE SSO is the only login method: a user *is* an EVE character, which is also how
 their fits stay tied to the pilot that owns them.
 
-Signing in is not a gate in front of the page. Reads work without a session -- a request
-with no user is answered from a guest context, which is why the ship tree, the item
-browser and the stats panes draw for a visitor -- so what a session adds is the fits
-themselves, the live updates and every write. A click that writes (importing the in-game
-fittings, a new fit, fitting a module) therefore asks for the login at that point, in a
-dialog whose button comes back to the same page (`?next=`), rather than failing with an
-error the click cannot act on. Every `401` is reported to the shell (`onUnauthorized` in
+Signing in is not a gate in front of the page. A request with no user is answered from a
+shared guest context (`<data dir>/guest/saveddata.db`), and the guest gets the whole
+fitting workflow: the tree, the item browser, the stats, and creating, editing, saving
+and copying fits -- the two exceptions are the actions that act *as* the pilot, importing
+their in-game fittings and exporting a fit to their client, which are answered `401`
+until someone signs in. Those two ask for the login up front, in a dialog whose button
+comes back to the same page (`?next=`), rather than failing with an error the click
+cannot act on. Every `401` is reported to the shell (`onUnauthorized` in
 `web/frontend/src/api.ts`) and raises the same dialog
 (`web/frontend/src/components/LoginPrompt.vue`), so no write has to recognise it on its
 own. The top bar keeps a plain sign-in link while nobody is signed in and a sign-out
-button with the character name while somebody is.
+button with the character name while somebody is. Guests all share one database (and one
+live-update channel), so a signed-in pilot's fits are their own while anonymous visitors
+see each other's.
 
 You must register an application with CCP (<https://developers.eveonline.com>)
 whose **callback URL** is exactly `PYFA_WEB_PUBLIC_URL` + `sso.callback_path` --

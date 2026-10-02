@@ -22,13 +22,13 @@ const signInHref = computed(() => {
   return '/api/auth/login?next=' + encodeURIComponent(here || '/')
 })
 
-/** One sentence about the click that asked: importing, exporting and saving read differently. */
+/** One sentence about the click that asked: importing and exporting read differently. */
 const reason = computed(() => {
   if (session.loginPrompt === 'import')
     return t('Importing your EVE fits reads them from EVE as you, so it needs a login first.')
   if (session.loginPrompt === 'export')
     return t('Exporting a fit to your EVE character needs a login first.')
-  return t('Saving a change to a fit needs a login, so the server knows whose fit it is.')
+  return t('This needs a login.')
 })
 
 function onKey(event: KeyboardEvent) {

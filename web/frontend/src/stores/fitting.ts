@@ -249,7 +249,7 @@ export const useFittingStore = defineStore('fitting', {
       await this.send('renameFit', { name })
     },
 
-    /** Download the fit as EFT text. The one fit action that works signed out. */
+    /** Download the fit as EFT text. Open to guests like every other fit action. */
     async exportTxt() {
       if (!this.fit) return null
       this.exporting = true
@@ -333,15 +333,11 @@ export const useFittingStore = defineStore('fitting', {
 
     /**
      * A write with no fit open, from a pane that can be reached without one: the item
-     * browser's details pane draws signed out, so its "add" and "load" buttons are live
-     * with nothing to write to.
-     *
-     * Nobody signed in is why there is no fit, so ask for the login; a pilot who is signed
-     * in with nothing open gets the same silence those buttons have always given.
+     * browser's details pane draws without a fit, so its "add" and "load" buttons are
+     * live with nothing to write to. The buttons have always been silent then; now that
+     * guests get the same app, a guest without a fit is the same case.
      */
     promptForMissingFit() {
-      const session = useSessionStore()
-      if (!session.signedIn) session.promptLogin()
       return null
     },
 

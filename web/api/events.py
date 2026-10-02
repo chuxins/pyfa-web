@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from logbook import Logger
 
-from web.deps import require_user
+from web.deps import current_user, event_channel
 from web.events import bus
 
 pyfalog = Logger(__name__)
@@ -31,8 +31,11 @@ SSE_HEADERS = {
 
 
 @router.get("")
-async def stream(request: Request, user=Depends(require_user)):
-    queue = bus.subscribe(user.id)
+async def stream(request: Request, user=Depends(current_user)):
+    # Guests all work in the one shared guest database, so their browsers share a
+    # single channel ("guest") the way every browser of one pilot shares that pilot's.
+    channel = event_channel(user)
+    queue = bus.subscribe(channel)
 
     async def publisher():
         try:
@@ -50,7 +53,7 @@ async def stream(request: Request, user=Depends(require_user)):
         except asyncio.CancelledError:  # client went away
             raise
         finally:
-            bus.unsubscribe(user.id, queue)
-            pyfalog.debug("SSE stream closed for user {}", user.id)
+            bus.unsubscribe(channel, queue)
+            pyfalog.debug("SSE stream closed for channel {}", channel)
 
     return StreamingResponse(publisher(), media_type="text/event-stream", headers=SSE_HEADERS)

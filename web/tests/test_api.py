@@ -220,9 +220,37 @@ def test_a_race_row_carries_the_game_id_and_the_order_it_sits_in():
     assert race_row(32)["order"] == race_row(None)["order"]
 
 
-def test_anonymous_requests_cannot_touch_fits(client):
-    assert client.post("/api/fits", json={"shipId": RIFTER_ID}).status_code == 401
-    assert client.get("/api/fits").status_code == 200  # read is allowed, guest db is empty
+def test_anonymous_requests_get_the_full_fitting_workflow(client):
+    """A guest is the whole application minus the two EVE-character actions.
+
+    Guests build, edit and copy fits out of the shared guest database (which is why
+    this test removes what it created); only importing from and exporting to an EVE
+    character still asks for a login.
+    """
+    created = client.post("/api/fits", json={"shipId": RIFTER_ID, "name": "Guest Rifter"})
+    assert created.status_code == 201, created.text
+    fit_id = created.json()["id"]
+
+    # Edit it like the browser does: fit a module, then rename
+    edited = client.post("/api/fits/{}/commands".format(fit_id), json={
+        "command": "addLocalModule", "args": {"itemId": AUTOCANNON_ID},
+    })
+    assert edited.status_code == 200, edited.text
+    renamed = client.patch("/api/fits/{}".format(fit_id), json={"name": "Guest Renamed"})
+    assert renamed.status_code == 200
+    assert renamed.json()["name"] == "Guest Renamed"
+
+    # Copy it out as EFT text -- the export that was meant to work signed out
+    exported = client.get("/api/fits/{}/export-txt".format(fit_id))
+    assert exported.status_code == 200
+    assert exported.text.splitlines()[0] == "[Rifter, Guest Renamed]"
+
+    # The two actions that act as the pilot still need the pilot's login
+    assert client.post("/api/esi/fittings/import").status_code == 401
+    assert client.post("/api/esi/fittings/export", json={"fitId": fit_id}).status_code == 401
+
+    # Leave the shared guest database as it was found
+    assert client.delete("/api/fits/{}".format(fit_id)).status_code == 204
 
 
 def test_ship_detail(client):

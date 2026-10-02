@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from logbook import Logger
 from pydantic import BaseModel, Field
 
-from web.deps import get_user_data, require_user
+from web.deps import event_channel, get_user_data, user_or_guest
 from web.events import publish
 from web.services import commands as commandService
 from web.services.serialize import serialize_fit, serialize_fit_summary
@@ -84,8 +84,13 @@ def list_fits(
 
 
 @router.post("", status_code=201)
-def create_fit(payload: FitCreate, user=Depends(require_user)):
-    """Create an empty fit for a ship."""
+def create_fit(payload: FitCreate, user=Depends(user_or_guest)):
+    """Create an empty fit for a ship.
+
+    Open to guests like every other write: their fits live in the shared guest
+    database, and only the two actions that talk to EVE as the pilot (importing
+    and exporting via ESI) are login-only.
+    """
     sFit = _service_fit()
     try:
         fitId = sFit.newFit(payload.shipId, name=payload.name)
@@ -94,7 +99,7 @@ def create_fit(payload: FitCreate, user=Depends(require_user)):
     except Exception as ex:
         pyfalog.exception("Failed to create fit for ship {}", payload.shipId)
         raise HTTPException(status_code=400, detail=str(ex))
-    publish(user.id, "fit.created", fitId=fitId)
+    publish(event_channel(user), "fit.created", fitId=fitId)
     return serialize_fit(sFit.getFit(fitId), includeStats=False)
 
 
@@ -121,8 +126,8 @@ def get_fit_stats(fit_id: int, sections: str | None = Query(None)):
 
 
 @router.patch("/{fit_id}")
-def update_fit(fit_id: int, payload: FitUpdate, user=Depends(require_user)):
-    """Rename a fit, edit its notes, or toggle its flags."""
+def update_fit(fit_id: int, payload: FitUpdate, user=Depends(user_or_guest)):
+    """Rename a fit, edit its notes, or toggle its flags. Open to guests."""
     import eos.db
 
     fit = _require_fit(fit_id)
@@ -150,32 +155,32 @@ def update_fit(fit_id: int, payload: FitUpdate, user=Depends(require_user)):
     if any(field in changed for field in ("factorReload", "ignoreRestrictions")):
         sFit.recalc(fit)
         sFit.fill(fit)
-    publish(user.id, "fit.changed", fitIds=[fit_id], action="update")
+    publish(event_channel(user), "fit.changed", fitIds=[fit_id], action="update")
     return serialize_fit(fit, includeStats=False)
 
 
 @router.post("/{fit_id}/duplicate", status_code=201)
-def duplicate_fit(fit_id: int, user=Depends(require_user)):
-    """Copy a fit; the copy is owned by the same user."""
+def duplicate_fit(fit_id: int, user=Depends(user_or_guest)):
+    """Copy a fit; the copy lands in the same database, the caller's own or the guest's."""
     import eos.db
 
     fit = _require_fit(fit_id)
     clone = copy.deepcopy(fit)
     clone.name = "{} (copy)".format(fit.name)
     eos.db.save(clone)
-    publish(user.id, "fit.created", fitId=clone.ID)
+    publish(event_channel(user), "fit.created", fitId=clone.ID)
     return serialize_fit_summary(clone)
 
 
 @router.delete("/{fit_id}", status_code=204)
-def delete_fit(fit_id: int, user=Depends(require_user), userData=Depends(get_user_data)):
+def delete_fit(fit_id: int, user=Depends(user_or_guest), userData=Depends(get_user_data)):
     _require_fit(fit_id)
     _service_fit().deleteFit(fit_id)
     # The engine only forgets its own per-fit stack; ours is keyed per user, so
     # without this the deleted fit's commands would outlive it, and a later fit
     # reusing the id would inherit them.
     commandService.clear_history(userData, fit_id)
-    publish(user.id, "fit.removed", fitIds=[fit_id])
+    publish(event_channel(user), "fit.removed", fitIds=[fit_id])
     return None
 
 

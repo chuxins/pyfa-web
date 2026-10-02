@@ -58,10 +58,11 @@ def test_session_cookie_resolves_with_the_prefix_on_the_path(app_state, make_use
         "root_path": PREFIX,
         "headers": _cookie_header(app_state, user.id),
     }
-    resolved = middleware._resolve_user(scope)
+    resolved, locked_out = middleware._resolve_user(scope)
 
     assert resolved is not None, "a valid session cookie must survive the mount prefix"
     assert resolved.id == user.id
+    assert locked_out is False
 
 
 def test_session_cookie_still_resolves_without_a_root_path(app_state, make_user):
@@ -77,7 +78,7 @@ def test_session_cookie_still_resolves_without_a_root_path(app_state, make_user)
         "headers": _cookie_header(app_state, user.id),
     }
 
-    assert middleware._resolve_user(scope).id == user.id
+    assert middleware._resolve_user(scope)[0].id == user.id
 
 
 def test_no_cookie_means_no_user_even_under_a_prefix(app_state):
@@ -87,9 +88,31 @@ def test_no_cookie_means_no_user_even_under_a_prefix(app_state):
 
     assert middleware._resolve_user(
         {"type": "http", "path": PREFIX + "/api/auth/me", "root_path": PREFIX, "headers": []}
-    ) is None
+    ) == (None, False)
     # Pages are not the API: no account lookup there, prefixed or not
     assert middleware._resolve_user(
         {"type": "http", "path": PREFIX + "/", "root_path": PREFIX,
          "headers": _cookie_header(app_state, 1)}
-    ) is None
+    ) == (None, False)
+
+
+def test_a_disabled_account_resolves_to_no_user_but_is_marked_locked_out(app_state, make_user):
+    """A locked-out cookie is not an anonymous one: writes refuse it instead of
+    demoting the pilot to a guest with write access to the shared database."""
+    from web.deps import UserContextMiddleware
+
+    user = make_user("Disabled Pilot").pyfaUser
+    middleware = UserContextMiddleware(None, app_state)
+
+    scope = {
+        "type": "http",
+        "path": "/api/auth/me",
+        "root_path": "",
+        "headers": _cookie_header(app_state, user.id),
+    }
+    resolved_user, locked_out = middleware._resolve_user(scope)
+    assert resolved_user.id == user.id  # a fresh ORM row, so compare by id, not identity
+    assert locked_out is False
+
+    app_state.users.set_disabled(user.id, True)
+    assert middleware._resolve_user(scope) == (None, True)

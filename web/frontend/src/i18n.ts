@@ -39,17 +39,12 @@ const ZH_CN: Record<string, string> = {
   'Sign out': '退出登录',
   'Sign in with EVE': '使用 EVE 登录',
   'Sign in to continue': '请先登录',
-  'Browsing ships and items works signed out; saving a fit needs an EVE login.':
-    '未登录也可以浏览舰船和物品；保存装配需要先登录。',
   'Importing your EVE fits reads them from EVE as you, so it needs a login first.':
     '导入 EVE 装配需要以你的身份向 EVE 读取，请先登录。',
   'Exporting a fit to your EVE character needs a login first.':
     '把装配保存到你的 EVE 角色需要先登录。',
-  'Saving a change to a fit needs a login, so the server knows whose fit it is.':
-    '保存装配改动需要登录，服务器才能知道这是谁的装配。',
+  'This needs a login.': '此操作需要登录。',
   Cancel: '取消',
-  'Sign in to build fits': '登录后即可配置装配',
-  'EVE SSO is how pyfa web knows whose fits to load.': 'pyfa web 通过 EVE SSO 判断该加载谁的装配。',
   'EVE SSO is not configured on this server.': '此服务器未配置 EVE SSO。',
   'Set PYFA_WEB_SSO_CLIENT_ID, or run the server with --dev-login for development.':
     '请设置 PYFA_WEB_SSO_CLIENT_ID，或在开发时用 --dev-login 启动服务器。',

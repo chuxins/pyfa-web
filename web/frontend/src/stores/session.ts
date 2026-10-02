@@ -5,7 +5,8 @@ import { initLocale } from '@/i18n'
 /**
  * Why the sign-in prompt is on screen: `import` names the EVE fittings import and
  * `export` the saving of a fit into the EVE client -- the two actions that ask for a
- * login before they try -- `any` is every other write the server answered 401 to.
+ * login before they try. `any` is the fallback for a write the server still answered
+ * 401 to (a session that expired mid-use).
  */
 export type LoginReason = 'import' | 'export' | 'any'
 

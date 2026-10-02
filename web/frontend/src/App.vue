@@ -55,16 +55,14 @@ onMounted(async () => {
   }
 
   await session.load()
-  // The tree is readable without a session -- the server falls back to guest game data --
-  // so the ship list, the item browser and the stats panes are there from the start. The
-  // fits themselves and the live stream are what a session adds.
+  // The tree, the fit list, the live stream and the assembly page are all open to
+  // everyone: a guest works in the shared guest database, and only the two actions
+  // that act as the pilot (importing from / exporting to EVE) ask for a login.
   await browser.loadTree()
-  if (session.signedIn) {
-    fitting.connect()
-    // Land on the fit last worked on: the assembly page is the view to come up on, rather
-    // than an empty frame between the browser and the stats.
-    await fitting.openLast()
-  }
+  fitting.connect()
+  // Land on the fit last worked on: the assembly page is the view to come up on, rather
+  // than an empty frame between the browser and the stats.
+  await fitting.openLast()
 })
 
 onUnmounted(() => {
@@ -106,7 +104,7 @@ function changeLocale(event: Event) {
         </button>
         <button :disabled="fitting.busy" @click="fitting.reset()">{{ t('Clear fit') }}</button>
         <button :disabled="fitting.exporting" @click="fitting.exportTxt()">{{ t('Export TXT') }}</button>
-        <button v-if="session.signedIn" :disabled="fitting.exporting" @click="fitting.exportToGame()">
+        <button :disabled="fitting.exporting" @click="fitting.exportToGame()">
           {{ t('Export to Game') }}
         </button>
         <span v-if="fitting.exporting" class="dim">{{ t('exporting…') }}</span>
@@ -141,24 +139,8 @@ function changeLocale(event: Event) {
       <section class="center">
         <FittingView v-if="fitting.fit" />
         <div v-else class="placeholder">
-          <!-- Signed out the page is still the whole application: it is the writes that
-               need an account, and the click that asks for one raises the sign-in dialog -->
-          <template v-if="session.signedIn">
-            <h2>{{ t('No fit open') }}</h2>
-            <p class="dim">{{ t('Pick a ship on the left, then open one of its fits or create a new one.') }}</p>
-          </template>
-          <template v-else>
-            <h2>{{ t('Sign in to build fits') }}</h2>
-            <p class="dim">
-              {{ t('Browsing ships and items works signed out; saving a fit needs an EVE login.') }}
-            </p>
-            <p class="dim">{{ t('EVE SSO is how pyfa web knows whose fits to load.') }}</p>
-            <a :href="signInHref"><button class="primary">{{ t('Sign in with EVE') }}</button></a>
-            <p v-if="!session.sso.configured" class="dim hint">
-              {{ t('EVE SSO is not configured on this server.') }}
-              {{ t('Set PYFA_WEB_SSO_CLIENT_ID, or run the server with --dev-login for development.') }}
-            </p>
-          </template>
+          <h2>{{ t('No fit open') }}</h2>
+          <p class="dim">{{ t('Pick a ship on the left, then open one of its fits or create a new one.') }}</p>
         </div>
       </section>
 
