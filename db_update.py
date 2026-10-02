@@ -27,6 +27,7 @@ import os
 import re
 import sqlite3
 import sys
+import time
 
 import sqlalchemy.orm
 from sqlalchemy import or_, and_
@@ -125,7 +126,17 @@ def update_db():
         # pyfa-web: see _release_gamedata_connections(). Without this the very first
         # start of a fresh checkout fails with "no such table: alphaClones".
         _release_gamedata_connections()
-        os.remove(DB_PATH)
+        # Windows cannot unlink a file another handle still holds (a pooled SQLite
+        # connection that dispose() has not released yet, or an antivirus scan), so
+        # wait a moment and retry before giving up.
+        for _attempt in range(5):
+            try:
+                os.remove(DB_PATH)
+                break
+            except PermissionError:
+                if _attempt == 4:
+                    raise
+                time.sleep(1)
 
     import eos.db
     import eos.gamedata
