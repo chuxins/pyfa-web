@@ -12,7 +12,7 @@
 | pyfa 版本 | `v2.69.0`（`version.yml`）；web 版本 `0.1.0` |
 | 抽取时间 | 2026-10-01 |
 | 抽取方式 | 从 `web/__main__.py`、`web/main.py` 入口做 AST 导入闭包 → 366 个 `.py`，零未解析导入；再逐个 `diff -rq` 与原仓库比对一致；`compileall` 无错误 |
-| 线上部署 | `https://eve-tools.xyz/eveskillplanner/`（2026-10-01 上线，见 §8） |
+| 线上部署 | `https://eve-tools.xyz/AssemblyPlanning/`（2026-10-01 上线，2026-10-02 迁到 `/AssemblyPlanning`，见 §8、§9） |
 
 ## 2. 目录内容
 
@@ -231,6 +231,12 @@ npm 9.2.0），按 `web/docs/web.md` 的做法 `npm ci && npm run build`（vite 
 
 ## 8. 线上部署：https://eve-tools.xyz/eveskillplanner/
 
+> **2026-10-02 路径迁移**：站点前缀由 `/eveskillplanner/` 改为 `/AssemblyPlanning/`（nginx 的
+> `location`、内部 `rewrite`/`proxy_redirect`/`sub_filter` 与 `web.yml` 的 `public_url`/`root_path`
+> 同步改名，SSO 回调改为 `…/AssemblyPlanning/api/auth/callback`）。本节其余内容保留迁移前的原文。
+>
+> **2026-10-02 起自动部署**：本目录在服务器上已是 git 克隆，push 到 `master` 即自动更新（见 §9）。
+
 2026-10-01 起本目录即该地址的后端，取代原 `eve-skill-planner`（Flask + Vue，`127.0.0.1:8090`）。
 
 | 项 | 值 |
@@ -358,3 +364,96 @@ cd /opt/pyfa-web && .venv/bin/python -c \
 > 仍留在反代的那几条 `sub_filter` 前缀改写（§7）是有意保留的：Vite `base` 未改，重建后它们照旧生效。
 
 
+## 9. 自动部署（push 即部署 + 兜底轮询）
+
+2026-10-02 起本目录在服务器上是 **git 克隆**（`origin=https://github.com/chuxins/pyfa-web.git`，分支 `master`），
+push 到 `master` 后由 GitHub Actions 经 SSH 以 `deploy` 用户执行 `deploy/auto-update.sh`；
+服务器上的 `pyfa-web-update.timer`（每 2 分钟）作为兜底轮询，防 Actions 链路偶发失败。
+
+| 项 | 值 |
+| --- | --- |
+| 仓库侧 | `deploy/auto-update.sh`、`deploy/pyfa-web.service` + `deploy/pyfa-web.service.d/memory.conf`、`deploy/pyfa-web-update.service`、`deploy/pyfa-web-update.timer`、`.github/workflows/deploy.yml`、`.gitattributes`（部署文件统一 LF） |
+| 服务器侧 | 部署用户 `deploy`（附加组 `pyfaweb`）；`/etc/sudoers.d/pyfaweb-deploy`（NOPASSWD 只放 `systemctl restart/status pyfa-web`）；`/etc/gitconfig` 的 `safe.directory=/opt/pyfa-web`；仓库 `core.sharedRepository=group` |
+| 仓库可见性 | **公开仓库**，服务器用 https 匿名只读拉取，**不需要 Deploy Key** |
+| Actions secrets | `SSH_HOST=8.156.88.102`、`SSH_USER=deploy`、`SSH_KEY`（对应公钥在 `/home/deploy/.ssh/authorized_keys`） |
+| 触发 | `push` 到 `master`（也可在 Actions 页 `workflow_dispatch` 手动跑）；`pyfa-web-update.timer` 每 2 分钟兜底 |
+| 受保护数据 | `web.yml`、`web.env`、`eve.db*`、`webdata/`、`saveddata/`、`session.key`、`logs/` 均在 `.gitignore` 内；脚本用 `git reset --hard`，**绝不**执行 `git clean` |
+| 依赖更新 | 仅当 `pyproject.toml`/`uv.lock` 有变化时，把 `[project.dependencies]` + `[project.optional-dependencies].web` 的 pinned 清单装进 `/opt/pyfa-web/.venv`；**解析不出依赖就报错退出且不重启**，旧版本继续可用 |
+| 健康检查 | `http://127.0.0.1:8091/api/meta`，30 次 × 2 秒内拿到 200 才算成功，否则打印服务日志尾部并失败 |
+
+### 9.1 服务器一次性配置
+
+```bash
+# 1) 部署用户：公钥即 Actions 用的那把私钥对应的公钥
+useradd -m -s /bin/bash deploy
+install -d -m 700 -o deploy -g deploy /home/deploy/.ssh
+cat /root/.ssh/github_actions.pub >> /home/deploy/.ssh/authorized_keys
+chown deploy:deploy /home/deploy/.ssh/authorized_keys
+chmod 600 /home/deploy/.ssh/authorized_keys
+
+# 2) 组权限：deploy 靠附加组 pyfaweb + 目录 g+w 写仓库
+usermod -aG pyfaweb deploy
+chown -R pyfaweb:pyfaweb /opt/pyfa-web
+chown root:pyfaweb /opt/pyfa-web/web.yml /opt/pyfa-web/web.env   # 配置/密钥不进组可写
+chmod -R g+w /opt/pyfa-web
+chmod 640 /opt/pyfa-web/web.yml /opt/pyfa-web/web.env
+git -C /opt/pyfa-web config core.sharedRepository group
+git config --system --add safe.directory /opt/pyfa-web
+
+# 3) sudoers（只给重启/查状态，NOPASSWD）
+printf 'deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart pyfa-web, /usr/bin/systemctl status pyfa-web\n' \
+  > /etc/sudoers.d/pyfaweb-deploy
+chmod 440 /etc/sudoers.d/pyfaweb-deploy && visudo -cf /etc/sudoers.d/pyfaweb-deploy
+
+# 4) 兜底定时器
+install -m 644 /opt/pyfa-web/deploy/pyfa-web-update.service /etc/systemd/system/
+install -m 644 /opt/pyfa-web/deploy/pyfa-web-update.timer   /etc/systemd/system/
+systemctl daemon-reload && systemctl enable --now pyfa-web-update.timer
+
+# 5) 排查要点
+#    - sudoers 按「命令+参数」精确匹配：脚本里必须写成 sudo -n /usr/bin/systemctl restart pyfa-web，
+#      多带 --no-pager 之类参数就会匹配失败；
+#    - deploy 的私钥不要留在服务器上（否则拿到 deploy 就等于拿到 root）；
+#    - 首次可手工跑一次：sudo -u deploy bash /opt/pyfa-web/deploy/auto-update.sh（无更新会打印「已是最新」）。
+```
+
+### 9.2 部署参数（环境变量覆盖）
+
+| 变量 | 默认值 | 说明 |
+| --- | --- | --- |
+| `PYFAWEB_APP_DIR` | `/opt/pyfa-web` | 部署目录 |
+| `PYFAWEB_APP_USER` | `pyfaweb` | 服务用户（脚本以 root 跑时降权到它，保证新文件属主一致） |
+| `PYFAWEB_BRANCH` | `master` | 跟踪分支 |
+| `PYFAWEB_SERVICE` | `pyfa-web` | 重启的 unit 名 |
+| `PYFAWEB_HEALTH_URL` | `http://127.0.0.1:8091/api/meta` | 健康检查地址；端口与 `web.yml` 不一致时改这里 |
+| `PYFAWEB_HEALTH_TRIES` | `30` | 健康检查重试次数 |
+| `PYFAWEB_HEALTH_INTERVAL` | `2` | 每次重试间隔（秒） |
+
+覆盖方式：在 `deploy/pyfa-web-update.service` 里加 `Environment=`（文件里留有注释示例），
+或在 Actions 里导出后执行脚本。改动 unit 后记得 `systemctl daemon-reload`。
+
+### 9.3 运维命令
+
+```bash
+sudo -u deploy bash /opt/pyfa-web/deploy/auto-update.sh   # 手动跑一次更新
+systemctl list-timers pyfa-web-update.timer --no-pager    # 兜底定时器
+journalctl -u pyfa-web-update.service -n 50               # 定时器触发的更新日志
+journalctl -u pyfa-web -n 50                              # 服务自身日志
+gh run list --repo chuxins/pyfa-web --limit 5             # Actions 侧执行记录
+git -C /opt/pyfa-web log --oneline -3                     # 服务器当前版本
+```
+
+### 9.4 回滚
+
+```bash
+systemctl disable --now pyfa-web-update.timer             # 先停兜底轮询
+# （同时在 GitHub 上禁用/删除 deploy workflow，避免推送后又被自动更新）
+sudo -u deploy git -C /opt/pyfa-web fetch origin master
+sudo -u deploy git -C /opt/pyfa-web reset --hard <commit> # 例如上一个已知可用提交
+sudo systemctl restart pyfa-web
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8091/api/meta   # 期望 200
+```
+
+`web.yml`/`web.env`/数据库等运行数据不在版本控制内，回滚代码不影响它们；
+如果回滚跨越了依赖变更，还需要手工把 `.venv` 调整回对应版本
+（`/opt/pyfa-web/.venv/bin/python -m pip install <pinned 列表>`）。
