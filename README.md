@@ -480,7 +480,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8091/api/meta   # 期�
 | 更新后状态 | 服务器 `git log` 与 `origin/master` 一致、`git status` 干净；`README` §9 存在；服务 `active`、`/api/meta` 200 |
 | 权限 | 更新由 `deploy` 执行，文件组仍是 `pyfaweb`（目录 setgid 生效）、仓库属主 `pyfaweb` 可继续写；`web.yml`/`web.env` 仍为 `640 root:pyfaweb`，`git reset --hard` 未触碰（`.gitignore` 覆盖） |
 | 幂等 | 无新提交时再跑脚本只打印「已是最新」，不重启服务 |
-| 连续上线 | commit C/D/E 的 push 各触发一次，日志依次为 `更新 1a471274f558 -> 53f987759107`、`更新 53f987759107 -> bf0189b33222`、`更新 bf0189b33222 -> <E>`，均 `健康检查通过（HTTP 200）`；`workflow_dispatch` 复跑一次得到「已是最新」 |
+| 连续上线 | 连续多次 `push` 各触发一次，日志形状固定为 `[auto-update] 更新 <旧> -> <新>` → `HEAD is now at …` → `已重启 pyfa-web，等待健康检查通过` → `健康检查通过（第 N 次尝试，HTTP 200）`（实测第 2~3 次尝试即通过，一次上线 16~20 秒）；没有新提交时用 `workflow_dispatch` 复跑得到「已是最新」 |
 | 踩过的坑（已修） | 维护时**用 root 在仓库里跑过一次 git**，生成的 `.git/FETCH_HEAD` 是 `644 pyfaweb:pyfaweb`，部署用户 `deploy` 虽在组 `pyfaweb` 内也写不动 → 一次 Actions 失败（`error: cannot open '.git/FETCH_HEAD': Permission denied`）。修法：目录 setgid + 组可写（`chmod -R g+w`）+ 脚本 `umask 002`（`runuser` 分支再显式套一层，防 PAM 改回 022）+ fetch 失败提示修法（root 运行自动修正重试） |
 | 落地权限 | `deploy` 经 git 新建/覆盖的文件为 `deploy:pyfaweb`（目录 setgid 继承），`auto-update.sh` 落地后仍是 `775`（保留可执行位）；`web.yml`/`web.env` 始终 `640 root:pyfaweb`，`reset --hard` 不触碰 |
 | 并发 | 持锁 5 秒期间再跑脚本实测等待 5 秒（串行化生效）；把锁文件改成 `600` 使其打不开时脚本仍能正常完成（降级为无锁） |
