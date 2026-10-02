@@ -396,6 +396,7 @@ usermod -aG pyfaweb deploy
 chown -R pyfaweb:pyfaweb /opt/pyfa-web
 chown root:pyfaweb /opt/pyfa-web/web.yml /opt/pyfa-web/web.env   # 配置/密钥不进组可写
 chmod -R g+w /opt/pyfa-web
+find /opt/pyfa-web -type d -exec chmod g+s {} +                     # setgid：deploy 新建文件自动归组 pyfaweb
 chmod 640 /opt/pyfa-web/web.yml /opt/pyfa-web/web.env
 git -C /opt/pyfa-web config core.sharedRepository group
 git config --system --add safe.directory /opt/pyfa-web
@@ -413,6 +414,9 @@ systemctl daemon-reload && systemctl enable --now pyfa-web-update.timer
 # 5) 排查要点
 #    - sudoers 按「命令+参数」精确匹配：脚本里必须写成 sudo -n /usr/bin/systemctl restart pyfa-web，
 #      多带 --no-pager 之类参数就会匹配失败；
+#    - 目录要加 setgid（find -type d -exec chmod g+s）：否则 deploy 用 git 新建/覆盖的文件
+#      会变成 deploy:deploy，与仓库属主 pyfaweb 不一致（功能上仍可用，但组语义混乱）；
+#      加 setgid 后新文件是 deploy:pyfaweb，组 pyfaweb 始终有权限；
 #    - deploy 的私钥不要留在服务器上（否则拿到 deploy 就等于拿到 root）；
 #    - 首次可手工跑一次：sudo -u deploy bash /opt/pyfa-web/deploy/auto-update.sh（无更新会打印「已是最新」）。
 ```
@@ -457,3 +461,17 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8091/api/meta   # 期�
 `web.yml`/`web.env`/数据库等运行数据不在版本控制内，回滚代码不影响它们；
 如果回滚跨越了依赖变更，还需要手工把 `.venv` 调整回对应版本
 （`/opt/pyfa-web/.venv/bin/python -m pip install <pinned 列表>`）。
+
+### 9.5 首次验证结果（2026-10-02）
+
+| 检查 | 结果 |
+| --- | --- |
+| 一次性配置 | `deploy` 建好（uid 1000，附加组 `pyfaweb`）；`/etc/sudoers.d/pyfaweb-deploy` `visudo -cf` 解析通过；`/etc/gitconfig` 的 `safe.directory=/opt/pyfa-web` 生效（`sudo -u deploy git status` 正常）；目录 2775（setgid）、`core.sharedRepository=group` |
+| 兜底定时器 | `pyfa-web-update.timer` `enabled`+`active`，首次自触发即 `[auto-update] 已是最新（e2a4450f162f），无需更新`，`status=0/SUCCESS` |
+| sudoers 边界 | `sudo -u deploy sudo -n /usr/bin/systemctl restart pyfa-web` 成功；同一用户带额外参数（如 `status … --no-pager`）会被拒绝 —— sudoers 按「命令+参数」精确匹配，脚本里因此不附加参数 |
+| SSH 通道 | 用 Actions 那把密钥以 `deploy` 登录成功（`id -un` = deploy，`groups` = deploy pyfaweb） |
+| push 即部署（Actions） | 提交 → `Deploy to server` 作业 16 秒内 `success`，日志：`[auto-update] 更新 e2a4450f162f -> 1a471274f558` → `HEAD is now at 1a47127 …` → `已重启 pyfa-web，等待健康检查通过` → `健康检查通过（第 2 次尝试，HTTP 200）` |
+| 更新后状态 | 服务器 `git log` 与 `origin/master` 一致、`git status` 干净；`README` §9 存在；服务 `active`、`/api/meta` 200 |
+| 权限 | 更新由 `deploy` 执行，文件组仍是 `pyfaweb`（目录 setgid 生效）、仓库属主 `pyfaweb` 可继续写；`web.yml`/`web.env` 仍为 `640 root:pyfaweb`，`git reset --hard` 未触碰（`.gitignore` 覆盖） |
+| 幂等 | 无新提交时再跑脚本只打印「已是最新」，不重启服务 |
+
