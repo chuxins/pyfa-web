@@ -1,0 +1,26 @@
+[Unit]
+Description=pyfa-web（EVE 装配模拟 / 技能规划，FastAPI @127.0.0.1:8091）
+Documentation=file:///opt/pyfa-web/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pyfaweb
+Group=pyfaweb
+WorkingDirectory=/opt/pyfa-web
+# 非敏感配置在 /opt/pyfa-web/web.yml；密钥单独放 web.env（640 root:pyfaweb）
+EnvironmentFile=/opt/pyfa-web/web.env
+# 入口会先跑 headless 引擎引导（必要时重建 eve.db）再开始监听 8091
+ExecStart=/opt/pyfa-web/.venv/bin/python -m web
+Restart=always
+RestartSec=5
+# 引擎关闭/空闲用户回收需要时间
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target

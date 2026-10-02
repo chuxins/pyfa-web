@@ -1,0 +1,10 @@
+[Unit]
+Description=Periodic pyfa-web auto-update (fallback polling)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+Unit=pyfa-web-update.service
+
+[Install]
+WantedBy=timers.target

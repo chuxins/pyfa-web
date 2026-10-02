@@ -1,0 +1,34 @@
+name: Deploy to server
+
+# push 到 master 后，经 SSH 到服务器以 deploy 用户执行自动更新（即时更新）；
+# 服务器上的 pyfa-web-update.timer 作为兜底轮询（每 2 分钟）。
+#
+# 需要的仓库 Secrets：
+#   SSH_HOST  服务器公网地址（如 8.156.88.102）
+#   SSH_USER  deploy
+#   SSH_KEY   deploy 私钥（其公钥在 /home/deploy/.ssh/authorized_keys）
+on:
+  push:
+    branches: [master]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-pyfa-web
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH 到服务器执行自动更新
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh -i ~/.ssh/id_deploy -o IdentitiesOnly=yes \
+            "$SSH_USER@$SSH_HOST" 'bash /opt/pyfa-web/deploy/auto-update.sh'

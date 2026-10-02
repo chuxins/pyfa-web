@@ -1,0 +1,15 @@
+[Unit]
+Description=pyfa-web auto-update (git fetch + deps + restart + health check)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# 以 deploy 运行：仓库靠「附加组 pyfaweb + g+w + core.sharedRepository=group」可写，
+# 重启走 /etc/sudoers.d/pyfaweb-deploy 里的 NOPASSWD systemctl restart pyfa-web；
+# 用 /bin/bash 显式调用，避免 Windows 检出/权限位丢失导致脚本无法执行。
+User=deploy
+Group=pyfaweb
+ExecStart=/bin/bash /opt/pyfa-web/deploy/auto-update.sh
+# 健康检查地址与 web.yml 的 port 不一致时在这里覆盖（默认 8091，见 README §9）
+#Environment=PYFAWEB_HEALTH_URL=http://127.0.0.1:8091/api/meta
