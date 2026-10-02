@@ -20,10 +20,18 @@
 #
 # 可覆盖参数（systemd 单元里用 Environment= 设，或临时导出）：
 #   PYFAWEB_APP_DIR / PYFAWEB_APP_USER / PYFAWEB_BRANCH / PYFAWEB_SERVICE
-#   PYFAWEB_HEALTH_URL / PYFAWEB_HEALTH_TRIES / PYFAWEB_HEALTH_INTERVAL
+#   PYFAWEB_HEALTH_URL / PYFAWEB_HEALTH_TRIES / PYFAWEB_HEALTH_INTERVAL / PYFAWEB_LOCK
 set -euo pipefail
 # 组共享仓库：新建文件/目录对组可写（配合 core.sharedRepository=group 与目录 setgid）
 umask 002
+
+# 并发保护：定时器（每 2 分钟）与 Actions 可能同时触发同一次更新，
+# 用 flock 串行化，后到的排队等前一个跑完（再判断一次就多半是「已是最新」）。
+# 打不开锁文件时（例如锁文件被别人以不可写权限建过）不阻塞部署，按无锁继续。
+LOCK_FILE=${PYFAWEB_LOCK:-/run/lock/pyfa-web-update.lock}
+if command -v flock >/dev/null 2>&1 && exec 9>"$LOCK_FILE" 2>/dev/null; then
+  flock 9
+fi
 
 APP_DIR=${PYFAWEB_APP_DIR:-/opt/pyfa-web}
 APP_USER=${PYFAWEB_APP_USER:-pyfaweb}
