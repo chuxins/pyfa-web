@@ -12,12 +12,18 @@
 #     /etc/gitconfig 的 safe.directory 放行（一次性配置见 README §9）；
 #   - web.yml / web.env / eve.db / webdata/ / saveddata/ / *.db / session.key 都在
 #     .gitignore 里，git reset --hard 不会触碰它们；本脚本也**绝不**执行 git clean；
-#   - 重启走 sudoers 里给 deploy 的 NOPASSWD systemctl restart pyfa-web。
+#   - 重启走 sudoers 里给 deploy 的 NOPASSWD systemctl restart pyfa-web；
+#   - 组共享细节：脚本 umask 002 + 目录 setgid + core.sharedRepository=group，
+#     保证 deploy 新建的文件（含 .git/FETCH_HEAD 这种普通 open 建的文件）对组
+#     pyfaweb 可写；请勿用 root 直接在仓库里跑 git —— root 建的文件是普通 umask，
+#     会把 deploy 挡在 .git/FETCH_HEAD 上（脚本会给修复提示，root 运行时还会自动重试）。
 #
 # 可覆盖参数（systemd 单元里用 Environment= 设，或临时导出）：
 #   PYFAWEB_APP_DIR / PYFAWEB_APP_USER / PYFAWEB_BRANCH / PYFAWEB_SERVICE
 #   PYFAWEB_HEALTH_URL / PYFAWEB_HEALTH_TRIES / PYFAWEB_HEALTH_INTERVAL
 set -euo pipefail
+# 组共享仓库：新建文件/目录对组可写（配合 core.sharedRepository=group 与目录 setgid）
+umask 002
 
 APP_DIR=${PYFAWEB_APP_DIR:-/opt/pyfa-web}
 APP_USER=${PYFAWEB_APP_USER:-pyfaweb}
@@ -36,14 +42,30 @@ cd "$APP_DIR"
 # 脚本本身以 pyfaweb 或 deploy 运行时直接执行：前者就是本人，后者靠组权限。
 run_as_app() {
   if [ "$(id -u)" = 0 ]; then
-    runuser -u "$APP_USER" -- "$@"
+    # 再用 bash -c 显式套一层 umask 002：runuser 的 PAM 会话可能把 umask 改回 022
+    runuser -u "$APP_USER" -- bash -c 'umask 002; exec "$@"' _ "$@"
   else
     "$@"
   fi
 }
 
 before=$(run_as_app git rev-parse HEAD)
-run_as_app git fetch --quiet origin "$BRANCH"
+
+# fetch：失败时给出可执行的修复提示；脚本以 root 运行时还能自行按组共享修正后重试一次
+# （典型故障：.git/FETCH_HEAD 曾被 root 以 644 建过，deploy 虽在组 pyfaweb 也写不动）
+if ! run_as_app git fetch --quiet origin "$BRANCH"; then
+  if [ "$(id -u)" = 0 ]; then
+    log "git fetch 失败，按组共享修正 $APP_DIR/.git 权限后重试"
+    chmod -R g+w "$APP_DIR/.git" || true
+  fi
+  if ! run_as_app git fetch --quiet origin "$BRANCH"; then
+    log "git fetch 失败。若为 Permission denied（.git/FETCH_HEAD 等），请在服务器以 root 执行："
+    log "  chmod -R g+w $APP_DIR/.git"
+    log "并避免用 root 直接在仓库里跑 git（它建的文件不带组可写）。"
+    exit 1
+  fi
+fi
+
 after=$(run_as_app git rev-parse "origin/$BRANCH")
 
 if [ "$before" = "$after" ]; then
