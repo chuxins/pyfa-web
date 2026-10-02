@@ -31,6 +31,9 @@ const ZH_CN: Record<string, string> = {
   Redo: '恢复',
   'Clear fit': '清空装配',
   'working…': '处理中…',
+  'Export TXT': '导出 TXT',
+  'Export to Game': '导出到游戏',
+  'exporting…': '导出中…',
   'Hide item browser': '隐藏物品浏览器',
   'Show item browser': '显示物品浏览器',
   'Sign out': '退出登录',
@@ -40,6 +43,8 @@ const ZH_CN: Record<string, string> = {
     '未登录也可以浏览舰船和物品；保存装配需要先登录。',
   'Importing your EVE fits reads them from EVE as you, so it needs a login first.':
     '导入 EVE 装配需要以你的身份向 EVE 读取，请先登录。',
+  'Exporting a fit to your EVE character needs a login first.':
+    '把装配保存到你的 EVE 角色需要先登录。',
   'Saving a change to a fit needs a login, so the server knows whose fit it is.':
     '保存装配改动需要登录，服务器才能知道这是谁的装配。',
   Cancel: '取消',
@@ -241,6 +246,8 @@ const ZH_CN: Record<string, string> = {
   'No fitted module can load this charge': '没有已装配的装备能装填该弹药',
   'Loaded into {count} modules': '已装填到 {count} 个装备',
   'This fit was deleted': '该装配已被删除',
+  'Exported {name} as text': '已将「{name}」导出为文本',
+  "Saved '{name}' to {character} in EVE": '已把「{name}」保存到 EVE 中的 {character}',
 
   // -- refusals from the server ----------------------------------------------------------
   // The templates are the sentences `web/services/commands.py` writes, keyed by code in
@@ -281,6 +288,12 @@ const ZH_CN: Record<string, string> = {
   'EVE did not answer with a list of fittings, so none were imported':
     'EVE 没有返回装配方案列表，因此没有导入任何内容。',
   'the fittings could not be imported; the server log has the reason': '无法导入装配方案，原因见服务器日志。',
+
+  // -- a failed ESI export (see @/errors, web/services/esiFittings.py) -----------------
+  'the fit to export was not found; it may have been deleted': '要导出的装配不存在，可能已被删除。',
+  'the fit has nothing fitted, so there is nothing to export': '该装配没有装配任何物品，没有可导出的内容。',
+  'EVE refused to save the fitting ({reason})': 'EVE 拒绝保存该装配方案（{reason}）。',
+  'the fitting could not be exported; the server log has the reason': '无法导出装配方案，原因见服务器日志。',
 }
 
 /** The English catalogue is the identity: `t()` falls back to the key itself. */

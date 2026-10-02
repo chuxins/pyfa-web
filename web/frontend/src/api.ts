@@ -94,6 +94,14 @@ export interface EsiImportResult {
   skipped: EsiImportSkipped[]
 }
 
+export interface EsiExportResult {
+  character: { id: number; name: string; server: string }
+  /** The fit's name, as pyfa and EVE now both have it */
+  name: string
+  /** The id EVE assigned the fitting, when its answer carried one */
+  fittingId: number | null
+}
+
 export interface Module {
   position: number
   slot: string
@@ -403,6 +411,11 @@ export const api = {
 
   /** Fetch the fittings the pilot saved in game and import them under their ships */
   importEsiFittings: () => request<EsiImportResult>('/api/esi/fittings/import', { method: 'POST' }),
+  /** The open fit as EFT text; needs no login, like the other reads */
+  exportFitTxt: (fitId: number) => request<string>(`/api/fits/${fitId}/export-txt`),
+  /** Save the open fit into the EVE client of the pilot's login */
+  exportFitToGame: (fitId: number) =>
+    request<EsiExportResult>('/api/esi/fittings/export', { method: 'POST', body: JSON.stringify({ fitId }) }),
 
   commands: () => request<{ commands: { name: string; summary: string; requires: string[]; args: Record<string, string> }[] }>('/api/commands'),
   runCommand: (fitId: number, command: string, args: Record<string, unknown>) =>

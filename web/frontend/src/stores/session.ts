@@ -3,11 +3,11 @@ import { api } from '@/api'
 import { initLocale } from '@/i18n'
 
 /**
- * Why the sign-in prompt is on screen: `import` names the EVE fittings import, which is
- * the one action that asks for a login before it tries, `any` is every other write the
- * server answered 401 to.
+ * Why the sign-in prompt is on screen: `import` names the EVE fittings import and
+ * `export` the saving of a fit into the EVE client -- the two actions that ask for a
+ * login before they try -- `any` is every other write the server answered 401 to.
  */
-export type LoginReason = 'import' | 'any'
+export type LoginReason = 'import' | 'export' | 'any'
 
 export const useSessionStore = defineStore('session', {
   state: () => ({

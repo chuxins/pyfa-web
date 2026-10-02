@@ -37,6 +37,11 @@ const TEMPLATES: Record<string, string> = {
   esiRefused: 'EVE refused to hand over the fittings ({reason})',
   esiUnusable: 'EVE did not answer with a list of fittings, so none were imported',
   esiFailed: 'the fittings could not be imported; the server log has the reason',
+  // A failed ESI export (see `web/services/esiFittings.py`)
+  fitMissing: 'the fit to export was not found; it may have been deleted',
+  fitEmpty: 'the fit has nothing fitted, so there is nothing to export',
+  esiSaveRefused: 'EVE refused to save the fitting ({reason})',
+  esiExportFailed: 'the fitting could not be exported; the server log has the reason',
 }
 
 /** Racks and hardpoints are named the way the desktop names them, so the catalogue

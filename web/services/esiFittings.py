@@ -1,11 +1,12 @@
-"""The fittings a pilot has saved in game, brought into pyfa.
+"""The fittings a pilot has saved in game, brought into pyfa -- and back out again.
 
 ESI's character fittings endpoint answers with the fittings saved in the EVE client
 -- the same list the desktop's "Browse EVE Fittings" window shows. Turning one into a
 fit is already pyfa's own job (``service.port.esi.importESI``, reached through
 ``Port.importFitFromBuffer``), so what is added here is only what a server needs:
 finding the tokens a login left behind, calling ESI, and not importing the same
-fitting twice.
+fitting twice. The reverse trip -- one of the pilot's pyfa fits saved into their
+in-game client -- is the same plumbing in the other direction.
 
 The tokens come from the SSO login, not from anywhere else: :mod:`web.auth` writes an
 ``SsoCharacter`` row -- encrypted refresh token included -- into the pilot's own
@@ -134,6 +135,81 @@ def import_character_fittings(user, server_name):
             status=500,
         )
     return import_fittings(fittings, character)
+
+
+def export_fitting_to_game(user, server_name, fit_id):
+    """Save one of this account's pyfa fits into the EVE client of their login.
+
+    The reverse of the import as far as EVE is concerned: the pilot's own fit leaves
+    pyfa for the in-game client. Nothing in this account's database changes except the
+    row the login left behind, where a refreshed access token is written down the way
+    the import writes it. Returns the payload ``POST /api/esi/fittings/export`` answers
+    with, and raises :class:`EsiError` when there is no login to save with, the fit has
+    nothing fitted, or EVE does not accept the call.
+    """
+    import requests
+
+    from service.esiAccess import APIException, GenericSsoError
+    from service.fit import Fit as ServiceFit
+    from service.port.esi import ESIExportException
+    from service.port.port import Port
+
+    character = find_character(user, server_name)
+    if character is None:
+        raise EsiError(
+            "noCharacter",
+            "No {} character with stored EVE tokens is available to this account; sign "
+            "in with EVE again and retry.".format(server_name),
+            status=409,
+            params={"server": server_name},
+        )
+
+    fit = ServiceFit.getInstance().getFit(fit_id)
+    if fit is None:
+        raise EsiError("fitMissing", "The fit to export was not found", status=404)
+
+    try:
+        # pyfa's own ESI export, the JSON the desktop posts: charges, implants and
+        # boosters included.
+        payload = Port.exportESI(fit, exportCharges=True, exportImplants=True, exportBoosters=True)
+    except ESIExportException as ex:
+        raise EsiError("fitEmpty", str(ex), status=400) from ex
+
+    try:
+        resp = _esi().postFitting(character.ID, payload)
+    except APIException as ex:
+        raise EsiError(
+            "esiSaveRefused", "EVE refused to save the fitting: {}".format(ex),
+            params={"reason": str(ex)}) from ex
+    except GenericSsoError as ex:
+        raise EsiError(
+            "tokenRefused", "EVE did not accept the stored login: {}".format(ex),
+            status=409) from ex
+    except requests.exceptions.RequestException as ex:
+        raise EsiError("esiUnreachable", "EVE could not be reached: {}".format(ex)) from ex
+
+    # An expired access token was refreshed on the way through, and that new token only
+    # exists in memory until it is written down.
+    eos.db.save(character)
+    eos.db.commit()
+
+    fitting_id = None
+    try:
+        fitting_id = resp.json().get("fitting_id")
+    except (AttributeError, ValueError):
+        # EVE's answer normally carries the new fitting's id, but the export worked
+        # either way when it does not.
+        pass
+
+    return {
+        "character": {
+            "id": int(character.characterID),
+            "name": character.characterName,
+            "server": character.server,
+        },
+        "name": fit.name,
+        "fittingId": fitting_id,
+    }
 
 
 def import_fittings(fittings, character):

@@ -177,3 +177,28 @@ def delete_fit(fit_id: int, user=Depends(require_user), userData=Depends(get_use
     commandService.clear_history(userData, fit_id)
     publish(user.id, "fit.removed", fitIds=[fit_id])
     return None
+
+
+@router.get("/{fit_id}/export-txt")
+def export_fit_txt(fit_id: int):
+    """The fit as EFT text, so it can be pasted anywhere EFT text is accepted.
+
+    The same export the desktop copies to the clipboard, with every section (modules,
+    drones, implants, cargo...). Read-only and open to guests like the other reads: a
+    fit that exists can be copied out of pyfa by whoever can open it.
+    """
+    from fastapi.responses import PlainTextResponse
+
+    from service.const import PortEftOptions
+    from service.port.port import Port
+
+    fit = _require_fit(fit_id)
+    options = {
+        PortEftOptions.IMPLANTS: True,
+        PortEftOptions.MUTATIONS: True,
+        PortEftOptions.LOADED_CHARGES: True,
+        PortEftOptions.CARGO: True,
+        PortEftOptions.BOOSTERS: True,
+    }
+    text = Port.exportEft(fit, options)
+    return PlainTextResponse(text, media_type="text/plain; charset=utf-8")

@@ -45,6 +45,8 @@ export const useFittingStore = defineStore('fitting', {
     history: { canUndo: false, canRedo: false, depth: 0, undoName: null, redoName: null } as History,
     loading: false,
     busy: false,
+    /** True while an export is in flight, so its buttons can say so */
+    exporting: false as boolean,
     error: '' as string,
     notice: '' as string,
     selectedModule: null as number | null,
@@ -245,6 +247,55 @@ export const useFittingStore = defineStore('fitting', {
 
     async rename(name: string) {
       await this.send('renameFit', { name })
+    },
+
+    /** Download the fit as EFT text. The one fit action that works signed out. */
+    async exportTxt() {
+      if (!this.fit) return null
+      this.exporting = true
+      try {
+        const text = await api.exportFitTxt(this.fit.id)
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `${this.fit.name || 'fit'}.txt`
+        document.body.appendChild(link)
+        link.click()
+        link.remove()
+        URL.revokeObjectURL(url)
+        this.notice = t('Exported {name} as text', { name: this.fit.name })
+        return text
+      } catch (error) {
+        this.setError(error)
+        return null
+      } finally {
+        this.exporting = false
+      }
+    },
+
+    /** Save the fit into the EVE client of the pilot's login; asks for a login first. */
+    async exportToGame() {
+      if (!this.fit) return this.promptForMissingFit()
+      const session = useSessionStore()
+      if (!session.signedIn) {
+        session.promptLogin('export')
+        return null
+      }
+      this.exporting = true
+      try {
+        const result = await api.exportFitToGame(this.fit.id)
+        this.notice = t("Saved '{name}' to {character} in EVE", {
+          name: result.name,
+          character: result.character.name,
+        })
+        return result
+      } catch (error) {
+        this.setError(error)
+        return null
+      } finally {
+        this.exporting = false
+      }
     },
 
     async remove() {

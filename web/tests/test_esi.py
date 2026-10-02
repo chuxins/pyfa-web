@@ -1,4 +1,4 @@
-"""Importing the fittings a pilot has saved in game.
+"""Importing the fittings a pilot has saved in game, and exporting pyfa fits back to it.
 
 ESI cannot be reached from a test run, so the call out to it is the only thing stubbed:
 the ``SsoCharacter`` row, the data EVE would answer with and pyfa's own ESI import are
@@ -43,17 +43,36 @@ def esi_fitting(name="Imported Rifter", shipId=RIFTER_ID, fittingId=4001, esi_fl
 
 
 class FakeEsi:
-    """Stands in for ``service.esi.Esi``: records the row id it is asked about."""
+    """Stands in for ``service.esi.Esi``: records the row id it is asked about, and the
+    fittings it is asked to save on the way out."""
 
     def __init__(self, fittings):
         self.fittings = fittings
         self.requested = []
+        self.posted = []
+        self.post_answer = {"fitting_id": 9001}
 
     def getFittings(self, characterId):
         self.requested.append(characterId)
         if isinstance(self.fittings, Exception):
             raise self.fittings
         return self.fittings
+
+    def postFitting(self, characterId, payload):
+        self.posted.append((characterId, payload))
+        if isinstance(self.post_answer, Exception):
+            raise self.post_answer
+        return _FakeResponse(self.post_answer)
+
+
+class _FakeResponse:
+    """The one thing the export needs from EVE's answer: a JSON body."""
+
+    def __init__(self, body):
+        self.body = body
+
+    def json(self):
+        return self.body
 
 
 @pytest.fixture
@@ -233,3 +252,104 @@ def test_the_import_hands_esi_the_row_the_login_stored(pilot_client, app_state, 
     assert esi.requested == [row.ID]
     assert row.characterName == "Imported Pilot"
     assert row.refreshToken
+
+
+def _fitted_rifter(client):
+    """Create a fit that has something on it (so it can be exported) and return its id."""
+    fit_id = client.post("/api/fits", json={"shipId": RIFTER_ID, "name": "Give to EVE"}).json()["id"]
+    response = client.post("/api/fits/{}/commands".format(fit_id), json={
+        "command": "addLocalModule", "args": {"itemId": AUTOCANNON_ID},
+    })
+    assert response.status_code == 200, response.text
+    return fit_id
+
+
+def test_export_saves_the_fit_into_the_eve_client(pilot_client, app_state, esi):
+    """Export to Game is the import in reverse: the pilot's own fit leaves pyfa for EVE,
+    ESI is handed the same row id, and its answer names the new fitting."""
+    import json
+
+    import eos.db
+    from eos.saveddata.ssocharacter import SsoCharacter
+
+    fit_id = _fitted_rifter(pilot_client)
+
+    response = pilot_client.post("/api/esi/fittings/export", json={"fitId": fit_id})
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["name"] == "Give to EVE"
+    assert payload["character"]["name"] == "Imported Pilot"
+    assert payload["fittingId"] == 9001
+
+    with app_state.registry.acquire(pilot_client.pyfaUser.id):
+        row = eos.db.saveddata_session.query(SsoCharacter).one()
+    character_id, sent = esi.posted[0]
+    assert character_id == row.ID
+
+    # pyfa's own ESI export JSON, the same string the desktop posts
+    body = json.loads(sent)
+    assert body["name"] == "Give to EVE"
+    assert body["ship_type_id"] == RIFTER_ID
+    assert [item["type_id"] for item in body["items"]] == [AUTOCANNON_ID]
+
+
+def test_export_without_stored_tokens_asks_for_a_new_login(user_client):
+    """No ``SsoCharacter`` row means no tokens, decided before the fit is even looked up."""
+    fit_id = user_client.post("/api/fits", json={"shipId": RIFTER_ID}).json()["id"]
+    response = user_client.post("/api/esi/fittings/export", json={"fitId": fit_id})
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "noCharacter"
+
+
+def test_export_of_a_fit_that_is_gone_is_a_404(pilot_client, esi):
+    response = pilot_client.post("/api/esi/fittings/export", json={"fitId": 424_242})
+    assert response.status_code == 404
+    assert response.json()["detail"]["code"] == "fitMissing"
+    assert esi.posted == []
+
+
+def test_an_empty_fit_cannot_be_exported(pilot_client, esi):
+    """Exporting nothing would save an empty fitting to EVE, so it is refused up front."""
+    fit_id = pilot_client.post("/api/fits", json={"shipId": RIFTER_ID}).json()["id"]
+    response = pilot_client.post("/api/esi/fittings/export", json={"fitId": fit_id})
+    assert response.status_code == 400
+    assert response.json()["detail"]["code"] == "fitEmpty"
+    assert esi.posted == []
+
+
+def test_export_to_game_needs_a_login(client):
+    assert client.post("/api/esi/fittings/export", json={"fitId": 1}).status_code == 401
+
+
+def test_esi_refusing_to_save_is_reported_with_eves_own_words(pilot_client, esi):
+    from service.esiAccess import APIException
+
+    esi.post_answer = APIException("https://esi.evetech.net/fittings", 403, {"error": "forbidden"})
+    fit_id = _fitted_rifter(pilot_client)
+
+    response = pilot_client.post("/api/esi/fittings/export", json={"fitId": fit_id})
+    assert response.status_code == 502
+    detail = response.json()["detail"]
+    assert detail["code"] == "esiSaveRefused"
+    assert "403" in detail["message"] and "403" in detail["params"]["reason"]
+
+
+@pytest.mark.parametrize("answer", [
+    requests.exceptions.ConnectionError("no route to host"),
+    requests.exceptions.Timeout("too slow"),
+])
+def test_an_unreachable_esi_is_reported_on_export(pilot_client, esi, answer):
+    esi.post_answer = answer
+    fit_id = _fitted_rifter(pilot_client)
+
+    response = pilot_client.post("/api/esi/fittings/export", json={"fitId": fit_id})
+    assert response.status_code == 502
+    assert response.json()["detail"]["code"] == "esiUnreachable"
+
+
+def test_one_account_cannot_export_another_accounts_fit(pilot_client, second_user_client, esi):
+    """The second account has no stored login, so it is refused before the fit is looked up."""
+    fit_id = _fitted_rifter(pilot_client)
+    response = second_user_client.post("/api/esi/fittings/export", json={"fitId": fit_id})
+    assert response.status_code == 409
+    assert esi.posted == []

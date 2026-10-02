@@ -105,6 +105,11 @@ function changeLocale(event: Event) {
           &#8631; {{ t('Redo') }}
         </button>
         <button :disabled="fitting.busy" @click="fitting.reset()">{{ t('Clear fit') }}</button>
+        <button :disabled="fitting.exporting" @click="fitting.exportTxt()">{{ t('Export TXT') }}</button>
+        <button v-if="session.signedIn" :disabled="fitting.exporting" @click="fitting.exportToGame()">
+          {{ t('Export to Game') }}
+        </button>
+        <span v-if="fitting.exporting" class="dim">{{ t('exporting…') }}</span>
         <span v-if="fitting.busy" class="dim">{{ t('working…') }}</span>
       </div>
 

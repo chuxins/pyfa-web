@@ -420,3 +420,33 @@ def test_dispatched_callbacks_from_a_foreign_thread_cannot_touch_saveddata(app_s
     assert done.wait(30), "the dispatcher never ran the callback"
     assert isinstance(result["error"], sessionctx.NoSessionContextError)
 
+
+def test_fit_exports_as_eft_text(user_client):
+    """The TXT export is always available and answers with EFT text, not JSON."""
+    fit_id = user_client.post("/api/fits", json={"shipId": RIFTER_ID, "name": "Text Export"}).json()["id"]
+    user_client.post("/api/fits/{}/commands".format(fit_id), json={
+        "command": "addLocalModule", "args": {"itemId": AUTOCANNON_ID},
+    })
+
+    response = user_client.get("/api/fits/{}/export-txt".format(fit_id))
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/plain")
+
+    lines = response.text.splitlines()
+    assert lines[0] == "[Rifter, Text Export]"
+    # EFT lists each fitted item by name, the module we added included
+    assert any(line.strip().startswith("200mm AutoCannon II") for line in lines)
+
+
+def test_export_txt_needs_no_login(client):
+    """An anonymous visitor can copy a fit out of pyfa like any other read: the answer
+    is about the fit existing or not (404), never a demand for a login (401)."""
+    response = client.get("/api/fits/12345/export-txt")
+    assert response.status_code == 404
+
+
+def test_export_txt_of_a_foreign_fit_is_a_404(user_client, second_user_client):
+    """A fit id from another account is the same as one that never existed."""
+    fit_id = user_client.post("/api/fits", json={"shipId": RIFTER_ID}).json()["id"]
+    assert second_user_client.get("/api/fits/{}/export-txt".format(fit_id)).status_code == 404
+
