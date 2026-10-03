@@ -159,4 +159,43 @@ const KIND_HINT: Record<string, string> = {
   padding: 10px;
   font-size: 12px;
 }
+
+/* ---- narrow windows -------------------------------------------------------------------
+   The toolbar's 320px search box and the rows' fixed group column are desktop sizing.
+   On a phone the search box takes what is left over, and each result reads as two lines:
+   name (with the add button beside it), then the group under the name. */
+@media (max-width: 1040px) {
+  .toolbar {
+    flex-wrap: wrap;
+  }
+
+  .toolbar input {
+    flex: 1 1 150px;
+    min-width: 0;
+  }
+
+  .result {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'pick add'
+      'meta add';
+    gap: 0 6px;
+    padding: 3px 4px;
+  }
+
+  .pick {
+    grid-area: pick;
+    min-width: 0;
+  }
+
+  .meta {
+    grid-area: meta;
+    padding-left: 29px;
+  }
+
+  .add {
+    grid-area: add;
+    align-self: center;
+  }
+}
 </style>
