@@ -462,3 +462,50 @@ def test_unexplained_commands_keep_the_plain_refusal(user_client):
 
     assert detail["code"] == "engineRefused"
     assert detail["params"]["command"] == "addLocalFighter"
+
+
+def test_replace_module_fills_the_clicked_empty_slot(user_client):
+    """The mobile slot picker fits into the tapped slot: a replacement of that slot,
+    not the rack's first free slot (which ``addLocalModule`` would pick)."""
+    fit_id = make_fit(user_client)
+    detail = user_client.get('/api/fits/{}'.format(fit_id)).json()
+    empty = next(module for module in detail['racks']['high'] if module['isEmpty'])
+
+    response = run_command(user_client, fit_id, "replaceLocalModule",
+                           itemId=AUTOCANNON_ID, positions=[empty['position']])
+    assert response.status_code == 200, response.text
+    placed = module_at(response.json(), "high", empty['position'])
+    assert placed['itemId'] == AUTOCANNON_ID
+    assert placed['isEmpty'] is False
+
+
+def test_replace_module_swaps_a_filled_slot(user_client):
+    """Tapping a filled slot offers replacement: the new module lands in that slot."""
+    fit_id = make_fit(user_client)
+    run_command(user_client, fit_id, "addLocalModule", itemId=AUTOCANNON_ID)
+    detail = user_client.get('/api/fits/{}'.format(fit_id)).json()
+    position = next(module['position'] for module in detail['racks']['high']
+                    if module['itemId'] == AUTOCANNON_ID)
+
+    response = run_command(user_client, fit_id, "replaceLocalModule",
+                           itemId=LAUNCHER_ID, positions=[position])
+    assert response.status_code == 200, response.text
+    swapped = module_at(response.json(), "high", position)
+    assert swapped['itemId'] == LAUNCHER_ID
+    assert swapped['isEmpty'] is False
+
+
+def test_a_refused_replacement_names_the_reason(user_client):
+    """A module of another rack in a fixed slot is refused with the reason, not the
+    generic 'engine refused': replacing is explained the way adding already is."""
+    fit_id = make_fit(user_client)
+    run_command(user_client, fit_id, "addLocalModule", itemId=AUTOCANNON_ID)
+    detail = user_client.get('/api/fits/{}'.format(fit_id)).json()
+    position = next(module['position'] for module in detail['racks']['high']
+                    if module['itemId'] == AUTOCANNON_ID)
+
+    detail = refusal(run_command(user_client, fit_id, "replaceLocalModule",
+                                 itemId=DAMAGE_CONTROL_ID, positions=[position]))
+    assert detail["code"] != "engineRefused"
+    assert detail["params"]["name"] == "Damage Control II"
+    assert "Damage Control II" in detail["message"]

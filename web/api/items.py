@@ -133,7 +133,11 @@ def _fitted_charge_attributes(fit, position, item_id):
 
 
 @router.get("/search")
-def search(q: str = Query(..., min_length=1), scope: str = Query("market"), limit: int = Query(50, ge=1, le=200)):
+def search(
+    q: str = Query("", description="Search text. May be empty for a slot scope, which then lists that slot's modules"),
+    scope: str = Query("market"),
+    limit: int = Query(50, ge=1, le=1000),
+):
     if scope not in SCOPES:
         raise HTTPException(status_code=400, detail="scope must be one of {}".format(", ".join(SCOPES)))
     results = search_items(q, scope=scope, limit=limit)

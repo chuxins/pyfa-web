@@ -214,3 +214,32 @@ def test_fitted_rows_leave_out_attributes_the_game_data_does_not_name(user_clien
     assert 'heatDamage' in names
     assert 'heatAbsorbtionRateModifier' not in names
     assert 'accuracyBonus' not in names
+
+
+def test_slot_scopes_list_only_modules_of_that_slot(client):
+    """The mobile slot picker's browse view: one rack's modules, alphabetical, and
+    nothing from the racks around it."""
+    high = client.get('/api/items/search', params={'q': '', 'scope': 'high', 'limit': 1000}).json()['results']
+    assert high
+    assert all(entry['itemKind'] == 'module' for entry in high)
+    names = {entry['name'] for entry in high}
+    assert '200mm AutoCannon II' in names
+    assert 'Damage Control II' not in names
+
+    # Subsystem modules live in their own category but fit the subsystem rack
+    sub = client.get('/api/items/search', params={'q': '', 'scope': 'subsystem'}).json()['results']
+    assert sub
+    assert all(entry['itemKind'] == 'module' for entry in sub)
+
+    # An empty query still finds nothing outside the slot scopes
+    assert client.get('/api/items/search', params={'q': '', 'scope': 'market'}).json()['results'] == []
+
+
+def test_a_slot_scope_search_stays_in_the_rack(client):
+    """Typing in the picker narrows the same rack instead of widening to the market."""
+    found = client.get('/api/items/search', params={'q': '200mm Auto', 'scope': 'high'}).json()['results']
+    names = {entry['name'] for entry in found}
+    assert '200mm AutoCannon II' in names
+
+    low = client.get('/api/items/search', params={'q': '200mm Auto', 'scope': 'low'}).json()['results']
+    assert all(entry['name'] not in names for entry in low)

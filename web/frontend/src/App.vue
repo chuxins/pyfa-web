@@ -181,7 +181,7 @@ function changeLocale(event: Event) {
         class="center"
         :class="{ 'mobile-pane': isMobile, active: isMobile && mobileView === 'fit' }"
       >
-        <FittingView v-if="fitting.fit" />
+        <FittingView v-if="fitting.fit" :mobile="isMobile" />
         <div v-else class="placeholder">
           <h2>{{ t('No fit open') }}</h2>
           <p class="dim">{{ t('Pick a ship on the left, then open one of its fits or create a new one.') }}</p>
