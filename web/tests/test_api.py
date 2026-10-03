@@ -314,6 +314,14 @@ def test_create_fit_and_read_back(user_client):
     assert detail["stats"]["errors"] == {}
 
 
+def test_create_fit_with_an_unknown_ship_is_a_clean_400(user_client):
+    """A ship id the game data does not know must surface as a readable 400,
+    not an internal ``'NoneType' object has no attribute 'category'`` leak."""
+    response = user_client.post("/api/fits", json={"shipId": 999_999_999})
+    assert response.status_code == 400
+    assert "Unknown ship ID" in response.json()["detail"]
+
+
 def test_empty_fit_stats_are_ship_baseline(user_client):
     fit_id = user_client.post("/api/fits", json={"shipId": RIFTER_ID}).json()["id"]
     stats = user_client.get("/api/fits/{}/stats".format(fit_id)).json()["stats"]

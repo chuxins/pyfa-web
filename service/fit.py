@@ -185,10 +185,13 @@ class Fit:
 
     def newFit(self, shipID, name=None):
         pyfalog.debug("Creating new fit for ID: {0}", shipID)
+        item = eos.db.getItem(shipID)
+        if item is None:
+            raise ValueError("Unknown ship ID: {0}".format(shipID))
         try:
-            ship = es_Ship(eos.db.getItem(shipID))
+            ship = es_Ship(item)
         except ValueError:
-            ship = es_Citadel(eos.db.getItem(shipID))
+            ship = es_Citadel(item)
         fit = FitType(ship)
         fit.name = name if name is not None else "New %s" % fit.ship.item.name
         fit.damagePattern = self.pattern
