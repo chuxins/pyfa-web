@@ -140,6 +140,16 @@ function canLoadCharge(module: Module) {
 }
 
 const containers = computed(() => fitting.fit)
+
+/**
+ * The hull's own bonuses, as the server renders them -- a small, trusted HTML block of
+ * bold skill headers, line breaks and bullets (see ``ship_traits_html`` in
+ * ``web/services/serialize.py``). ``null`` for a hull with none to show.
+ */
+const shipTraits = computed(() => fitting.fit?.ship.traits ?? null)
+
+/** Whether the ship-bonuses card at the bottom of the view is open. */
+const bonusesOpen = ref(true)
 </script>
 
 <template>
@@ -351,6 +361,22 @@ const containers = computed(() => fitting.fit)
       </div>
     </section>
 
+    <!-- Ship bonuses: the hull's own bonuses, as the desktop's item info shows them -->
+    <section v-if="shipTraits" class="containerblock traits">
+      <div class="rackhead">
+        <button
+          class="traithead"
+          :aria-expanded="bonusesOpen"
+          :title="t('Ship bonuses')"
+          @click="bonusesOpen = !bonusesOpen"
+        >
+          <span>{{ t('Ship bonuses') }}</span>
+          <span class="chevron" :class="{ open: bonusesOpen }">&#9662;</span>
+        </button>
+      </div>
+      <div v-show="bonusesOpen" class="traitsbody" v-html="shipTraits" />
+    </section>
+
     <p class="hint dim">
       {{ t('Click an item in the browser below to fit it. Charges go into the selected module. Click a row of the fit to inspect it as fitted.') }}
     </p>
@@ -556,6 +582,45 @@ const containers = computed(() => fitting.fit)
 
 .hint {
   font-size: 12px;
+}
+
+/* The hull's own bonuses card: a collapsible panel like a rack, whose body is the
+   server's traits HTML (bold skill headers, line breaks and bullets). */
+.traithead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+}
+
+.traithead:hover {
+  color: var(--text);
+}
+
+.chevron {
+  display: inline-block;
+  font-size: 9px;
+  transition: transform 0.15s ease;
+}
+
+.chevron.open {
+  transform: rotate(180deg);
+}
+
+.traitsbody {
+  padding: 2px 10px 10px;
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--text);
+}
+
+.traitsbody :deep(b) {
+  color: var(--text);
 }
 
 /* ---- narrow windows: each module row becomes two lines --------------------------------

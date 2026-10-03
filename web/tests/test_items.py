@@ -243,3 +243,60 @@ def test_a_slot_scope_search_stays_in_the_rack(client):
 
     low = client.get('/api/items/search', params={'q': '200mm Auto', 'scope': 'low'}).json()['results']
     assert all(entry['name'] not in names for entry in low)
+
+
+ISHTAR_ID = 12005  # a Heavy Assault Cruiser: hull group 358 lets it fit Assault Damage Controls
+
+
+def test_slot_browse_only_shows_what_the_ships_hull_allows(user_client):
+    """The picker's list follows the open fit's ship: modules the hull cannot take stay out.
+
+    ``Fit.canFit`` is the authority -- the same rule the engine applies when a module is
+    fitted, reading ``canFitShipGroup`` / ``canFitShipType`` / ``fitsToShipType`` from the
+    module's attributes. A Rifter (Frigate) must not be offered a Bomb Launcher or an
+    Assault Damage Control, while a Heavy Assault Cruiser keeps its own Assault Damage
+    Control and still not a dreadnought's Siege Module.
+    """
+    rifter_fit = user_client.post('/api/fits', json={'shipId': RIFTER_ID}).json()['id']
+    ishtar_fit = user_client.post('/api/fits', json={'shipId': ISHTAR_ID}).json()['id']
+
+    def browse(scope, fit_id=None):
+        params = {'q': '', 'scope': scope, 'limit': 1000}
+        if fit_id is not None:
+            params['fit_id'] = fit_id
+        return {entry['name'] for entry in
+                user_client.get('/api/items/search', params=params).json()['results']}
+
+    def search(scope, q, fit_id=None):
+        params = {'q': q, 'scope': scope}
+        if fit_id is not None:
+            params['fit_id'] = fit_id
+        return {entry['name'] for entry in
+                user_client.get('/api/items/search', params=params).json()['results']}
+
+    # The whole rack comes up without a fit, restricted items included
+    assert 'Bomb Launcher II' in browse('high')
+    assert 'Assault Damage Control II' in browse('low')
+    assert 'Siege Module II' in search('high', 'Siege')
+
+    # On a Rifter the same rack leaves the other hulls' modules out, keeps its own
+    rifter_high = browse('high', rifter_fit)
+    assert 'Bomb Launcher II' not in rifter_high
+    assert '200mm AutoCannon II' in rifter_high
+    assert 'Assault Damage Control II' not in browse('low', rifter_fit)
+    # "Siege" also matches the rack's own siege artillery and blasters, which a Rifter's
+    # hull does allow -- only the dreadnought-only Siege Modules must stay out
+    rifter_siege = search('high', 'Siege', rifter_fit)
+    assert 'Siege Module II' not in rifter_siege
+    assert 'Siege Module I' not in rifter_siege
+
+    # A Heavy Assault Cruiser keeps its Assault Damage Control, still not a dreadnought's
+    assert 'Assault Damage Control II' in browse('low', ishtar_fit)
+    assert 'Siege Module II' not in search('high', 'Siege', ishtar_fit)
+
+
+def test_a_slot_browse_with_a_missing_fit_is_an_error(user_client):
+    """A picker whose fit was deleted gets a clear error instead of an unfiltered rack."""
+    response = user_client.get('/api/items/search', params={'q': '', 'scope': 'high', 'fit_id': 9999})
+    assert response.status_code == 404
+

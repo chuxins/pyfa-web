@@ -165,12 +165,23 @@ const ZH_CN: Record<string, string> = {
   'Click an item in the browser below to fit it. Charges go into the selected module. Click a row of the fit to inspect it as fitted.':
     '在下方浏览器中点击物品即可装配，弹药会装填到选中的装备；点击装配中的任意一行可查看装配后的实际属性。',
 
+  'Ship bonuses': '船体加成',
+
   // -- mobile slot picker (FittingView.vue / SlotPicker.vue) ------------------------------
   'add a module…': '添加装备…',
   'replace the module in this slot': '更换本槽位装备',
   'Pick a module for the {rack}': '为{rack}选择装备',
   'Search {rack} modules…': '搜索{rack}装备…',
   'no modules match your search': '没有匹配的装备',
+  'only modules that fit this ship are shown': '只显示当前舰船可装配的装备',
+  // The size chips of the picker's filter row: what class of weapon or rig to keep
+  'All sizes': '全部尺寸',
+  Small: '小型',
+  Medium: '中型',
+  Large: '大型',
+  'Extra large': '超大型',
+  '{count} groups': '{count} 个分类',
+
   Close: '关闭',
 
   // -- stats pane -----------------------------------------------------------------------

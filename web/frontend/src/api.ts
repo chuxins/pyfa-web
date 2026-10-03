@@ -275,7 +275,7 @@ export interface Fit {
   ignoreRestrictions: boolean
   implantLocation: number
   isStructure: boolean
-  ship: { id: number; item: Item; slots: Record<string, number> }
+  ship: { id: number; item: Item; slots: Record<string, number>; traits?: string | null }
   character: { id: number; name: string } | null
   damagePattern: { id: number; name: string; em: number; thermal: number; kinetic: number; explosive: number } | null
   targetProfile: unknown
@@ -429,8 +429,10 @@ export const api = {
       `/api/fits/${fitId}/charge-targets?chargeItemId=${chargeItemId}`,
     ),
 
-  searchItems: (q: string, scope = 'market') =>
-    request<{ results: Item[] }>(`/api/items/search?q=${encodeURIComponent(q)}&scope=${scope}&limit=60`),
+  searchItems: (q: string, scope = 'market', fitId?: number, limit = 60, size?: number) =>
+    request<{ results: Item[] }>(
+      `/api/items/search?q=${encodeURIComponent(q)}&scope=${scope}&limit=${limit}${fitId == null ? '' : `&fit_id=${fitId}`}${size == null ? '' : `&size=${size}`}`,
+    ),
   item: (itemId: number) => request<Item>(`/api/items/${itemId}`),
   attributes: (itemId: number, fitId?: number, position?: number, kind?: FittedKind) =>
     request<{ itemId: number; modified: boolean; rows: AttributeRow[] }>(

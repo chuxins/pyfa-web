@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from logbook import Logger
 
 from web.deps import get_user_data, require_user
-from web.services.search import SCOPES, search_items
+from web.services.search import FitNotFound, SCOPES, search_items
 from web.services.serialize import display_name, serialize_item
 
 pyfalog = Logger(__name__)
@@ -137,10 +137,19 @@ def search(
     q: str = Query("", description="Search text. May be empty for a slot scope, which then lists that slot's modules"),
     scope: str = Query("market"),
     limit: int = Query(50, ge=1, le=1000),
+    fit_id: int | None = Query(None, description="Restrict a slot scope to what this fit's ship can fit"),
+    size: int | None = Query(
+        None,
+        ge=1,
+        le=4,
+        description="Restrict a slot scope to one size class (1 small .. 4 extra large): weapons carry it on chargeSize, rigs on rigSize"),
 ):
     if scope not in SCOPES:
         raise HTTPException(status_code=400, detail="scope must be one of {}".format(", ".join(SCOPES)))
-    results = search_items(q, scope=scope, limit=limit)
+    try:
+        results = search_items(q, scope=scope, limit=limit, fit_id=fit_id, size=size)
+    except FitNotFound:
+        raise HTTPException(status_code=404, detail="fit not found")
     return {"query": q, "scope": scope, "results": [serialize_item(item) for item in results]}
 
 

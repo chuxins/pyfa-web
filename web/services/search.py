@@ -12,7 +12,7 @@ import config
 import eos.db
 from eos.gamedata import Category as types_Category, Group as types_Group, Item as types_Item
 from logbook import Logger
-from sqlalchemy.sql import or_
+from sqlalchemy.sql import or_, select
 
 from service.jargon import JargonLoader
 from service.market import Market
@@ -107,13 +107,21 @@ def _filters_for(scope, market):
     return [None]
 
 
-def search_items(text, scope="market", limit=50):
+class FitNotFound(Exception):
+    """The fit a slot scope was asked to restrict by does not exist."""
+
+
+def search_items(text, scope="market", limit=50, fit_id=None, size=None):
     """Published items matching ``text``, best effort ordered by relevance.
 
     A slot scope (`high`, `med`, `low`, `rig`, `subsystem`, `service`) searches only
     the modules that go in that rack, and with an empty query lists them all
     alphabetically -- that is the mobile slot picker's "pick a module for this slot"
-    view. Every other scope keeps the desktop behaviour: an empty query finds nothing.
+    view. ``fit_id`` restricts a slot scope to what that fit's ship can fit, so the
+    picker never offers a module the hull would refuse. ``size`` narrows a slot scope
+    to one size class (1 small .. 4 extra large); see :func:`_size_item_ids` for what
+    the game data counts as a module's size. Every other scope keeps the desktop
+    behaviour: an empty query finds nothing, and there is no hull or size filter.
     """
     market = Market.getInstance()
     filters = _filters_for(scope, market)
@@ -122,7 +130,7 @@ def search_items(text, scope="market", limit=50):
     tokens = JargonLoader.instance().get_jargon().apply(tokens)
     joined = " ".join(tokens)
     if scope in SLOT_SCOPES:
-        return _search_slot(scope, joined, tokens, market, limit)
+        return _search_slot(scope, joined, tokens, market, limit, _load_fit(fit_id), size)
     if not joined:
         return []
     if not (
@@ -177,24 +185,88 @@ def _slot_item_ids():
     return _SLOT_IDS
 
 
-def _slot_items(slot, limit):
-    """Published modules of one rack, sorted by name; at most ``limit`` of them."""
-    ids = _slot_item_ids().get(slot) or ()
+#: The two attributes the game data files a module's size class on: ``chargeSize`` for
+#: turrets, launchers and the med-slot modules that take scripts, ``rigSize`` for rigs.
+#: There is no one ``size`` attribute -- shield, armour and propulsion modules carry no
+#: size at all, so they only ever come up under "all sizes".
+_SIZE_ATTRIBUTE_IDS = (128, 1547)
+
+
+#: Item ids of each size class (1 small .. 4 extra large), computed once per process.
+_SIZE_IDS = {}
+
+
+def _size_item_ids(size):
+    """Item ids whose size class is ``size``; empty when the game data files none under it."""
+    global _SIZE_IDS
+    if size not in _SIZE_IDS:
+        from eos.gamedata import Attribute
+
+        rows = eos.db.gamedata_session.execute(
+            select(Attribute.typeID).where(
+                Attribute.attributeID.in_(_SIZE_ATTRIBUTE_IDS),
+                Attribute.value == float(size),
+            )).scalars().all()
+        _SIZE_IDS[size] = set(rows)
+    return _SIZE_IDS[size]
+
+
+def _load_fit(fit_id):
+    """The fit a slot scope is restricted by, or None when no fit was asked for."""
+    if fit_id is None:
+        return None
+    from service.fit import Fit
+
+    fit = Fit.getInstance().getFit(fit_id)
+    if fit is None:
+        raise FitNotFound(fit_id)
+    return fit
+
+
+def _fit_accepts(fit):
+    """A predicate for the modules a fit's ship allows, or None when there is no ship to ask.
+
+    ``Fit.canFit`` is the same rule the engine applies when a module is fitted: an item
+    whose ``canFitShipGroup``/``canFitShipType``/``fitsToShipType`` attributes name hulls
+    the current ship is not one of is left out, and structure-only modules stay off a
+    regular ship. A fit without a ship has nothing to restrict by, so every module passes.
+    """
+    if fit is None or fit.ship is None or fit.ship.item is None:
+        return None
+
+    def accepts(item):
+        try:
+            return bool(fit.canFit(item))
+        except Exception:
+            pyfalog.warning("Could not tell whether {} fits {}", item, fit)
+            return True
+
+    return accepts
+
+
+def _slot_items(ids, limit, accepts=None):
+    """Published modules of one rack the ship allows, sorted by name; at most ``limit`` of them."""
     if not ids:
         return []
     items = eos.db.getItems(ids, eager=("group.category", "metaGroup"))
     items = [item for item in items if item is not None]
+    if accepts is not None:
+        items = [item for item in items if accepts(item)]
     items.sort(key=lambda item: (item.name or "").lower())
     return items[:limit]
 
 
-def _search_slot(slot, joined, tokens, market, limit):
+def _search_slot(slot, joined, tokens, market, limit, fit=None, size=None):
     """A browse (empty query) or a name search restricted to one rack's modules."""
     ids = _slot_item_ids().get(slot) or ()
     if not ids:
         return []
+    # A size class narrows the rack before anything else; see :func:`_size_item_ids`
+    if size is not None:
+        ids = [item_id for item_id in ids if item_id in _size_item_ids(size)]
+    accepts = _fit_accepts(fit)
     if not joined:
-        return _slot_items(slot, limit)
+        return _slot_items(ids, limit, accepts)
     if not (
         (isStringCjk(joined) and len(joined) >= config.minItemSearchLengthCjk)
         or len(joined) >= config.minItemSearchLength
@@ -214,6 +286,8 @@ def _search_slot(slot, joined, tokens, market, limit):
     found.update(results)
 
     published = [item for item in found if market.getPublicityByItem(item)]
+    if accepts is not None:
+        published = [item for item in published if accepts(item)]
     published.sort(key=_relevance(joined))
     return published[:limit]
 
