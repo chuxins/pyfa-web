@@ -314,6 +314,14 @@ def _weapon_size(meta):
     return LAUNCHER_WEAPON_SIZE.get(group)
 
 
+def _slot_size(meta):
+    """The size class a picker's size chips filter on: a weapon's size when it has one,
+    else a rig's rig size, else None (the module has no size concept). Kept separate from
+    ``meta["size"]`` so the fit filter keeps judging weapons on weapon size only -- a rig's
+    rigSize must never be compared against the hull's weapon size class."""
+    return meta["size"] if meta["size"] is not None else meta["rigSize"]
+
+
 def _entry_fits(fit, entry):
     """Whether the fit's ship can take this catalogue entry: the engine's hull rule
     (``Fit.canFit``, which covers ``fitsToShipType`` / ``canFitShipGroup``), the
@@ -362,7 +370,9 @@ def search_slot(scope, text, fit=None, limit=500):
 
     ``fit`` narrows the list to modules the fit's ship can take (see
     :func:`_entry_fits`), which is the mobile slot picker's whole point: a tapped slot
-    offers only what would actually fit there.
+    offers only what would actually fit there. Each result comes back paired with its
+    size class (1 small .. 4 extra large, None when the module has no size concept), so
+    the picker can offer size chips over the list it drew without a second request.
     """
     catalog = _slot_catalog().get(scope, [])
     if not catalog:
@@ -377,15 +387,19 @@ def search_slot(scope, text, fit=None, limit=500):
     ):
         return []
 
+    size_by_id = {type_id: _slot_size(meta) for type_id, meta in catalog}
     ids = [type_id for type_id, meta in catalog if _entry_fits(fit, (type_id, meta))]
     if not ids:
         return []
+
+    def _pair(item):
+        return item, size_by_id.get(item.ID)
 
     if not joined:
         items = [item for item in eos.db.getItems(ids, eager=("group.category", "metaGroup"))
                  if item is not None]
         items.sort(key=lambda item: (item.name or "").lower())
-        return items[:limit]
+        return [_pair(item) for item in items[:limit]]
 
     try:
         found = eos.db.searchItemsRegex(
@@ -398,5 +412,5 @@ def search_slot(scope, text, fit=None, limit=500):
         return []
     found = [item for item in found if item is not None]
     found.sort(key=_relevance(joined))
-    return found[:limit]
+    return [_pair(item) for item in found[:limit]]
 

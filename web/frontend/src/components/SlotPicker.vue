@@ -29,10 +29,30 @@ const error = ref('')
 /** Group names that are folded away; everything else shows its modules. */
 const collapsed = ref<Set<string>>(new Set())
 
+/** Size chips: 0 means every size; 1..4 are small..extra large. A rig's own size
+ * (1..3) counts too, and a module with no size concept only shows under "every size". */
+const SIZE_FILTERS = [
+  { value: 0, label: 'All sizes' },
+  { value: 1, label: 'Small' },
+  { value: 2, label: 'Medium' },
+  { value: 3, label: 'Large' },
+  { value: 4, label: 'Extra Large' },
+]
+const sizeFilter = ref(0)
+/** Only list modules the ship can take (server-side); off browses the whole rack. */
+const availableOnly = ref(true)
+
+/** The server's answer, narrowed by whichever size chip is on. */
+const filtered = computed(() =>
+  sizeFilter.value === 0
+    ? results.value
+    : results.value.filter((item) => item.size === sizeFilter.value),
+)
+
 /** Results grouped by module type, in first-seen order. */
 const groups = computed(() => {
   const byName = new Map<string, Item[]>()
-  for (const item of results.value) {
+  for (const item of filtered.value) {
     // The API type allows a null group, though real items always carry one
     const name = item.group ?? ''
     const list = byName.get(name)
@@ -53,16 +73,24 @@ function toggleGroup(name: string) {
   collapsed.value = next
 }
 
+/** Browsing (empty text) comes up grouped and folded; a search unfolds every match. */
+function applyFoldDefaults(text: string, list: Item[]) {
+  const names = [...new Set(list.map((item) => item.group ?? ''))]
+  collapsed.value = new Set(text.trim() ? [] : names)
+}
+
 /** One query: a browse of the slot's modules (empty text) or a name search in that rack. */
 async function search(text: string) {
   searching.value = true
   error.value = ''
   try {
-    const { results: found } = await api.searchItems(text, props.slot, fitting.fit?.id)
+    // With "only what this ship can fit" on, the server narrows the rack to what the
+    // hull takes; off, the whole rack comes back and the size chips alone decide what
+    // is drawn. A browse asks for the whole rack so the foldable type cards cover it.
+    const fitId = availableOnly.value ? fitting.fit?.id : undefined
+    const { results: found } = await api.searchItems(text, props.slot, fitId, 1000)
     results.value = found
-    // Browsing (empty text) comes up grouped and folded; a search unfolds every match.
-    const names = [...new Set(found.map((item) => item.group ?? ''))]
-    collapsed.value = new Set(text.trim() ? [] : names)
+    applyFoldDefaults(text, found)
   } catch (err) {
     results.value = []
     error.value = err instanceof Error ? err.message : String(err)
@@ -72,8 +100,18 @@ async function search(text: string) {
 }
 
 watch(query, (value) => search(value.trim()))
+// Toggling "only what this ship can fit" re-asks the server with or without the fit
+watch(availableOnly, () => search(query.value.trim()))
+// A size chip only changes which fetched groups are drawn, not what was fetched
+watch(sizeFilter, () => applyFoldDefaults(query.value.trim(), filtered.value))
 // The first screen is the slot's modules, before the pilot types anything
 void search('')
+
+const emptyText = computed(() =>
+  query.value.trim()
+    ? t('no modules match your search')
+    : t('no modules match these filters'),
+)
 
 async function pick(item: Item) {
   if (fitting.busy) return
@@ -103,7 +141,23 @@ async function pick(item: Item) {
       />
       <span v-if="searching" class="dim">{{ t('searching…') }}</span>
       <span v-else-if="error" class="error">{{ error }}</span>
-      <span v-else class="dim">{{ t('{count} results', { count: results.length }) }}</span>
+      <span v-else class="dim">{{ t('{count} results', { count: filtered.length }) }}</span>
+    </div>
+
+    <div class="filters">
+      <button
+        v-for="size in SIZE_FILTERS"
+        :key="size.value"
+        class="chip"
+        :class="{ on: sizeFilter === size.value }"
+        @click="sizeFilter = size.value"
+      >{{ t(size.label) }}</button>
+      <span class="filtersep" />
+      <button
+        class="chip avail"
+        :class="{ on: availableOnly }"
+        @click="availableOnly = !availableOnly"
+      >{{ t('Only what this ship can fit') }}</button>
     </div>
 
     <div class="list">
@@ -131,7 +185,7 @@ async function pick(item: Item) {
         </div>
       </section>
       <div v-if="!groups.length && !searching && !error" class="dim empty">
-        {{ t('no modules match your search') }}
+        {{ emptyText }}
       </div>
     </div>
   </div>
@@ -144,7 +198,7 @@ async function pick(item: Item) {
   z-index: 40;
   background: var(--bg);
   display: grid;
-  grid-template-rows: auto auto 1fr;
+  grid-template-rows: auto auto auto 1fr;
   min-height: 0;
 }
 
@@ -177,6 +231,40 @@ async function pick(item: Item) {
 .searchbar input {
   flex: 1;
   min-width: 0;
+}
+
+/* One horizontal strip: the size chips, a divider, then the "this ship" toggle. */
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.chip {
+  flex: none;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-panel);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.chip.on {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.filtersep {
+  flex: none;
+  width: 1px;
+  height: 14px;
+  margin: 0 2px;
+  background: var(--border);
 }
 
 .list {

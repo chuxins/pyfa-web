@@ -297,6 +297,24 @@ def test_create_fit_with_an_unknown_ship_is_a_clean_400(user_client):
     assert "Unknown ship ID" in response.json()["detail"]
 
 
+def test_the_fit_carries_the_ships_bonus_block(user_client):
+    """The fitting panel prints the ship's bonuses at its foot, so the fit payload
+    carries the pre-rendered traits text (role bonus and per-skill-level bonuses)
+    in the server's language -- and only there, not on every serialized item."""
+    fit_id = user_client.post("/api/fits", json={"shipId": RIFTER_ID}).json()["id"]
+    detail = user_client.get("/api/fits/{}".format(fit_id)).json()
+    ship = detail["ship"]
+
+    assert ship["traits"] and "<b>" in ship["traits"]
+    assert "Minmatar Frigate bonuses" in ship["traits"]
+    assert "Small Projectile Turret" in ship["traits"]
+    # The bonus text lives on the ship row, not inside the item rows it accompanies
+    assert "traits" not in ship["item"]
+    for rack in detail["racks"].values():
+        for module in rack:
+            assert module["item"] is None or "traits" not in module["item"]
+
+
 def test_empty_fit_stats_are_ship_baseline(user_client):
     fit_id = user_client.post("/api/fits", json={"shipId": RIFTER_ID}).json()["id"]
     stats = user_client.get("/api/fits/{}/stats".format(fit_id)).json()["stats"]

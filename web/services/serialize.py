@@ -161,6 +161,22 @@ def item_image(item):
     return None
 
 
+def _traits_html(item):
+    """The type's bonus block (the ``invtraits`` row), or None when it carries none.
+
+    ``db_update`` renders each ship's traits into one HTML string per language --
+    bold section headers and bullet lines joined with ``<br />`` -- which is exactly
+    what the desktop's ship info shows. ``display`` is the column for the language
+    the server runs as, so the fitting panel can print it as-is.
+    """
+    if item is None:
+        return None
+    traits = getattr(item, "traits", None)
+    if traits is None:
+        return None
+    return getattr(traits, "display", None)
+
+
 def serialize_item(item, detail=False):
     """Identity plus display metadata for an EVE type."""
     if item is None:
@@ -427,6 +443,7 @@ def serialize_fit(fit, includeStats=True, statsSections=None):
             "id": fit.shipID,
             "item": serialize_item(shipItem),
             "slots": ship_slots(fit) if fit.ship is not None else {},
+            "traits": _traits_html(shipItem),
         },
         "character": serialize_character(fit.character),
         "damagePattern": serialize_damage_pattern(fit.damagePattern),

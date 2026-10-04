@@ -151,6 +151,13 @@ const ZH_CN: Record<string, string> = {
   'Pick a module for the {rack}': '为{rack}选择装备',
   'Search {rack} modules…': '搜索{rack}装备…',
   'no modules match your search': '没有匹配的装备',
+  'no modules match these filters': '没有符合筛选条件的装备',
+  'All sizes': '全部',
+  Small: '小型',
+  Medium: '中型',
+  Large: '大型',
+  'Extra Large': '超大型',
+  'Only what this ship can fit': '仅当前舰船可用',
   Close: '关闭',
 
   mutated: '已变异',
@@ -170,6 +177,7 @@ const ZH_CN: Record<string, string> = {
   Boosters: '增效剂',
   inactive: '未激活',
   Cargo: '货舱',
+  'Ship bonuses': '舰船加成',
   'Click an item in the browser below to fit it. Charges go into the selected module. Click a row of the fit to inspect it as fitted.':
     '在下方浏览器中点击物品即可装配，弹药会装填到选中的装备；点击装配中的任意一行可查看装配后的实际属性。',
 

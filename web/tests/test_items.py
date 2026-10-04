@@ -238,9 +238,17 @@ def test_slot_scope_browses_that_racks_modules(client):
     ids = _slot_ids(high)
     assert LARGE_ARTILLERY_II in ids
     assert all(entry['itemKind'] == 'module' for entry in high['results'])
+    # Each row says its size class (weapon size, or rig size for a rig) for the picker's
+    # size chips; a module without a size concept carries null
+    sizes = {entry['id']: entry['size'] for entry in high['results']}
+    assert sizes[LARGE_ARTILLERY_II] == 3
+    assert sizes[MEDIUM_RAILGUN_I] == 2
+    assert 2889 in ids and sizes[2889] == 1
 
     rig = client.get('/api/items/search', params={'scope': 'rig', 'limit': 1000}).json()
     assert MEDIUM_PROCESSOR_OVERCLOCK in _slot_ids(rig)
+    rig_sizes = {entry['id']: entry['size'] for entry in rig['results']}
+    assert rig_sizes[MEDIUM_PROCESSOR_OVERCLOCK] == 2
 
 
 def test_slot_scope_search_stays_in_the_rack(client):
@@ -266,6 +274,9 @@ def test_slot_scope_is_limited_to_what_the_fit_takes(user_client):
     assert 2889 in ids  # 200mm AutoCannon II, a small weapon
     assert MEDIUM_RAILGUN_I not in ids  # medium weapon on a small hull
     assert LARGE_ARTILLERY_II not in ids  # large weapon on a small hull
+    # A small hull keeps every remaining weapon to size 1 (modules without a size
+    # concept, like a neut, stay)
+    assert all(entry['size'] in (None, 1) for entry in high['results'])
 
     med = user_client.get('/api/items/search',
                           params={'scope': 'med', 'fitId': fit_id, 'limit': 1000}).json()

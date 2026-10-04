@@ -150,8 +150,12 @@ def search(
             if fit is None:
                 raise HTTPException(status_code=404, detail="fit not found")
         results = search_slot(scope, q, fit=fit, limit=limit)
-    else:
-        results = search_items(q, scope=scope, limit=limit)
+        # A slot scope knows each module's size class (weapon size, or rig size for a
+        # rig), which the picker turns into size chips without a second request. The
+        # other scopes carry no such concept, so they keep the plain serialization.
+        return {"query": q, "scope": scope, "results": [
+            {**serialize_item(item), "size": size} for item, size in results]}
+    results = search_items(q, scope=scope, limit=limit)
     return {"query": q, "scope": scope, "results": [serialize_item(item) for item in results]}
 
 

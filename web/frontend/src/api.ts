@@ -15,6 +15,9 @@ export interface Item {
   group: string | null
   category: string | null
   itemKind: 'module' | 'charge' | 'drone' | 'fighter' | 'implant' | 'booster' | 'ship' | 'cargo'
+  /** Slot-scope results only: 1 small .. 4 extra large (rig size for a rig), null when
+   * the module has no size concept. The picker's size chips filter on this locally. */
+  size?: number | null
   metaGroup?: string | null
   metaLevel?: number
   description?: string | null
@@ -275,7 +278,7 @@ export interface Fit {
   ignoreRestrictions: boolean
   implantLocation: number
   isStructure: boolean
-  ship: { id: number; item: Item; slots: Record<string, number> }
+  ship: { id: number; item: Item; slots: Record<string, number>; traits?: string | null }
   character: { id: number; name: string } | null
   damagePattern: { id: number; name: string; em: number; thermal: number; kinetic: number; explosive: number } | null
   targetProfile: unknown
@@ -429,9 +432,9 @@ export const api = {
       `/api/fits/${fitId}/charge-targets?chargeItemId=${chargeItemId}`,
     ),
 
-  searchItems: (q: string, scope = 'market', fitId?: number) =>
+  searchItems: (q: string, scope = 'market', fitId?: number, limit = 60) =>
     request<{ results: Item[] }>(
-      `/api/items/search?q=${encodeURIComponent(q)}&scope=${scope}&limit=60${fitId ? `&fitId=${fitId}` : ''}`,
+      `/api/items/search?q=${encodeURIComponent(q)}&scope=${scope}&limit=${limit}${fitId ? `&fitId=${fitId}` : ''}`,
     ),
   item: (itemId: number) => request<Item>(`/api/items/${itemId}`),
   attributes: (itemId: number, fitId?: number, position?: number, kind?: FittedKind) =>

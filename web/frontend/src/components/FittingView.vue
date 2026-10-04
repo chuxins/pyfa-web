@@ -355,6 +355,15 @@ const containers = computed(() => fitting.fit)
       {{ t('Click an item in the browser below to fit it. Charges go into the selected module. Click a row of the fit to inspect it as fitted.') }}
     </p>
 
+    <!-- The ship's bonus block (role bonus and per-skill-level bonuses), kept at the
+         bottom of the fitting panel so it is in view whatever the racks hold. It is the
+         same pre-rendered HTML the desktop's ship info shows, straight from the game
+         data, so it is safe to print as-is. -->
+    <section v-if="fitting.fit.ship.traits" class="containerblock bonuses">
+      <div class="rackhead"><span class="rackname">{{ t('Ship bonuses') }}</span></div>
+      <div class="bonusbody" v-html="fitting.fit.ship.traits" />
+    </section>
+
     <SlotPicker
       v-if="picker"
       :slot="picker.slot"
@@ -397,6 +406,20 @@ const containers = computed(() => fitting.fit)
 
 .containerblock {
   background: var(--bg-panel);
+}
+
+/* The ship's bonus block prints pre-rendered HTML from the game data (bold section
+   headers, bullet lines); :deep reaches the <b> tags the v-html injects. */
+.bonusbody {
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.bonusbody :deep(b) {
+  color: var(--text-dim);
+  font-weight: 600;
 }
 
 .rackhead {
