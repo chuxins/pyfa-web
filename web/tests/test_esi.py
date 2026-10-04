@@ -8,6 +8,7 @@ ship, a second import doubling everything, one account fetching with another's t
 
 import pytest
 import requests
+from service.esiAccess import APIException
 
 from web.tests.conftest import AUTOCANNON_ID, EMP_S_ID, RIFTER_ID
 
@@ -43,14 +44,16 @@ def esi_fitting(name="Imported Rifter", shipId=RIFTER_ID, fittingId=4001, esi_fl
 
 
 class FakeEsi:
-    """Stands in for ``service.esi.Esi``: records the row id it is asked about, and the
-    fittings it is asked to save on the way out."""
+    """Stands in for ``service.esi.Esi``: records the row id it is asked about, the
+    fittings it is asked to save and to delete on the way in and out."""
 
     def __init__(self, fittings):
         self.fittings = fittings
         self.requested = []
         self.posted = []
+        self.deleted = []
         self.post_answer = {"fitting_id": 9001}
+        self.delete_answer = None
 
     def getFittings(self, characterId):
         self.requested.append(characterId)
@@ -63,6 +66,12 @@ class FakeEsi:
         if isinstance(self.post_answer, Exception):
             raise self.post_answer
         return _FakeResponse(self.post_answer)
+
+    def delFitting(self, characterId, fittingId):
+        self.deleted.append((characterId, fittingId))
+        if isinstance(self.delete_answer, Exception):
+            raise self.delete_answer
+        return _FakeResponse({})
 
 
 class _FakeResponse:
@@ -387,28 +396,39 @@ def test_one_account_cannot_export_another_accounts_fit(pilot_client, second_use
     assert esi.posted == []
 
 
-def test_an_imported_fit_is_not_deletable_here(pilot_client, esi):
-    """A fit that came out of the EVE client belongs to the game too: the web refuses to
-    delete it, and the refusal carries ``deleteInGame`` so the browser can say where."""
+def test_deleting_an_imported_fit_also_deletes_it_from_eve(pilot_client, app_state, esi):
+    """A fit that came out of the EVE client belongs to the game too, so deleting it
+    from the web also deletes the original from the in-game list: ESI is told the
+    fitting's own id, and the local fit goes away with it."""
     payload = pilot_client.post("/api/esi/fittings/import").json()
     fit_id = payload["imported"][0]["id"]
 
     detail = pilot_client.get("/api/fits/{}".format(fit_id)).json()
     assert detail["fromGame"] is True
     assert detail["importedToGame"] is False
-    # The list rows carry the same flags, which is what the delete button reads
-    assert fits_for(pilot_client, RIFTER_ID)[0]["fromGame"] is True
+    assert detail["esiFittingId"] == 4001
+    # The list rows carry the same flags and the in-game id the delete flow reads
+    row = fits_for(pilot_client, RIFTER_ID)[0]
+    assert row["fromGame"] is True
+    assert row["esiFittingId"] == 4001
 
-    response = pilot_client.delete("/api/fits/{}".format(fit_id))
-    assert response.status_code == 409
-    assert response.json()["detail"]["code"] == "deleteInGame"
-    # ... and the fit is still there
-    assert pilot_client.get("/api/fits/{}".format(fit_id)).status_code == 200
+    import eos.db
+    from eos.saveddata.ssocharacter import SsoCharacter
+    with app_state.registry.acquire(pilot_client.pyfaUser.id):
+        character_id = eos.db.saveddata_session.query(SsoCharacter).one().ID
+
+    assert pilot_client.delete("/api/fits/{}".format(fit_id)).status_code == 204
+    # The game was told to delete the fitting EVE itself numbered
+    assert esi.deleted == [(character_id, 4001)]
+    # ... and the fit is gone from the web too
+    assert pilot_client.get("/api/fits/{}".format(fit_id)).status_code == 404
+    assert fits_for(pilot_client, RIFTER_ID) == []
+    assert tree_ship(pilot_client, RIFTER_ID)["fitCount"] == 0
 
 
-def test_an_exported_fit_is_no_longer_deletable_here(pilot_client, app_state, esi):
-    """'Export to Game' saves the fit into the EVE client; from then on the web refuses
-    to delete it, because the game holds a copy (TXT exports never mark a fit)."""
+def test_deleting_an_exported_fit_also_deletes_the_game_copy(pilot_client, app_state, esi):
+    """'Export to Game' saved the fit into the EVE client; deleting it now reaches
+    both: the game's copy (by the fitting id EVE assigned) and the web's row."""
     fit_id = _fitted_rifter(pilot_client)
     exported = pilot_client.post("/api/esi/fittings/export", json={"fitId": fit_id})
     assert exported.status_code == 200
@@ -416,11 +436,81 @@ def test_an_exported_fit_is_no_longer_deletable_here(pilot_client, app_state, es
     detail = pilot_client.get("/api/fits/{}".format(fit_id)).json()
     assert detail["importedToGame"] is True
     assert detail["fromGame"] is False
+    assert detail["esiFittingId"] == 9001
+
+    import eos.db
+    from eos.saveddata.ssocharacter import SsoCharacter
+    with app_state.registry.acquire(pilot_client.pyfaUser.id):
+        character_id = eos.db.saveddata_session.query(SsoCharacter).one().ID
+
+    assert pilot_client.delete("/api/fits/{}".format(fit_id)).status_code == 204
+    assert esi.deleted == [(character_id, 9001)]
+    assert pilot_client.get("/api/fits/{}".format(fit_id)).status_code == 404
+
+
+def test_deleting_a_game_fit_without_a_saved_eve_id_is_refused(pilot_client, esi):
+    """EVE always names its fittings, but one imported from a source that did not (or
+    from before this web version) has no saved in-game id. Deleting it from the web
+    alone would leave the game's copy, so that is refused with ``noGameFittingId``."""
+    esi.fittings = [esi_fitting("Idless Rifter", fittingId=None)]
+    payload = pilot_client.post("/api/esi/fittings/import").json()
+    fit_id = payload["imported"][0]["id"]
+    assert pilot_client.get("/api/fits/{}".format(fit_id)).json()["esiFittingId"] is None
 
     response = pilot_client.delete("/api/fits/{}".format(fit_id))
     assert response.status_code == 409
-    assert response.json()["detail"]["code"] == "deleteInGame"
+    assert response.json()["detail"]["code"] == "noGameFittingId"
+    assert esi.deleted == []
+    # Nothing was deleted anywhere: the game's copy could not be reached either
     assert pilot_client.get("/api/fits/{}".format(fit_id)).status_code == 200
+
+
+@pytest.mark.parametrize("answer", [
+    pytest.param(
+        APIException(
+            "https://esi.evetech.net/v1/characters/1/fittings/4001/", 403,
+            {"error": "forbidden"}),
+        id="eve-refuses",
+    ),
+    pytest.param(
+        requests.exceptions.ConnectionError("no route to host"), id="eve-unreachable",
+    ),
+])
+def test_a_failed_game_delete_leaves_the_fit_in_place(pilot_client, esi, answer):
+    """EVE refusing the delete (a dead token or a plain refusal) leaves the web fit
+    alone -- nothing half-deleted, so no orphan stays in the in-game list."""
+    payload = pilot_client.post("/api/esi/fittings/import").json()
+    fit_id = payload["imported"][0]["id"]
+
+    esi.delete_answer = answer
+    response = pilot_client.delete("/api/fits/{}".format(fit_id))
+    assert response.status_code == 502
+    detail = response.json()["detail"]
+    assert detail["code"] in ("esiDeleteRefused", "esiUnreachable")
+    # The web fit is still there, and EVE was asked exactly once
+    assert pilot_client.get("/api/fits/{}".format(fit_id)).status_code == 200
+    assert len(esi.deleted) == 1
+
+
+def test_the_esi_delete_route_removes_the_fit_too(pilot_client, app_state, esi):
+    """``DELETE /api/esi/fittings/{id}`` is the ESI half on its own: the pilot's tokens
+    tell EVE to drop the fitting, and the local row goes with it."""
+    payload = pilot_client.post("/api/esi/fittings/import").json()
+    fit_id = payload["imported"][0]["id"]
+
+    import eos.db
+    from eos.saveddata.ssocharacter import SsoCharacter
+    with app_state.registry.acquire(pilot_client.pyfaUser.id):
+        character_id = eos.db.saveddata_session.query(SsoCharacter).one().ID
+
+    assert pilot_client.delete("/api/esi/fittings/{}".format(fit_id)).status_code == 204
+    assert esi.deleted == [(character_id, 4001)]
+    assert pilot_client.get("/api/fits/{}".format(fit_id)).status_code == 404
+
+
+def test_the_esi_delete_route_needs_a_login(client):
+    """The dedicated ESI delete route is login-only like the other EVE calls."""
+    assert client.delete("/api/esi/fittings/1").status_code == 401
 
 
 def test_a_txt_export_does_not_mark_the_fit(pilot_client, esi):
@@ -445,6 +535,7 @@ def test_duplicating_a_game_fit_makes_a_deletable_web_fit(pilot_client, esi):
     assert clone.json()["importedToGame"] is False
     assert pilot_client.delete("/api/fits/{}".format(clone.json()["id"])).status_code == 204
 
-    # The game fit is still there, still the game's
+    # The game fit is still there -- and deleting it now reaches EVE as well
     assert pilot_client.get("/api/fits/{}".format(imported_id)).status_code == 200
-    assert pilot_client.delete("/api/fits/{}".format(imported_id)).status_code == 409
+    assert pilot_client.delete("/api/fits/{}".format(imported_id)).status_code == 204
+    assert [fitting_id for _, fitting_id in esi.deleted] == [4001]

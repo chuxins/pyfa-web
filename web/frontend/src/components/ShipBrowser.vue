@@ -41,10 +41,14 @@ function removeFit(fit: FitSummary) {
   void fitting.removeFit(fit.id, fit)
 }
 
-/** What the delete button's tooltip says: the reason a fit cannot be deleted here. */
+/** What the delete button's tooltip says: where a fit's delete reaches, and when a
+ *  second click is needed to confirm a game fit's deletion. */
 function deleteTitle(fit: FitSummary): string {
-  if (fit.fromGame) return t('This fit came from EVE; delete it in the game')
-  if (fit.importedToGame) return t('Please delete this fit in the game')
+  if (fit.fromGame || fit.importedToGame) {
+    return fitting.armedDeleteId === fit.id
+      ? t('Click again to confirm')
+      : t('Delete from the website and from EVE')
+  }
   return t('Delete')
 }
 
@@ -151,7 +155,12 @@ function renderUrl(ship: { image?: { kind: string; id: number } | null }) {
                             <span class="fitname">{{ fit.name }}</span>
                             <span v-if="fit.booster" class="tag">{{ t('booster') }}</span>
                           </span>
-                          <button class="fitdelete" :title="deleteTitle(fit)" @click.stop="removeFit(fit)">
+                          <button
+                            class="fitdelete"
+                            :class="{ armed: fitting.armedDeleteId === fit.id }"
+                            :title="deleteTitle(fit)"
+                            @click.stop="removeFit(fit)"
+                          >
                             &times;
                           </button>
                         </div>
@@ -200,7 +209,12 @@ function renderUrl(ship: { image?: { kind: string; id: number } | null }) {
             <span class="fitname">{{ fit.name }}</span>
             <span v-if="fit.booster" class="tag">{{ t('booster') }}</span>
           </span>
-          <button class="fitdelete" :title="deleteTitle(fit)" @click.stop="removeFit(fit)">
+          <button
+            class="fitdelete"
+            :class="{ armed: fitting.armedDeleteId === fit.id }"
+            :title="deleteTitle(fit)"
+            @click.stop="removeFit(fit)"
+          >
             &times;
           </button>
         </div>
@@ -383,6 +397,12 @@ function renderUrl(ship: { image?: { kind: string; id: number } | null }) {
 
 .fitdelete:hover {
   color: var(--danger);
+}
+
+/* A game fit's delete button that a first click armed: it now really deletes. */
+.fitdelete.armed {
+  color: var(--danger);
+  font-weight: 600;
 }
 
 .fitrow.nested {

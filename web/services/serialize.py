@@ -439,9 +439,11 @@ def serialize_fit(fit, includeStats=True, statsSections=None):
         "factorReload": bool(getattr(fit, "factorReload", False)),
         "ignoreRestrictions": bool(getattr(fit, "ignoreRestrictions", False)),
         #: Where the fit came from decides whether the web may delete it: a fit imported
-        #: from EVE, or one already saved into it, belongs to the game too (see fits.py)
+        #: from EVE, or one already saved into it, belongs to the game too, and deleting
+        #: it reaches the game's list as well (see web/api/fits.py)
         "fromGame": bool(getattr(fit, "fromGame", False)),
         "importedToGame": bool(getattr(fit, "importedToGame", False)),
+        "esiFittingId": getattr(fit, "esiFittingId", None),
         "implantLocation": int(getattr(fit, "implantLocation", ImplantLocation.FIT)),
         "systemSecurity": int(getattr(fit, "systemSecurity", 0) or 0),
         "pilotSecurity": getattr(fit, "pilotSecurity", None),
@@ -495,6 +497,7 @@ def serialize_fit_summary(fit):
         "notes": fit.notes,
         "fromGame": bool(getattr(fit, "fromGame", False)),
         "importedToGame": bool(getattr(fit, "importedToGame", False)),
+        "esiFittingId": getattr(fit, "esiFittingId", None),
     }
 
 

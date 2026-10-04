@@ -302,8 +302,8 @@ the tree.
 
 It is one-way. Nothing is written back to EVE: renaming the copy in pyfa leaves the
 in-game fitting alone, and `esi-fittings.write_fittings.v1` is not used by this path. A
-fit that came out of the game is also the game's, so the web will not delete it (see
-"Deleting a fit" below).
+fit that came out of the game is also the game's, so deleting it deletes the in-game
+original too (see "Deleting a fit" below).
 
 * A fitting is skipped when the pilot already has a fit with the same name on the same
   ship, matched one for one -- so pressing the button twice does not double everything,
@@ -340,22 +340,45 @@ both spellings, which the desktop's "Browse EVE Fittings" window benefits from t
 
 ### Deleting a fit
 
-Every fit row in the ship browser carries a delete button, but not every fit may be
-deleted there. A fit is deletable while it is the web's alone: one created here, or a
-save-as copy, stays deletable until it is saved into the game. Two kinds of fit are the
-game's too, and the button says where to delete instead of deleting:
+Every fit row in the ship browser carries a delete button. A fit is deletable while it
+is the web's alone: one created here, or a save-as copy, stays deletable until it is
+saved into the game. A fit the game also holds -- imported from the game
+(`POST /api/esi/fittings/import` marks it `fromGame`) or saved into the game
+(`POST /api/esi/fittings/export` marks it `importedToGame`) -- is deleted in two places,
+because it exists in two places.
 
-* a fit **imported from the game** (`POST /api/esi/fittings/import` marks it
-  `fromGame`): EVE still holds the original;
-* a fit **saved into the game** (`POST /api/esi/fittings/export` marks it
-  `importedToGame`): EVE now holds a copy.
+Deleting such a fit from the web deletes the copy EVE holds too, by the fitting id that
+import and export keep on the row (`esiFittingId`, migration 52). The delete is ESI-first
+on purpose: `DELETE /api/fits/{id}` tells EVE to drop the fitting first and removes the
+local row only if EVE accepts -- if EVE refuses, the web fit stays, so the in-game list
+never keeps an orphan. `DELETE /api/esi/fittings/{id}` is the same ESI-then-local delete
+on its own, for callers that already know they only want the game copy gone.
 
-Both are answered with a hint to delete the fit in the game, and `DELETE /api/fits/{id}`
-refuses them with `409 deleteInGame` as well. Exporting a fit as TXT never marks it: a
-text file is not the game, so it changes nothing. Duplicating a fit resets both flags --
-a save-as copy has not been near EVE and is deletable again. The two flags live on the
-`fits` table (migration 51) and travel in every fit payload as `fromGame` /
-`importedToGame`.
+In the browser the delete button is therefore two clicks for a game fit: the first only
+warns that deleting reaches the in-game list too and arms the button (a red ×, whose
+tooltip says "delete again"; the arm fades after a few seconds), and the second click
+asks once more and really deletes. A fit the web alone holds deletes in the usual single
+confirm.
+
+A game fit with no saved in-game id cannot be deleted from the web at all: the row
+predates `esiFittingId` (migration 52) or the import had none, and removing only the web
+copy would strand the game's. `DELETE /api/fits/{id}` refuses with `409 noGameFittingId`
+and asks the pilot to delete it in the game first. The other refusals a delete can carry
+(mapped in `web/frontend/src/errors.ts`, shared with the export errors above):
+
+| Code | What happened |
+| --- | --- |
+| `noCharacter` | the account has no stored tokens for the configured server |
+| `tokenRefused` | EVE no longer accepts the stored tokens (a refused token refresh too) |
+| `esiUnreachable` | ESI did not answer |
+| `esiDeleteRefused` | EVE answered, refusing to delete the fitting |
+| `notInGame` | the fit was never marked as the game's (`fromGame`/`importedToGame`) |
+
+Exporting a fit as TXT never marks it: a text file is not the game, so it changes
+nothing. Duplicating a fit resets both flags -- a save-as copy has not been near EVE and
+is deletable again. The two flags and the in-game id live on the `fits` table
+(migrations 51 and 52) and travel in every fit payload as `fromGame` / `importedToGame` /
+`esiFittingId`.
 
 ## Configuration
 

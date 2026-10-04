@@ -30,6 +30,7 @@ const ZH_CN: Record<string, string> = {
   Undo: '撤销',
   Redo: '恢复',
   'Clear fit': '清空装配',
+  'Save As': '另存为',
   'working…': '处理中…',
   'Export TXT': '导出 TXT',
   'Export to Game': '导出到游戏',
@@ -71,10 +72,10 @@ const ZH_CN: Record<string, string> = {
   'New fit': '新建装配',
   'Delete': '删除',
   'Delete this fit?': '确定删除该装配？',
-  'This fit came from EVE; delete it in the game': '该装配来自游戏内，请到游戏内删除该装配',
-  'Please delete this fit in the game': '请到游戏内删除该装配',
-  'this fit was imported from the game or saved into it; delete it in the game':
-    '该装配来自游戏内或已导入游戏，请到游戏内删除该装配',
+  'Delete from the website and from EVE': '从网站和 EVE 中删除',
+  'Click again to confirm': '再次点击确认',
+  'Delete this fit from the website and from EVE?': '确定从网站和 EVE 中删除该装配吗？',
+  'This fit is also in EVE; deleting it removes it from the website and from the game. Click delete again to confirm.': '该装配同时保存在 EVE 中，删除会同时从网站和游戏列表中移除。再次点击删除以确认。',
   'No saved fits yet': '暂无保存的装配',
   'Import my EVE fits': '导入我的 EVE 装配',
   'importing…': '导入中…',
@@ -287,6 +288,8 @@ const ZH_CN: Record<string, string> = {
   'No fitted module can load this charge': '没有已装配的装备能装填该弹药',
   'Loaded into {count} modules': '已装填到 {count} 个装备',
   'This fit was deleted': '该装配已被删除',
+  'This fit was deleted from the website and from EVE': '该装配已从网站和 EVE 中删除。',
+  'The fit was saved as a new fit': '装配已另存为新装配。',
   'Exported {name} as text': '已将「{name}」导出为文本',
   "Saved '{name}' to {character} in EVE": '已把「{name}」保存到 EVE 中的 {character}',
 
@@ -335,6 +338,11 @@ const ZH_CN: Record<string, string> = {
   'the fit has nothing fitted, so there is nothing to export': '该装配没有装配任何物品，没有可导出的内容。',
   'EVE refused to save the fitting ({reason})': 'EVE 拒绝保存该装配方案（{reason}）。',
   'the fitting could not be exported; the server log has the reason': '无法导出装配方案，原因见服务器日志。',
+
+  // -- deleting a fit the game also holds (see @/errors, web/services/esiFittings.py) -----
+  'this fit came in before the web kept its in-game id; delete it in the game first, then here': '该装配早于本版本，未保存游戏内 ID；请先在游戏内删除，再在此处删除。',
+  'EVE refused to delete the fitting ({reason}); nothing was deleted': 'EVE 拒绝删除该装配（{reason}），未删除任何内容。',
+  'this fit is not saved in EVE, so there is nothing to delete from the game': '该装配未保存在 EVE 中，因此无需从游戏内删除。',
 }
 
 /** The English catalogue is the identity: `t()` falls back to the key itself. */

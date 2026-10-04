@@ -10,9 +10,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from logbook import Logger
 from pydantic import BaseModel, Field
 
-from web.deps import event_channel, get_user_data, user_or_guest
+from web.deps import event_channel, get_app_state, get_user_data, user_or_guest
 from web.events import publish
 from web.services import commands as commandService
+from web.services import esiFittings
 from web.services.serialize import serialize_fit, serialize_fit_summary
 from web.services.stats import SECTIONS, build_stats
 
@@ -71,9 +72,11 @@ def list_fits(
                 "modified": modified.isoformat() if modified is not None else None,
                 "notes": notes,
                 # The search list carries the deletion flags like every other fit row, so
-                # its delete button knows when a fit belongs to the game too.
+                # its delete button knows when a fit belongs to the game too. Search
+                # results are always plain web fits, so the game's id is absent.
                 "fromGame": False,
                 "importedToGame": False,
+                "esiFittingId": None,
             })
         return {"fits": fits[:limit]}
 
@@ -184,24 +187,33 @@ def duplicate_fit(fit_id: int, user=Depends(user_or_guest)):
 
 
 @router.delete("/{fit_id}", status_code=204)
-def delete_fit(fit_id: int, user=Depends(user_or_guest), userData=Depends(get_user_data)):
-    """Delete a fit the web owns.
+def delete_fit(
+    fit_id: int,
+    user=Depends(user_or_guest),
+    userData=Depends(get_user_data),
+    state=Depends(get_app_state),
+):
+    """Delete a fit, and when the game holds it too, delete the game's copy as well.
 
-    A fit that came out of the EVE client, or that was saved into it, is the game's too:
-    deleting it here would leave a copy in EVE that only the pilot can remove, so those
-    are refused with ``deleteInGame`` and the browser says where to delete them instead.
+    A fit that came out of the EVE client, or that was saved into it, is the game's
+    too: deleting it from the web also deletes the same fitting from the in-game list,
+    by the ``esiFittingId`` import/export kept on the row. That half needs a stored EVE
+    login, and when the game's id was never saved the fit is refused with
+    ``noGameFittingId`` -- the web would otherwise leave a copy in EVE that only the
+    pilot can delete. A plain web fit (one created here, or a save-as copy) is deleted
+    exactly as before.
     """
     fit = _require_fit(fit_id)
     if getattr(fit, "fromGame", False) or getattr(fit, "importedToGame", False):
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "message": "this fit was imported from the game or saved into it; "
-                           "delete it in the game",
-                "code": "deleteInGame",
-                "params": {},
-            },
-        )
+        # The game's copy is deleted first: if EVE refuses, the local fit stays, so a
+        # delete gone wrong never leaves the in-game list holding a copy nobody can see.
+        try:
+            esiFittings.delete_fitting_from_game(user, state.config.sso.server, fit_id)
+        except esiFittings.EsiError as ex:
+            raise HTTPException(
+                status_code=ex.status,
+                detail={"message": str(ex), "code": ex.code, "params": ex.params},
+            ) from ex
     _service_fit().deleteFit(fit_id)
     # The engine only forgets its own per-fit stack; ours is keyed per user, so
     # without this the deleted fit's commands would outlive it, and a later fit

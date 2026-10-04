@@ -144,6 +144,7 @@ function changeLocale(event: Event) {
           &#8631; {{ t('Redo') }}
         </button>
         <button :disabled="fitting.busy" @click="fitting.reset()">{{ t('Clear fit') }}</button>
+        <button :disabled="fitting.busy" @click="fitting.saveAs()">{{ t('Save As') }}</button>
         <button :disabled="fitting.exporting" @click="fitting.exportTxt()">{{ t('Export TXT') }}</button>
         <button :disabled="fitting.exporting" @click="fitting.exportToGame()">
           {{ t('Export to Game') }}

@@ -49,6 +49,12 @@ export const useFittingStore = defineStore('fitting', {
     exporting: false as boolean,
     error: '' as string,
     notice: '' as string,
+    /**
+     * The id of a game fit whose delete button a first click armed: while it is set,
+     * that row's delete really deletes (and turns red), and every other game fit still
+     * needs its own first click first. The arm expires on its own after a few seconds.
+     */
+    armedDeleteId: null as number | null,
     selectedModule: null as number | null,
     /**
      * The high rack's weapon grouping: the same weapon there acts as one unit, so a state
@@ -300,30 +306,37 @@ export const useFittingStore = defineStore('fitting', {
 
     /**
      * Delete a fit the web owns. A fit that came out of the EVE client, or that was
-     * already saved into it, is the game's too: deleting it here would leave a copy in
-     * EVE that only the pilot can remove, so those get a hint saying where instead.
-     * Only saving the fit into the game marks it -- a TXT export never does.
+     * already saved into it, is the game's too: deleting it reaches EVE's list as well,
+     * by the in-game id kept on the row, and that delete is ESI-first on the server -- if
+     * EVE refuses, the web fit stays. Only saving the fit into the game marks it -- a TXT
+     * export never does.
      *
      * `summary` is the list row the delete button sat on; without it the flags come from
      * the open fit. Returns true when the fit was actually deleted.
      */
     async removeFit(fitId: number, summary?: Pick<FitSummary, 'fromGame' | 'importedToGame'>) {
       const flags = summary ?? this.fit
-      if (flags?.fromGame) {
-        this.notice = t('This fit came from EVE; delete it in the game')
-        this.clearNoticeSoon()
+      const inGame = Boolean(flags?.fromGame || flags?.importedToGame)
+      if (inGame) {
+        // A fit the game also holds is a two-step delete: the first click only warns
+        // that deleting reaches the in-game list too, and arms the button; the second
+        // click really deletes (and asks once more, so a stray double-click cannot).
+        // The arm expires, so a warning left alone just fades away.
+        if (this.armedDeleteId !== fitId) {
+          this.armDelete(fitId)
+          this.notice = t('This fit is also in EVE; deleting it removes it from the website and from the game. Click delete again to confirm.')
+          this.clearNoticeSoon(6000)
+          return false
+        }
+        this.disarmDelete()
+        if (!window.confirm(t('Delete this fit from the website and from EVE?'))) return false
+      } else if (!window.confirm(t('Delete this fit?'))) {
         return false
       }
-      if (flags?.importedToGame) {
-        this.notice = t('Please delete this fit in the game')
-        this.clearNoticeSoon()
-        return false
-      }
-      if (!window.confirm(t('Delete this fit?'))) return false
       try {
         await api.deleteFit(fitId)
         if (this.fit?.id === fitId) this.fit = null
-        this.notice = t('This fit was deleted')
+        this.notice = t(inGame ? 'This fit was deleted from the website and from EVE' : 'This fit was deleted')
         this.clearNoticeSoon()
         // The fit's ship changed its count and its list, and the tree and the detail
         // panel share the one `shipFitsById`; re-read what is on screen.
@@ -335,10 +348,43 @@ export const useFittingStore = defineStore('fitting', {
       }
     },
 
+    /** Arm a game fit's delete button: the next click on it really deletes. */
+    armDelete(fitId: number) {
+      this.armedDeleteId = fitId
+      window.setTimeout(() => {
+        if (this.armedDeleteId === fitId) this.armedDeleteId = null
+      }, 6000)
+    },
+
+    /** Cancel an armed delete, e.g. because the delete was just carried out. */
+    disarmDelete() {
+      this.armedDeleteId = null
+    },
+
     /** The open fit's delete button; list rows pass the row's own flags instead. */
     async remove() {
       if (!this.fit) return null
       return (await this.removeFit(this.fit.id, this.fit)) ? this.fit.id : null
+    },
+
+    /** Save the open fit as a new web fit, and open the copy.
+     *
+     * The copy is brand new -- it has not been near EVE -- so save-as is also how a
+     * game fit is duplicated into a fresh, deletable web fit (see web/api/fits.py). */
+    async saveAs() {
+      if (!this.fit) return this.promptForMissingFit()
+      try {
+        const clone = await api.duplicateFit(this.fit.id)
+        this.notice = t('The fit was saved as a new fit')
+        this.clearNoticeSoon()
+        await this.open(clone.id)
+        // The ship list and the tree count a new fit now.
+        void useBrowserStore().refreshFits()
+        return clone
+      } catch (error) {
+        this.setError(error)
+        return null
+      }
     },
 
     /** Let the notice banner get out of the way again after a moment. */

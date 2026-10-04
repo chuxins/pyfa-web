@@ -217,12 +217,8 @@ def export_fitting_to_game(user, server_name, fit_id):
 
     # An expired access token was refreshed on the way through, and that new token only
     # exists in memory until it is written down. The fit has now been saved into the EVE
-    # client, so it is the game's too: the web stops offering to delete it (see the
-    # deletion rules in web/api/fits.py).
-    fit.importedToGame = True
-    eos.db.save(character)
-    eos.db.commit()
-
+    # client, so it is the game's too: deleting it from the web also deletes the game's
+    # copy, using the id EVE just assigned (see web/api/fits.py).
     fitting_id = None
     try:
         fitting_id = resp.json().get("fitting_id")
@@ -230,6 +226,10 @@ def export_fitting_to_game(user, server_name, fit_id):
         # EVE's answer normally carries the new fitting's id, but the export worked
         # either way when it does not.
         pass
+    fit.importedToGame = True
+    fit.esiFittingId = fitting_id
+    eos.db.save(character)
+    eos.db.commit()
 
     return {
         "character": {
@@ -240,6 +240,76 @@ def export_fitting_to_game(user, server_name, fit_id):
         "name": fit.name,
         "fittingId": fitting_id,
     }
+
+
+def delete_fitting_from_game(user, server_name, fit_id):
+    """Delete a fit that EVE also holds from the pilot's in-game list.
+
+    ``DELETE /api/fits/{id}`` handles the local row; this is only the ESI half: the
+    ``SsoCharacter``'s tokens are used to tell EVE which fitting to remove, by the
+    ``esiFittingId`` that import/export kept on the row. The pilot must have a stored
+    login (there is no other way to talk to EVE as them), and the fit must carry a
+    saved in-game id -- when it does not, the web would leave a copy in EVE that only
+    the pilot can delete, so that is refused with ``noGameFittingId``.
+
+    Returns nothing and raises :class:`EsiError` when there is no login, the id is
+    missing, or EVE does not accept the call.
+    """
+    import requests
+
+    from service.esiAccess import APIException, GenericSsoError
+    from service.fit import Fit as ServiceFit
+
+    character = find_character(user, server_name)
+    if character is None:
+        raise EsiError(
+            "noCharacter",
+            "No {} character with stored EVE tokens is available to this account; sign "
+            "in with EVE again and retry.".format(server_name),
+            status=409,
+            params={"server": server_name},
+        )
+
+    fit = ServiceFit.getInstance().getFit(fit_id)
+    if fit is None:
+        raise EsiError("fitMissing", "The fit to delete was not found", status=404)
+    if not getattr(fit, "fromGame", False) and not getattr(fit, "importedToGame", False):
+        raise EsiError(
+            "notInGame",
+            "The fit is not saved in EVE, so there is nothing to delete from the game",
+            status=409,
+        )
+    esi_fitting_id = getattr(fit, "esiFittingId", None)
+    if esi_fitting_id is None:
+        raise EsiError(
+            "noGameFittingId",
+            "The in-game id of this fit was never saved (it predates this web version, "
+            "or the import had none); delete it in the game, and it can then be deleted "
+            "from the web",
+            status=409,
+        )
+
+    try:
+        _esi().delFitting(character.ID, int(esi_fitting_id))
+    except APIException as ex:
+        if _dead_token(ex):
+            raise EsiError(
+                "tokenRefused", "EVE did not accept the stored login: {}".format(ex),
+                status=409) from ex
+        raise EsiError(
+            "esiDeleteRefused", "EVE refused to delete the fitting: {}".format(ex),
+            params={"reason": str(ex)}) from ex
+    except GenericSsoError as ex:
+        raise EsiError(
+            "tokenRefused", "EVE did not accept the stored login: {}".format(ex),
+            status=409) from ex
+    except requests.exceptions.RequestException as ex:
+        raise EsiError("esiUnreachable", "EVE could not be reached: {}".format(ex)) from ex
+
+    # An expired access token was refreshed on the way through, and that new token only
+    # exists in memory until it is written down.
+    eos.db.save(character)
+    eos.db.commit()
 
 
 def import_fittings(fittings, character):
@@ -287,9 +357,12 @@ def import_fittings(fittings, character):
             # side, so recalculate the way a newly created fit is calculated.
             sFit.recalc(fit)
             sFit.fill(fit)
-            # The fit came out of the EVE client, so the web must not delete it: the
-            # game still holds the original (see the deletion rules in web/api/fits.py).
+            # The fit came out of the EVE client, so the game still holds the original:
+            # the fit is marked where it came from, and the game's own id for it is kept
+            # so deleting it from the web can also delete it from the in-game list (see
+            # web/api/fits.py).
             fit.fromGame = True
+            fit.esiFittingId = entry.get("fitting_id")
             entry_payload = dict(serialize_fit_summary(fit))
             entry_payload["esiFittingId"] = entry.get("fitting_id")
             imported.append(entry_payload)

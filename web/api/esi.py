@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from logbook import Logger
 from pydantic import BaseModel
 
-from web.deps import get_app_state, require_user
+from web.deps import event_channel, get_app_state, get_user_data, require_user
 from web.events import publish
 from web.services import esiFittings
 
@@ -59,6 +59,43 @@ def import_fittings(user=Depends(require_user), state=Depends(get_app_state)):
 
 class EsiExportRequest(BaseModel):
     fitId: int
+
+
+@router.delete("/fittings/{fit_id}", status_code=204)
+def delete_fitting(
+    fit_id: int,
+    user=Depends(require_user),
+    userData=Depends(get_user_data),
+    state=Depends(get_app_state),
+):
+    """Delete a fitting from the pilot's in-game list as well as from the web.
+
+    The same delete the browser performs from the fit list (``DELETE /api/fits/{id}``),
+    offered here as the ESI half on its own: login-only because telling EVE to remove a
+    fitting uses the pilot's stored tokens, and the local fit row goes with it. Only a
+    fit the game also holds can be deleted here; anything else is refused with
+    ``notInGame``.
+    """
+    from web.services import commands as commandService
+
+    try:
+        esiFittings.delete_fitting_from_game(user, state.config.sso.server, fit_id)
+    except esiFittings.EsiError as ex:
+        pyfalog.warning("ESI fitting delete failed ({}): {}", ex.code, ex)
+        raise HTTPException(
+            status_code=ex.status,
+            detail={"message": str(ex), "code": ex.code, "params": ex.params},
+        ) from ex
+
+    from service.fit import Fit as ServiceFit
+
+    ServiceFit.getInstance().deleteFit(fit_id)
+    # The engine only forgets its own per-fit stack; ours is keyed per user, so
+    # without this the deleted fit's commands would outlive it, and a later fit
+    # reusing the id would inherit them.
+    commandService.clear_history(userData, fit_id)
+    publish(event_channel(user), "fit.removed", fitIds=[fit_id])
+    return None
 
 
 @router.post("/fittings/export")

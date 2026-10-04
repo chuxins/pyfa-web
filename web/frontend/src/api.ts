@@ -78,10 +78,12 @@ export interface FitSummary {
   shipImage?: ItemImage | null
   modified: string | null
   notes: string | null
-  /** The fit was imported from the EVE client, so the web cannot delete it */
+  /** The fit was imported from the EVE client, so the game also holds it */
   fromGame?: boolean
-  /** The fit was saved into the EVE client, so the web cannot delete it */
+  /** The fit was saved into the EVE client, so the game also holds it */
   importedToGame?: boolean
+  /** The id EVE assigned the fitting, when the game also holds it */
+  esiFittingId?: number | null
 }
 
 /** Why one of the pilot's in-game fittings did not arrive (see `web/services/esiFittings.py`) */
@@ -282,10 +284,12 @@ export interface Fit {
   modified: string | null
   factorReload: boolean
   ignoreRestrictions: boolean
-  /** The fit was imported from the EVE client, so the web cannot delete it */
+  /** The fit was imported from the EVE client, so the game also holds it */
   fromGame: boolean
-  /** The fit was saved into the EVE client, so the web cannot delete it */
+  /** The fit was saved into the EVE client, so the game also holds it */
   importedToGame: boolean
+  /** The id EVE assigned the fitting, when the game also holds it */
+  esiFittingId: number | null
   implantLocation: number
   isStructure: boolean
   ship: { id: number; item: Item; slots: Record<string, number>; traits?: string | null }
