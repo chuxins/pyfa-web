@@ -12,7 +12,7 @@ import config
 import eos.db
 from eos.gamedata import Category as types_Category, Group as types_Group, Item as types_Item
 from logbook import Logger
-from sqlalchemy.sql import or_, select
+from sqlalchemy.sql import or_
 
 from service.jargon import JargonLoader
 from service.market import Market
@@ -20,21 +20,7 @@ from utils.cjk import isStringCjk
 
 pyfalog = Logger(__name__)
 
-SCOPES = ("market", "everything", "implants", "all", "high", "med", "low", "rig", "subsystem", "service")
-
-#: Rack names a ship fit can hold, mapped to the dogma effect that puts an item there
-#: (``eos/saveddata/module.py``, ``Module.calculateSlot``). The mobile slot picker
-#: searches and browses one of these scopes, so only modules that would go in the
-#: tapped slot come up.
-SLOT_SCOPES = ("high", "med", "low", "rig", "subsystem", "service")
-SLOT_EFFECTS = {
-    "high": "hiPower",
-    "med": "medPower",
-    "low": "loPower",
-    "rig": "rigSlot",
-    "subsystem": "subSystem",
-    "service": "serviceSlot",
-}
+SCOPES = ("market", "everything", "implants", "all")
 
 
 def prepare_tokens(request):
@@ -86,10 +72,6 @@ def _prepare_regex(request):
 
 
 def _filters_for(scope, market):
-    if scope in SLOT_SCOPES:
-        # Modules and subsystems both carry the slot effects; the slot itself is
-        # decided by the post-filter below (``_search_slot``), not by the category.
-        return [types_Category.name.in_(("Module", "Subsystem"))]
     if scope == "market":
         return [or_(
             types_Category.name.in_(market.SEARCH_CATEGORIES),
@@ -107,30 +89,14 @@ def _filters_for(scope, market):
     return [None]
 
 
-class FitNotFound(Exception):
-    """The fit a slot scope was asked to restrict by does not exist."""
-
-
-def search_items(text, scope="market", limit=50, fit_id=None, size=None):
-    """Published items matching ``text``, best effort ordered by relevance.
-
-    A slot scope (`high`, `med`, `low`, `rig`, `subsystem`, `service`) searches only
-    the modules that go in that rack, and with an empty query lists them all
-    alphabetically -- that is the mobile slot picker's "pick a module for this slot"
-    view. ``fit_id`` restricts a slot scope to what that fit's ship can fit, so the
-    picker never offers a module the hull would refuse. ``size`` narrows a slot scope
-    to one size class (1 small .. 4 extra large); see :func:`_size_item_ids` for what
-    the game data counts as a module's size. Every other scope keeps the desktop
-    behaviour: an empty query finds nothing, and there is no hull or size filter.
-    """
+def search_items(text, scope="market", limit=50):
+    """Published items matching ``text``, best effort ordered by relevance."""
     market = Market.getInstance()
     filters = _filters_for(scope, market)
 
     tokens = prepare_tokens(text)
     tokens = JargonLoader.instance().get_jargon().apply(tokens)
     joined = " ".join(tokens)
-    if scope in SLOT_SCOPES:
-        return _search_slot(scope, joined, tokens, market, limit, _load_fit(fit_id), size)
     if not joined:
         return []
     if not (
@@ -153,142 +119,6 @@ def search_items(text, scope="market", limit=50, fit_id=None, size=None):
 
     published = [item for item in found if market.getPublicityByItem(item)]
     published.sort(key=_relevance(text))
-    return published[:limit]
-
-
-#: Item ids of each slot's published modules, computed once per process. Scanning the
-#: game data for slot effects is the slow part; keeping the ids makes a browse or a
-#: scoped search a query over a fixed set instead of a scan of thousands of items on
-#: every picker that opens.
-_SLOT_IDS = None
-
-
-def _slot_item_ids():
-    global _SLOT_IDS
-    if _SLOT_IDS is not None:
-        return _SLOT_IDS
-    market = Market.getInstance()
-    cache = {slot: [] for slot in SLOT_EFFECTS}
-    for category in ("Module", "Subsystem"):
-        try:
-            items = eos.db.getItemsByCategory(category, eager=("group.category", "metaGroup"))
-        except Exception:
-            pyfalog.exception("Could not list {} items for the slot picker", category)
-            continue
-        for item in items:
-            for slot, effect in SLOT_EFFECTS.items():
-                if effect in item.effects:
-                    if market.getPublicityByItem(item):
-                        cache[slot].append(item.ID)
-                    break
-    _SLOT_IDS = {slot: tuple(ids) for slot, ids in cache.items()}
-    return _SLOT_IDS
-
-
-#: The two attributes the game data files a module's size class on: ``chargeSize`` for
-#: turrets, launchers and the med-slot modules that take scripts, ``rigSize`` for rigs.
-#: There is no one ``size`` attribute -- shield, armour and propulsion modules carry no
-#: size at all, so they only ever come up under "all sizes".
-_SIZE_ATTRIBUTE_IDS = (128, 1547)
-
-
-#: Item ids of each size class (1 small .. 4 extra large), computed once per process.
-_SIZE_IDS = {}
-
-
-def _size_item_ids(size):
-    """Item ids whose size class is ``size``; empty when the game data files none under it."""
-    global _SIZE_IDS
-    if size not in _SIZE_IDS:
-        from eos.gamedata import Attribute
-
-        rows = eos.db.gamedata_session.execute(
-            select(Attribute.typeID).where(
-                Attribute.attributeID.in_(_SIZE_ATTRIBUTE_IDS),
-                Attribute.value == float(size),
-            )).scalars().all()
-        _SIZE_IDS[size] = set(rows)
-    return _SIZE_IDS[size]
-
-
-def _load_fit(fit_id):
-    """The fit a slot scope is restricted by, or None when no fit was asked for."""
-    if fit_id is None:
-        return None
-    from service.fit import Fit
-
-    fit = Fit.getInstance().getFit(fit_id)
-    if fit is None:
-        raise FitNotFound(fit_id)
-    return fit
-
-
-def _fit_accepts(fit):
-    """A predicate for the modules a fit's ship allows, or None when there is no ship to ask.
-
-    ``Fit.canFit`` is the same rule the engine applies when a module is fitted: an item
-    whose ``canFitShipGroup``/``canFitShipType``/``fitsToShipType`` attributes name hulls
-    the current ship is not one of is left out, and structure-only modules stay off a
-    regular ship. A fit without a ship has nothing to restrict by, so every module passes.
-    """
-    if fit is None or fit.ship is None or fit.ship.item is None:
-        return None
-
-    def accepts(item):
-        try:
-            return bool(fit.canFit(item))
-        except Exception:
-            pyfalog.warning("Could not tell whether {} fits {}", item, fit)
-            return True
-
-    return accepts
-
-
-def _slot_items(ids, limit, accepts=None):
-    """Published modules of one rack the ship allows, sorted by name; at most ``limit`` of them."""
-    if not ids:
-        return []
-    items = eos.db.getItems(ids, eager=("group.category", "metaGroup"))
-    items = [item for item in items if item is not None]
-    if accepts is not None:
-        items = [item for item in items if accepts(item)]
-    items.sort(key=lambda item: (item.name or "").lower())
-    return items[:limit]
-
-
-def _search_slot(slot, joined, tokens, market, limit, fit=None, size=None):
-    """A browse (empty query) or a name search restricted to one rack's modules."""
-    ids = _slot_item_ids().get(slot) or ()
-    if not ids:
-        return []
-    # A size class narrows the rack before anything else; see :func:`_size_item_ids`
-    if size is not None:
-        ids = [item_id for item_id in ids if item_id in _size_item_ids(size)]
-    accepts = _fit_accepts(fit)
-    if not joined:
-        return _slot_items(ids, limit, accepts)
-    if not (
-        (isStringCjk(joined) and len(joined) >= config.minItemSearchLengthCjk)
-        or len(joined) >= config.minItemSearchLength
-    ):
-        return []
-
-    found = set()
-    try:
-        results = eos.db.searchItemsRegex(
-            tokens,
-            where=types_Item.ID.in_(ids),
-            join=(types_Item.group, types_Group.category),
-            eager=("group.category", "metaGroup"))
-    except Exception:
-        pyfalog.exception("Slot search failed for {!r}", joined)
-        return []
-    found.update(results)
-
-    published = [item for item in found if market.getPublicityByItem(item)]
-    if accepts is not None:
-        published = [item for item in published if accepts(item)]
-    published.sort(key=_relevance(joined))
     return published[:limit]
 
 

@@ -1,43 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useFittingStore } from '@/stores/fitting'
 import { DetailTab, useBrowserStore } from '@/stores/browser'
 import { imageUrl, FittedKind, Item, Module } from '@/api'
 import { formatAmount } from '@/format'
 import { t } from '@/i18n'
-import SlotPicker from '@/components/SlotPicker.vue'
-
-const props = defineProps<{ mobile?: boolean }>()
 
 const fitting = useFittingStore()
 const browser = useBrowserStore()
-
-/**
- * Racks the mobile slot picker can fill. These are the scopes the server's item search
- * knows (see `web/services/search.py`); mode and system slots have no module list, so
- * they keep the desktop behaviour.
- */
-const PICKER_SLOTS = ['high', 'med', 'low', 'rig', 'subsystem', 'service']
-
-/** The slot the mobile picker is open for, when one is. */
-const picker = ref<{ position: number; slot: string } | null>(null)
-
-function pickableSlot(module: Module) {
-  return PICKER_SLOTS.includes(module.slot)
-}
-
-function openPicker(module: Module) {
-  picker.value = { position: module.position, slot: module.slot }
-}
-
-/** The name button's click: on a phone an empty slot is the road to the picker. */
-function onModuleNameClick(module: Module) {
-  if (module.isEmpty) {
-    if (props.mobile && pickableSlot(module)) openPicker(module)
-    return
-  }
-  selectModule(module)
-}
 
 const RACK_LABELS: Record<string, string> = {
   high: 'High power',
@@ -140,16 +110,6 @@ function canLoadCharge(module: Module) {
 }
 
 const containers = computed(() => fitting.fit)
-
-/**
- * The hull's own bonuses, as the server renders them -- a small, trusted HTML block of
- * bold skill headers, line breaks and bullets (see ``ship_traits_html`` in
- * ``web/services/serialize.py``). ``null`` for a hull with none to show.
- */
-const shipTraits = computed(() => fitting.fit?.ship.traits ?? null)
-
-/** Whether the ship-bonuses card at the bottom of the view is open. */
-const bonusesOpen = ref(true)
 </script>
 
 <template>
@@ -180,23 +140,12 @@ const bonusesOpen = ref(true)
         </span>
       </div>
 
-      <div
-        v-for="module in rack.modules"
-        :key="module.position"
-        class="module"
-        :class="{ empty: module.isEmpty, 'slot-tap': mobile && module.isEmpty && pickableSlot(module) }"
-        @click="mobile && module.isEmpty && pickableSlot(module) && openPicker(module)"
-      >
+      <div v-for="module in rack.modules" :key="module.position" class="module" :class="{ empty: module.isEmpty }">
         <img v-if="moduleImage(module)" :src="moduleImage(module)!" class="icon" alt="" />
         <span v-else class="icon placeholder" />
 
-        <button
-          class="name"
-          :class="{ empty: module.isEmpty }"
-          :disabled="module.isEmpty && !(mobile && pickableSlot(module))"
-          @click="onModuleNameClick(module)"
-        >
-          {{ module.isEmpty ? (mobile && pickableSlot(module) ? t('add a module…') : '') : module.item?.name }}
+        <button class="name" :disabled="module.isEmpty" @click="selectModule(module)">
+          {{ module.isEmpty ? '' : module.item?.name }}
           <span v-if="module.isMutated" class="tag">{{ t('mutated') }}</span>
           <span
             v-if="groupSize(module) > 1"
@@ -232,15 +181,6 @@ const bonusesOpen = ref(true)
           @contextmenu="onStateContext(module, $event)"
         >
           {{ t(STATE_LABELS[module.state] ?? module.state) }}
-        </button>
-
-        <button
-          v-if="mobile && !module.isEmpty && pickableSlot(module)"
-          class="swap"
-          :title="t('replace the module in this slot')"
-          @click="openPicker(module)"
-        >
-          &#8646;
         </button>
 
         <button v-if="!module.isEmpty" class="remove danger" :title="t('Remove')" @click="fitting.removeModule(module)">
@@ -361,33 +301,9 @@ const bonusesOpen = ref(true)
       </div>
     </section>
 
-    <!-- Ship bonuses: the hull's own bonuses, as the desktop's item info shows them -->
-    <section v-if="shipTraits" class="containerblock traits">
-      <div class="rackhead">
-        <button
-          class="traithead"
-          :aria-expanded="bonusesOpen"
-          :title="t('Ship bonuses')"
-          @click="bonusesOpen = !bonusesOpen"
-        >
-          <span>{{ t('Ship bonuses') }}</span>
-          <span class="chevron" :class="{ open: bonusesOpen }">&#9662;</span>
-        </button>
-      </div>
-      <div v-show="bonusesOpen" class="traitsbody" v-html="shipTraits" />
-    </section>
-
     <p class="hint dim">
       {{ t('Click an item in the browser below to fit it. Charges go into the selected module. Click a row of the fit to inspect it as fitted.') }}
     </p>
-
-    <SlotPicker
-      v-if="picker"
-      :slot="picker.slot"
-      :position="picker.position"
-      :label="t(RACK_LABELS[picker.slot] ?? picker.slot)"
-      @close="picker = null"
-    />
   </div>
 </template>
 
@@ -570,106 +486,7 @@ const bonusesOpen = ref(true)
   line-height: 1.3;
 }
 
-/* The swap button belongs to the mobile rack rows only: the desktop gets its module
-   picker from the item browser, so the button stays out of the desktop grid. */
-.swap {
-  display: none;
-}
-
-.name.empty {
-  color: var(--text-dim);
-}
-
 .hint {
   font-size: 12px;
-}
-
-/* The hull's own bonuses card: a collapsible panel like a rack, whose body is the
-   server's traits HTML (bold skill headers, line breaks and bullets). */
-.traithead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  width: 100%;
-  padding: 0;
-  background: none;
-  border: none;
-  color: var(--text-dim);
-}
-
-.traithead:hover {
-  color: var(--text);
-}
-
-.chevron {
-  display: inline-block;
-  font-size: 9px;
-  transition: transform 0.15s ease;
-}
-
-.chevron.open {
-  transform: rotate(180deg);
-}
-
-.traitsbody {
-  padding: 2px 10px 10px;
-  font-size: 12px;
-  line-height: 1.65;
-  color: var(--text);
-}
-
-.traitsbody :deep(b) {
-  color: var(--text);
-}
-
-/* ---- narrow windows: each module row becomes two lines --------------------------------
-   The desktop row is a single line of five columns (icon, name, charge, state, remove)
-   that needs ~470px. On a phone it breaks into two lines: icon/name/state on the first,
-   charge/remove on the second. Every `.module` row has the same five children in the
-   same order (icon, name, charge, state, remove), so the areas apply to racks, drones,
-   fighters, implants, boosters and cargo alike. */
-@media (max-width: 1040px) {
-  .module {
-    grid-template-columns: 30px minmax(0, 1fr) auto auto;
-    grid-template-areas:
-      'icon name state'
-      'icon charge remove swap';
-    gap: 2px 8px;
-    padding: 4px 8px;
-    min-height: 46px;
-  }
-
-  .icon {
-    grid-area: icon;
-  }
-
-  .name {
-    grid-area: name;
-  }
-
-  .charge {
-    grid-area: charge;
-  }
-
-  .state {
-    grid-area: state;
-  }
-
-  .remove {
-    grid-area: remove;
-  }
-
-  .swap {
-    display: block;
-    grid-area: swap;
-    font-size: 12px;
-    padding: 0 6px;
-  }
-
-  /* An empty slot reads as something to tap on a phone */
-  .module.slot-tap {
-    cursor: pointer;
-  }
 }
 </style>

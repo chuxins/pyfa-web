@@ -910,15 +910,8 @@ def rebaseItems(ctx):
 #: "there is no free slot" would be a wrong answer for it.
 RACK_COMMANDS = ("addLocalModule",)
 
-#: Commands that put one catalogued item into one fixed slot (the mobile slot picker's
-#: "fit this into the tapped slot"). The free-slot reason is never the answer for these
-#: either -- the slot is the one the item replaces -- so the explanation skips the
-#: ``getSlotsFree`` check and keeps the reasons that still apply (hull restriction,
-#: size, hardpoints, and the plain "does not fit").
-POSITION_COMMANDS = ("replaceLocalModule",)
 
-
-def explain_module_refusal(fit, itemID, position=None):
+def explain_module_refusal(fit, itemID):
     """Why the engine would refuse ``itemID`` as a local module.
 
     Returns ``(message, code, params)`` -- or, when nothing here accounts for the
@@ -927,9 +920,6 @@ def explain_module_refusal(fit, itemID, position=None):
     and ``Module.fits()`` ask; the engine stays the authority on what fits. Every answer
     here is something the user can act on ("that is ammunition", "the high slots are
     full"), because "the item may not fit" is not.
-
-    ``position`` names the slot the item would go into when the command was a
-    replacement: that slot is fixed, so "no free slot" can never be the reason.
     """
     from eos.saveddata.citadel import Citadel
     from eos.saveddata.module import Module
@@ -965,7 +955,7 @@ def explain_module_refusal(fit, itemID, position=None):
     if slot is None:
         return ("'{0}' has no slot to fit into".format(name), "noSlot", {"name": name})
     rack = slot_name(slot)
-    if position is None and fit.getSlotsFree(slot) <= 0:
+    if fit.getSlotsFree(slot) <= 0:
         return ("the fit has no free {0} slot for '{1}'".format(rack, name),
                 "noFreeSlot", {"name": name, "rack": rack})
     if not fit.canFit(item):
@@ -993,14 +983,9 @@ def explain_module_refusal(fit, itemID, position=None):
 def _refusal(name, fit, payload):
     """The :class:`CommandFailed` to raise for a command the engine just refused."""
     itemID = payload.get("itemId")
-    if itemID is not None and (name in RACK_COMMANDS or name in POSITION_COMMANDS):
+    if name in RACK_COMMANDS and itemID is not None:
         try:
-            if name in POSITION_COMMANDS:
-                positions = payload.get("positions")
-                position = positions[0] if isinstance(positions, list) and positions else None
-                explained = explain_module_refusal(fit, int(itemID), position=position)
-            else:
-                explained = explain_module_refusal(fit, int(itemID))
+            explained = explain_module_refusal(fit, int(itemID))
         except Exception:
             pyfalog.exception("Could not explain a refused {} for item {}", name, itemID)
         else:

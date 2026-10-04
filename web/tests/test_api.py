@@ -269,28 +269,6 @@ def test_item_search_finds_module_and_ship(client):
     assert RIFTER_ID in [item["id"] for item in ships]
 
 
-def test_slot_search_can_be_filtered_by_size(client):
-    """The picker's size chips narrow a rack to one size class.
-
-    Weapons carry their size on ``chargeSize`` -- a 200mm AutoCannon is a small turret, a
-    250mm Railgun a medium one -- so browsing a rack with a size keeps only that class.
-    """
-    small = client.get("/api/items/search", params={"scope": "high", "size": 1, "limit": 1000}).json()["results"]
-    medium = client.get("/api/items/search", params={"scope": "high", "size": 2, "limit": 1000}).json()["results"]
-    small_ids = {item["id"] for item in small}
-    medium_ids = {item["id"] for item in medium}
-
-    assert small_ids and medium_ids
-    assert AUTOCANNON_ID in small_ids
-    assert AUTOCANNON_ID not in medium_ids
-    assert 3082 in medium_ids  # 250mm Railgun II: a medium turret
-    assert 3082 not in small_ids
-
-    # Without a size the same rack still holds every class
-    all_high = {item["id"] for item in client.get("/api/items/search", params={"scope": "high", "limit": 1000}).json()["results"]}
-    assert AUTOCANNON_ID in all_high and 3082 in all_high
-
-
 def test_dev_login_roundtrip(client):
     response = client.get("/api/auth/login", follow_redirects=False)
     assert response.status_code == 303
@@ -305,9 +283,6 @@ def test_create_fit_and_read_back(user_client):
     detail = user_client.get("/api/fits/{}".format(fit_id)).json()
     assert detail["name"] == "Test Rifter"
     assert detail["ship"]["item"]["name"] == "Rifter"
-    # The hull's own bonuses ride along for the card at the bottom of the fitting view
-    traits = detail["ship"]["traits"]
-    assert traits and "<b>" in traits and "Frigate" in traits
     # A fresh Rifter: three high slots, all empty
     assert len(detail["racks"]["high"]) == 3
     assert all(module["isEmpty"] for module in detail["racks"]["high"])

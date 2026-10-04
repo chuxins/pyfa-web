@@ -6,8 +6,6 @@ at fits), so naive attribute dumping either explodes or leaks another user's
 data. Every field the browser needs is listed here by hand.
 """
 
-import re
-
 import eos.config
 from eos.const import FittingHardpoint, FittingModuleState, FittingSlot, ImplantLocation
 from logbook import Logger
@@ -407,31 +405,6 @@ def serialize_projection(fit, other, kind):
     return entry
 
 
-#: Tags a trait block is allowed to keep. pyfa writes only ``<b>`` and ``<br />`` into
-#: the traits HTML itself (see ``db_update.processTraits``), but the game's own bonus
-#: lines can carry ``<a href=showinfo:...>`` links and the like; the browser renders the
-#: block with ``v-html``, so everything else is dropped here, keeping only its text.
-_SAFE_TRAIT_HTML = re.compile(r"<(?!\/?b(?:>|\s)|\/?br(?:\s*\/?)?>)[^>]*>")
-
-
-def ship_traits_html(item):
-    """The hull's own bonuses as safe HTML, or None when the hull has none.
-
-    pyfa stores each hull's bonuses as one localised HTML block (bold skill headers,
-    ``<br />`` line breaks and ``•`` bullets) -- the same block the desktop's item info
-    shows. The browser renders it at the bottom of the fitting view.
-    """
-    if item is None:
-        return None
-    traits = getattr(item, "traits", None)
-    if traits is None:
-        return None
-    html = getattr(traits, "display", None)
-    if not html:
-        return None
-    return _SAFE_TRAIT_HTML.sub("", html)
-
-
 def serialize_fit(fit, includeStats=True, statsSections=None):
     """The full payload the fitting view needs."""
     shipItem = fit.ship.item if fit.ship is not None else None
@@ -454,7 +427,6 @@ def serialize_fit(fit, includeStats=True, statsSections=None):
             "id": fit.shipID,
             "item": serialize_item(shipItem),
             "slots": ship_slots(fit) if fit.ship is not None else {},
-            "traits": ship_traits_html(shipItem),
         },
         "character": serialize_character(fit.character),
         "damagePattern": serialize_damage_pattern(fit.damagePattern),
