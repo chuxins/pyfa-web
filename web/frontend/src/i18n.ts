@@ -145,6 +145,14 @@ const ZH_CN: Record<string, string> = {
   '{count} of the same weapon act together: a state click or a charge reaches them all':
     '{count} 件同型武器联动：切换状态或装填弹药会同时作用于整组',
   ' · the whole weapon group moves together': ' · 整组一起切换',
+  // -- mobile slot picker (FittingView.vue / SlotPicker.vue) ------------------------------
+  'add a module…': '添加装备…',
+  'replace the module in this slot': '更换本槽位装备',
+  'Pick a module for the {rack}': '为{rack}选择装备',
+  'Search {rack} modules…': '搜索{rack}装备…',
+  'no modules match your search': '没有匹配的装备',
+  Close: '关闭',
+
   mutated: '已变异',
   'load…': '装填…',
   'click to change the charge': '点击更换弹种',

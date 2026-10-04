@@ -429,8 +429,10 @@ export const api = {
       `/api/fits/${fitId}/charge-targets?chargeItemId=${chargeItemId}`,
     ),
 
-  searchItems: (q: string, scope = 'market') =>
-    request<{ results: Item[] }>(`/api/items/search?q=${encodeURIComponent(q)}&scope=${scope}&limit=60`),
+  searchItems: (q: string, scope = 'market', fitId?: number) =>
+    request<{ results: Item[] }>(
+      `/api/items/search?q=${encodeURIComponent(q)}&scope=${scope}&limit=60${fitId ? `&fitId=${fitId}` : ''}`,
+    ),
   item: (itemId: number) => request<Item>(`/api/items/${itemId}`),
   attributes: (itemId: number, fitId?: number, position?: number, kind?: FittedKind) =>
     request<{ itemId: number; modified: boolean; rows: AttributeRow[] }>(

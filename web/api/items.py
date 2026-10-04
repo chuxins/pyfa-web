@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from logbook import Logger
 
 from web.deps import get_user_data, require_user
-from web.services.search import SCOPES, search_items
+from web.services.search import SCOPES, SLOT_SCOPES, search_items, search_slot
 from web.services.serialize import display_name, serialize_item
 
 pyfalog = Logger(__name__)
@@ -133,10 +133,25 @@ def _fitted_charge_attributes(fit, position, item_id):
 
 
 @router.get("/search")
-def search(q: str = Query(..., min_length=1), scope: str = Query("market"), limit: int = Query(50, ge=1, le=200)):
+def search(
+    q: str = Query("", description="Search text. May be empty for a slot scope, which then lists that slot's modules"),
+    scope: str = Query("market"),
+    limit: int = Query(50, ge=1, le=1000),
+    fitId: int | None = Query(None, description="When set, a slot scope is limited to modules the fit's ship can take"),
+):
     if scope not in SCOPES:
         raise HTTPException(status_code=400, detail="scope must be one of {}".format(", ".join(SCOPES)))
-    results = search_items(q, scope=scope, limit=limit)
+    if scope in SLOT_SCOPES:
+        fit = None
+        if fitId is not None:
+            from service.fit import Fit
+
+            fit = Fit.getInstance().getFit(fitId)
+            if fit is None:
+                raise HTTPException(status_code=404, detail="fit not found")
+        results = search_slot(scope, q, fit=fit, limit=limit)
+    else:
+        results = search_items(q, scope=scope, limit=limit)
     return {"query": q, "scope": scope, "results": [serialize_item(item) for item in results]}
 
 

@@ -1,13 +1,43 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useFittingStore } from '@/stores/fitting'
 import { DetailTab, useBrowserStore } from '@/stores/browser'
 import { imageUrl, FittedKind, Item, Module } from '@/api'
 import { formatAmount } from '@/format'
 import { t } from '@/i18n'
+import SlotPicker from '@/components/SlotPicker.vue'
+
+const props = defineProps<{ mobile?: boolean }>()
 
 const fitting = useFittingStore()
 const browser = useBrowserStore()
+
+/**
+ * Racks the mobile slot picker can fill. These are the scopes the server's item search
+ * knows (see `web/services/search.py`); mode and system slots have no module list, so
+ * they keep the desktop behaviour.
+ */
+const PICKER_SLOTS = ['high', 'med', 'low', 'rig', 'subsystem', 'service']
+
+/** The slot the mobile picker is open for, when one is. */
+const picker = ref<{ position: number; slot: string } | null>(null)
+
+function pickableSlot(module: Module) {
+  return PICKER_SLOTS.includes(module.slot)
+}
+
+function openPicker(module: Module) {
+  picker.value = { position: module.position, slot: module.slot }
+}
+
+/** The name button's click: on a phone an empty slot is the road to the picker. */
+function onModuleNameClick(module: Module) {
+  if (module.isEmpty) {
+    if (props.mobile && pickableSlot(module)) openPicker(module)
+    return
+  }
+  selectModule(module)
+}
 
 const RACK_LABELS: Record<string, string> = {
   high: 'High power',
@@ -140,12 +170,23 @@ const containers = computed(() => fitting.fit)
         </span>
       </div>
 
-      <div v-for="module in rack.modules" :key="module.position" class="module" :class="{ empty: module.isEmpty }">
+      <div
+        v-for="module in rack.modules"
+        :key="module.position"
+        class="module"
+        :class="{ empty: module.isEmpty, 'slot-tap': mobile && module.isEmpty && pickableSlot(module) }"
+        @click="mobile && module.isEmpty && pickableSlot(module) && openPicker(module)"
+      >
         <img v-if="moduleImage(module)" :src="moduleImage(module)!" class="icon" alt="" />
         <span v-else class="icon placeholder" />
 
-        <button class="name" :disabled="module.isEmpty" @click="selectModule(module)">
-          {{ module.isEmpty ? '' : module.item?.name }}
+        <button
+          class="name"
+          :class="{ empty: module.isEmpty }"
+          :disabled="module.isEmpty && !(mobile && pickableSlot(module))"
+          @click="onModuleNameClick(module)"
+        >
+          {{ module.isEmpty ? (mobile && pickableSlot(module) ? t('add a module…') : '') : module.item?.name }}
           <span v-if="module.isMutated" class="tag">{{ t('mutated') }}</span>
           <span
             v-if="groupSize(module) > 1"
@@ -181,6 +222,15 @@ const containers = computed(() => fitting.fit)
           @contextmenu="onStateContext(module, $event)"
         >
           {{ t(STATE_LABELS[module.state] ?? module.state) }}
+        </button>
+
+        <button
+          v-if="mobile && !module.isEmpty && pickableSlot(module)"
+          class="swap"
+          :title="t('replace the module in this slot')"
+          @click="openPicker(module)"
+        >
+          &#8646;
         </button>
 
         <button v-if="!module.isEmpty" class="remove danger" :title="t('Remove')" @click="fitting.removeModule(module)">
@@ -304,6 +354,14 @@ const containers = computed(() => fitting.fit)
     <p class="hint dim">
       {{ t('Click an item in the browser below to fit it. Charges go into the selected module. Click a row of the fit to inspect it as fitted.') }}
     </p>
+
+    <SlotPicker
+      v-if="picker"
+      :slot="picker.slot"
+      :position="picker.position"
+      :label="t(RACK_LABELS[picker.slot] ?? picker.slot)"
+      @close="picker = null"
+    />
   </div>
 </template>
 
@@ -486,6 +544,16 @@ const containers = computed(() => fitting.fit)
   line-height: 1.3;
 }
 
+/* The swap button belongs to the mobile rack rows only: on the desktop a filled slot is
+   changed from the item browser, so the button stays out of the desktop grid. */
+.swap {
+  display: none;
+}
+
+.name.empty {
+  color: var(--text-dim);
+}
+
 .hint {
   font-size: 12px;
 }
@@ -502,10 +570,10 @@ const containers = computed(() => fitting.fit)
   }
 
   .module {
-    grid-template-columns: 30px minmax(0, 1fr) auto;
+    grid-template-columns: 30px minmax(0, 1fr) auto auto;
     grid-template-areas:
       'icon name state'
-      'icon charge remove';
+      'icon charge remove swap';
     gap: 2px 8px;
     padding: 4px 8px;
     min-height: 46px;
@@ -529,6 +597,18 @@ const containers = computed(() => fitting.fit)
 
   .remove {
     grid-area: remove;
+  }
+
+  .swap {
+    display: block;
+    grid-area: swap;
+    font-size: 12px;
+    padding: 0 6px;
+  }
+
+  /* An empty slot reads as something to tap on a phone */
+  .module.slot-tap {
+    cursor: pointer;
   }
 
   .rackhead {

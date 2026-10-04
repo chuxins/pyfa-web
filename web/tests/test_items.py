@@ -214,3 +214,78 @@ def test_fitted_rows_leave_out_attributes_the_game_data_does_not_name(user_clien
     assert 'heatDamage' in names
     assert 'heatAbsorbtionRateModifier' not in names
     assert 'accuracyBonus' not in names
+
+
+# -- mobile slot picker -----------------------------------------------------------------
+# The picker browses one rack (an empty query), searches within it, and when a fit is
+# named limits the list to what that fit's ship can actually take: the hull rule, the
+# rig size rule and the weapon size rule all apply before the list is drawn.
+
+MEDIUM_PROCESSOR_OVERCLOCK = 4395  # Medium Processor Overclocking Unit I, rigSize 2
+LARGE_ARTILLERY_II = 2865  # 1200mm Artillery Cannon II, size 3
+MEDIUM_RAILGUN_I = 570  # 250mm Railgun I, size 2
+BURST_JAMMER_II = 2117  # med slot, restricted to certain hull groups
+
+
+def _slot_ids(payload):
+    return {entry['id'] for entry in payload['results']}
+
+
+def test_slot_scope_browses_that_racks_modules(client):
+    """An empty query in a slot scope lists the rack's own modules, not every module."""
+    high = client.get('/api/items/search', params={'scope': 'high', 'limit': 1000}).json()
+    assert len(high['results']) > 100
+    ids = _slot_ids(high)
+    assert LARGE_ARTILLERY_II in ids
+    assert all(entry['itemKind'] == 'module' for entry in high['results'])
+
+    rig = client.get('/api/items/search', params={'scope': 'rig', 'limit': 1000}).json()
+    assert MEDIUM_PROCESSOR_OVERCLOCK in _slot_ids(rig)
+
+
+def test_slot_scope_search_stays_in_the_rack(client):
+    """A query in a slot scope searches that rack only."""
+    payload = client.get('/api/items/search', params={'scope': 'high', 'q': '1200'}).json()
+    assert payload['results']
+    for entry in payload['results']:
+        assert '1200' in entry['name']
+    ids = _slot_ids(payload)
+    assert LARGE_ARTILLERY_II in ids
+    # a 1200mm charge belongs to the Charge category, not the high rack
+    assert all(entry['itemKind'] == 'module' for entry in payload['results'])
+
+
+def test_slot_scope_is_limited_to_what_the_fit_takes(user_client):
+    """A Rifter is a small hull: no medium or large weapons, no medium rigs, and no
+    module restricted to other hull groups in its list."""
+    fit_id = user_client.post('/api/fits', json={'shipId': RIFTER_ID}).json()['id']
+
+    high = user_client.get('/api/items/search',
+                           params={'scope': 'high', 'fitId': fit_id, 'limit': 1000}).json()
+    ids = _slot_ids(high)
+    assert 2889 in ids  # 200mm AutoCannon II, a small weapon
+    assert MEDIUM_RAILGUN_I not in ids  # medium weapon on a small hull
+    assert LARGE_ARTILLERY_II not in ids  # large weapon on a small hull
+
+    med = user_client.get('/api/items/search',
+                          params={'scope': 'med', 'fitId': fit_id, 'limit': 1000}).json()
+    assert BURST_JAMMER_II not in _slot_ids(med)
+
+    rig = user_client.get('/api/items/search',
+                          params={'scope': 'rig', 'fitId': fit_id, 'limit': 1000}).json()
+    assert MEDIUM_PROCESSOR_OVERCLOCK not in _slot_ids(rig)
+
+
+def test_slot_scope_without_a_fit_keeps_everything(client):
+    """The size/hull filtering only applies once a fit is named; the plain rack browse
+    still offers the whole rack, which is what the desktop-style browser wants."""
+    high = client.get('/api/items/search', params={'scope': 'high', 'limit': 1000}).json()
+    ids = _slot_ids(high)
+    assert LARGE_ARTILLERY_II in ids
+    assert MEDIUM_RAILGUN_I in ids
+
+
+def test_slot_scope_requires_a_real_fit(client):
+    response = client.get('/api/items/search', params={'scope': 'high', 'fitId': 9999})
+    assert response.status_code == 404
+
