@@ -238,6 +238,20 @@ def test_esi_refusing_is_reported_with_eves_own_words(pilot_client, esi):
     assert "403" in detail["message"] and "403" in detail["params"]["reason"]
 
 
+def test_a_dead_stored_login_is_a_sign_in_again_on_import(pilot_client, esi):
+    """EVE's token endpoint answering ``invalid_grant`` means the stored login is dead:
+    the pilot has to sign in again (409), not stare at a 502 with EVE's own words."""
+    from service.esiAccess import APIException
+
+    esi.fittings = APIException(
+        "https://login.eveonline.com/oauth/token", 400,
+        {"error": "invalid_grant",
+         "error_description": "Invalid refresh token. Character grant missing/expired."})
+    response = pilot_client.post("/api/esi/fittings/import")
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "tokenRefused"
+
+
 def test_the_import_hands_esi_the_row_the_login_stored(pilot_client, app_state, esi):
     """``Esi.getFittings`` resolves the ``SsoCharacter`` row itself, so the row id is what
     has to be handed over -- and the row has to still be there afterwards, since the next
@@ -332,6 +346,24 @@ def test_esi_refusing_to_save_is_reported_with_eves_own_words(pilot_client, esi)
     detail = response.json()["detail"]
     assert detail["code"] == "esiSaveRefused"
     assert "403" in detail["message"] and "403" in detail["params"]["reason"]
+
+
+def test_a_dead_stored_login_is_a_sign_in_again_on_export(pilot_client, esi):
+    """Same refusal on the way out: the refresh token is dead, so EVE's ``invalid_grant``
+    is answered as a sign-in-again, and the fit is not marked as saved to the game."""
+    from service.esiAccess import APIException
+
+    esi.post_answer = APIException(
+        "https://login.eveonline.com/oauth/token", 400,
+        {"error": "invalid_grant",
+         "error_description": "Invalid refresh token. Character grant missing/expired."})
+    fit_id = _fitted_rifter(pilot_client)
+
+    response = pilot_client.post("/api/esi/fittings/export", json={"fitId": fit_id})
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "tokenRefused"
+    # The fit was never saved into the game, so it is still a deletable web fit
+    assert pilot_client.get("/api/fits/{}".format(fit_id)).json()["importedToGame"] is False
 
 
 @pytest.mark.parametrize("answer", [

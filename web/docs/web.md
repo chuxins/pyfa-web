@@ -322,10 +322,15 @@ fixes it:
 | Code | What happened |
 | --- | --- |
 | `noCharacter` | the account has no stored tokens for the configured server |
-| `tokenRefused` | EVE no longer accepts the stored tokens |
+| `tokenRefused` | EVE no longer accepts the stored tokens (a refused token refresh too) |
 | `esiUnreachable` | ESI did not answer |
 | `esiRefused` | EVE answered, refusing (403, a bad gateway, ...) |
 | `esiUnusable` | EVE answered with something that is not a list of fittings |
+
+A refresh that EVE turns down with ``invalid_grant``/``invalid_token`` is answered as
+``tokenRefused`` rather than ``esiRefused``: the stored login is dead (the grant was
+revoked, expired, or issued by a different EVE app), and signing in again is the fix --
+the same answers the desktop's ``gui/esiFittings.py`` treats as a login to renew.
 
 Reading EVE's fittings turned up an old mismatch in pyfa's own importer, fixed here: ESI
 *names* the item flags (`HiSlot0`, `DroneBay`, `Cargo`) where pyfa's export format uses

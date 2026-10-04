@@ -55,6 +55,25 @@ def _esi():
     return Esi.getInstance()
 
 
+def _dead_token(ex):
+    """Whether an ``APIException`` means the stored SSO login is no good.
+
+    ``EsiAccess.refresh`` fails by answering an ``APIException`` whose JSON is the token
+    endpoint's refusal (``invalid_grant``/``invalid_token``) -- the same answers the
+    desktop's ``gui/esiFittings.py`` treats as a login to renew. A plain ESI refusal
+    (403, a bad gateway, ...) has its own JSON and no ``error`` field, so it stays a
+    refusal.
+    """
+    body = ex.response if isinstance(ex.response, dict) else {}
+    error = body.get("error", "")
+    description = body.get("error_description", "")
+    return (
+        error in ("invalid_grant", "invalid_token")
+        or str(error).startswith("Token is not valid")
+        or "Invalid refresh token" in str(description)
+    )
+
+
 def fetch_fittings(character):
     """The fittings this pilot has saved in game, as ESI reports them.
 
@@ -70,6 +89,10 @@ def fetch_fittings(character):
     try:
         return _esi().getFittings(character.ID)
     except APIException as ex:
+        if _dead_token(ex):
+            raise EsiError(
+                "tokenRefused", "EVE did not accept the stored login: {}".format(ex),
+                status=409) from ex
         raise EsiError(
             "esiRefused", "EVE refused to hand over the fittings: {}".format(ex),
             params={"reason": str(ex)}) from ex
@@ -178,6 +201,10 @@ def export_fitting_to_game(user, server_name, fit_id):
     try:
         resp = _esi().postFitting(character.ID, payload)
     except APIException as ex:
+        if _dead_token(ex):
+            raise EsiError(
+                "tokenRefused", "EVE did not accept the stored login: {}".format(ex),
+                status=409) from ex
         raise EsiError(
             "esiSaveRefused", "EVE refused to save the fitting: {}".format(ex),
             params={"reason": str(ex)}) from ex
