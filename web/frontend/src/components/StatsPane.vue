@@ -296,4 +296,39 @@ h3 {
 .errors {
   color: var(--danger);
 }
+
+/* ---- narrow windows -------------------------------------------------------------------
+   Rows never overflow: the value column may wrap, and the four-column resistance
+   rows keep their columns but the label/value grid can shrink. */
+@media (max-width: 1040px) {
+  .stats {
+    padding: 8px 12px 24px;
+    font-size: 14px;
+  }
+
+  h3 {
+    font-size: 13px;
+  }
+
+  .row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 8px;
+  }
+
+  .row.three {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  .row.four {
+    grid-template-columns: minmax(0, 1fr) auto auto auto auto;
+  }
+
+  .row > span {
+    min-width: 0;
+  }
+
+  .row > span:last-child {
+    overflow-wrap: anywhere;
+  }
+}
 </style>

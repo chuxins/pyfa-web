@@ -59,6 +59,12 @@ const ZH_CN: Record<string, string> = {
   'gamedata build {build}': '游戏数据版本 {build}',
   'Interface language': '界面语言',
 
+  // -- mobile bottom tabs (App.vue) -----------------------------------------------------
+  Ships: '舰船',
+  Fit: '装配',
+  Stats: '统计',
+  Items: '物品',
+
   // -- ship browser ---------------------------------------------------------------------
   'Search ships…': '搜索舰船…',
   'Results ({count})': '搜索结果（{count}）',

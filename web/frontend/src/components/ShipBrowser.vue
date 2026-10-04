@@ -377,4 +377,65 @@ function renderUrl(ship: { image?: { kind: string; id: number } | null }) {
 .nested.deep {
   padding-left: 56px;
 }
+
+/* ---- narrow windows: touch-sized rows ------------------------------------------------- */
+@media (max-width: 1040px) {
+  .search input {
+    font-size: 16px;
+    min-height: 40px;
+    padding: 6px 10px;
+  }
+
+  .esi {
+    min-height: 44px;
+    font-size: 14px;
+    margin: 0 8px 8px;
+  }
+
+  .header {
+    padding: 8px 6px 4px;
+  }
+
+  .group,
+  .race {
+    min-height: 44px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    font-size: 14px;
+  }
+
+  .shiprow {
+    min-height: 44px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    font-size: 14px;
+  }
+
+  .shiprow img {
+    width: 30px;
+    height: 30px;
+  }
+
+  /* The caret is its own tap target; give it enough room to hit reliably */
+  .caret {
+    width: 28px;
+    font-size: 13px;
+  }
+
+  .shipdetail {
+    padding: 10px;
+  }
+
+  .newfit {
+    min-height: 44px;
+    font-size: 15px;
+  }
+
+  .fitrow {
+    min-height: 44px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    font-size: 14px;
+  }
+}
 </style>

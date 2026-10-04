@@ -489,4 +489,74 @@ const containers = computed(() => fitting.fit)
 .hint {
   font-size: 12px;
 }
+
+/* ---- narrow windows: each module row becomes two lines --------------------------------
+   The desktop row is a single line of five columns (icon, name, charge, state, remove)
+   that needs ~470px. On a phone it breaks into two lines: icon/name/state on the first,
+   charge/remove on the second. Every `.module` row has the same five children in the
+   same order (icon, name, charge, state, remove), so the areas apply to racks, drones,
+   fighters, implants, boosters and cargo alike. */
+@media (max-width: 1040px) {
+  .fitting {
+    padding: 8px 8px 20px;
+  }
+
+  .module {
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+    grid-template-areas:
+      'icon name state'
+      'icon charge remove';
+    gap: 2px 8px;
+    padding: 4px 8px;
+    min-height: 46px;
+  }
+
+  .icon {
+    grid-area: icon;
+  }
+
+  .name {
+    grid-area: name;
+  }
+
+  .charge {
+    grid-area: charge;
+  }
+
+  .state {
+    grid-area: state;
+  }
+
+  .remove {
+    grid-area: remove;
+  }
+
+  .rackhead {
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    padding: 6px 8px;
+  }
+
+  .racktail {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .groupbtn {
+    min-height: 32px;
+  }
+
+  /* Touch: row actions are 46px tall, and number inputs are 16px so iOS does not
+     zoom the page when the keyboard comes up. */
+  .name,
+  .state,
+  .remove {
+    min-height: 36px;
+  }
+
+  .amount {
+    font-size: 16px;
+    width: 70px;
+  }
+}
 </style>

@@ -299,4 +299,53 @@ const canAdd = computed(() => {
 .pad {
   padding: 10px 2px;
 }
+
+/* ---- full-screen sheet on a phone ----------------------------------------------------- */
+@media (max-width: 1040px) {
+  .details {
+    /* The sheet reaches under the notch (viewport-fit=cover) */
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .head {
+    padding: 10px;
+  }
+
+  .head img {
+    width: 44px;
+    height: 44px;
+  }
+
+  .close {
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 20px;
+  }
+
+  .actions {
+    padding: 8px 10px;
+  }
+
+  .actions button {
+    min-height: 44px;
+    font-size: 14px;
+  }
+
+  .tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .tabs button {
+    min-height: 44px;
+    padding: 8px 12px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .body {
+    padding: 8px 12px 24px;
+    font-size: 14px;
+  }
+}
 </style>
