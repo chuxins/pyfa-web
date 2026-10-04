@@ -21,6 +21,11 @@ DAMAGE_CONTROL_ID = 2048
 #: stacking penalised, which is what makes it the probe for "offline = not fitted".
 GYROSTABILIZER_ID = 518
 
+#: Small Core Defense Field Extender I. A rig whose shield HP bonus is stacking
+#: penalised, which makes it the rig probe for "offline = not fitted", the way
+#: GYROSTABILIZER_ID is for modules.
+RIG_ID = 31788
+
 #: Hornet EC-300. A Rifter has no fighter tubes, so this is always refused
 FIGHTER_ID = 23707
 
@@ -197,6 +202,72 @@ def test_offline_module_is_like_not_fitted(user_client):
     # The offline module is exactly as if it were not fitted: no bonus, and no
     # share of the stacking penalty either
     assert offline.json()["stats"]["firepower"]["weapon"]["value"]["em"] == pytest.approx(one_damage, rel=1e-9)
+
+
+def test_rig_state_click_cycles_through_offline(user_client):
+    """A rig's chip walks the two states it can hold: online and offline.
+
+    Rigs have no active or overloaded state to reach, so the plain click's full lap
+    collapses to online <-> offline. The offline state is what matters: an offline
+    rig is exactly as if it were not fitted (no bonus, no stacking penalty), and the
+    ctrl click still goes straight there too.
+    """
+    fit_id = make_fit(user_client)
+    added = run_command(user_client, fit_id, "addLocalModule", itemId=RIG_ID)
+    assert added.status_code == 200, added.text
+    position = next(m["position"] for m in added.json()["racks"]["rig"] if m["itemId"] == RIG_ID)
+    assert module_at(added.json(), "rig", position)["state"] == "online"
+
+    def click(kind):
+        response = run_command(user_client, fit_id, "changeLocalModuleStates",
+                               main={"kind": "module", "position": position}, click=kind)
+        assert response.status_code == 200, response.text
+        return module_at(response.json(), "rig", position)["state"]
+
+    # A plain click reaches offline and comes back, without ever passing a state a
+    # rig cannot hold
+    assert click("cycle") == "offline"
+    assert click("cycle") == "online"
+    # Ctrl still jumps straight offline, and the lap starts again from there
+    assert click("ctrl") == "offline"
+    assert click("cycle") == "online"
+    # A rig has nowhere to overheat: the right click is answered, not moved
+    detail = refusal(run_command(user_client, fit_id, "changeLocalModuleStates",
+                                 main={"kind": "module", "position": position}, click="right"))
+    assert detail["code"] == "stateUnchanged"
+    assert detail["params"]["state"] == "online"
+
+
+def test_offline_rig_is_like_not_fitted(user_client):
+    """An offline rig adds no bonus and no share of the stacking penalty.
+
+    Two identical shield-extender rigs stack on shield HP; with the second one
+    offline the fit must read exactly like the fit with a single rig -- no bonus,
+    and no share of the stacking penalty. The plain click is what offlines it: this
+    is the whole point of the rig cycle.
+    """
+    fit_id = make_fit(user_client)
+    one = run_command(user_client, fit_id, "addLocalModule", itemId=RIG_ID)
+    assert one.status_code == 200, one.text
+    first = next(m for m in one.json()["racks"]["rig"] if m["itemId"] == RIG_ID)
+    assert first["state"] == "online"
+    one_shield = one.json()["stats"]["resistances"]["hp"]["shield"]
+
+    two = run_command(user_client, fit_id, "addLocalModule", itemId=RIG_ID)
+    assert two.status_code == 200, two.text
+    rigs = [m for m in two.json()["racks"]["rig"] if m["itemId"] == RIG_ID]
+    assert len(rigs) == 2
+    two_shield = two.json()["stats"]["resistances"]["hp"]["shield"]
+    # The second rig stacks on the first (penalised, but still an improvement)
+    assert two_shield > one_shield
+
+    offline = run_command(user_client, fit_id, "changeLocalModuleStates",
+                          main={"kind": "module", "position": rigs[1]["position"]}, click="cycle")
+    assert offline.status_code == 200, offline.text
+    assert module_at(offline.json(), "rig", rigs[1]["position"])["state"] == "offline"
+    # The offline rig is exactly as if it were not fitted: no bonus, and no share
+    # of the stacking penalty either
+    assert offline.json()["stats"]["resistances"]["hp"]["shield"] == pytest.approx(one_shield, rel=1e-9)
 
 
 def test_a_module_with_nowhere_to_go_is_answered_not_refused(user_client):

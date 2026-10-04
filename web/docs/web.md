@@ -507,9 +507,11 @@ run fully in parallel. Idle user databases are closed after 30 minutes.
   desktop click cannot reach the overloaded or the offline state at all: left toggles
   online and active, right overloads, ctrl offlines. Every existing click keeps its
   meaning, and a module with nowhere to go (passive, activation blocked, not
-  overloadable) still walks pyfa's own two states. Offline means exactly "not fitted":
-  the engine applies none of the module's effects, so it adds no bonus and no stacking
-  penalty.
+  overloadable) still walks pyfa's own two states. A rig is the same idea one step
+  further: it has no active or overloaded state to climb to, so its lap collapses to
+  online and offline -- a plain click still reaches the offline state. Offline means
+  exactly "not fitted": the engine applies none of the module's effects, so it adds no
+  bonus and no stacking penalty.
 * `service/market.py` -- `Market.getInstance()` is guarded by a lock. `Market.__init__`
   starts the ship browser's worker thread, and that thread waits only
   ``mktRdy.wait(5)`` before it calls back in, so a start whose construction takes longer

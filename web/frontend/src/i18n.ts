@@ -135,6 +135,7 @@ const ZH_CN: Record<string, string> = {
   overheated: '超载',
   '{state} — click to cycle, right-click to overheat':
     '{state} — 单击切换状态，右键超载',
+  '{state} — click to cycle': '{state} — 单击切换状态',
   // -- the high rack's weapon grouping --------------------------------------------------
   'group weapons': '武器编组',
   'ungroup weapons': '取消编组',
