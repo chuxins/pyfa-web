@@ -20,6 +20,24 @@ import types
 from pyfa_compat import HeadlessUnsupportedError
 
 
+class _HeadlessResistancesView:
+    """The one stats-pane view a graph reads: the effective-HP toggle.
+
+    ``FitShieldRegenGraph.__init__`` asks the desktop's resistance view whether it is
+    showing effective values, so it can label its axes EHP/HP. The web server has no
+    stats pane; the desktop default (plain HP) is what the stub reports.
+    """
+
+    showEffective = False
+
+
+class _HeadlessStatsPane:
+    """A stand-in for ``MainFrame.statsPane`` with the toggle the graphs read."""
+
+    def __init__(self):
+        self.nameViewMap = {"resistancesViewFull": _HeadlessResistancesView()}
+
+
 class HeadlessMainFrame:
     """Accepts events destined for the desktop main window and ignores them."""
 
@@ -30,6 +48,11 @@ class HeadlessMainFrame:
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
+
+    @property
+    def statsPane(self):
+        """The shield-regen graph's read of the effective-HP toggle (see above)."""
+        return _HeadlessStatsPane()
 
     def __repr__(self):
         return "<HeadlessMainFrame>"

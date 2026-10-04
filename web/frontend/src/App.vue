@@ -10,6 +10,7 @@ import ShipBrowser from '@/components/ShipBrowser.vue'
 import FittingView from '@/components/FittingView.vue'
 import LoginPrompt from '@/components/LoginPrompt.vue'
 import StatsPane from '@/components/StatsPane.vue'
+import GraphsPanel from '@/components/GraphsPanel.vue'
 import ItemBrowser from '@/components/ItemBrowser.vue'
 import ItemDetails from '@/components/ItemDetails.vue'
 
@@ -19,6 +20,8 @@ const fitting = useFittingStore()
 
 const itemPaneOpen = ref(true)
 const detailsOpen = ref(false)
+/** Which view the right-hand column shows when no item is selected: the numbers or the charts. */
+const rightPane = ref<'stats' | 'graphs'>('stats')
 
 /**
  * Narrow windows give up the three-pane desktop layout for a tabbed one: one pane on
@@ -195,7 +198,18 @@ function changeLocale(event: Event) {
         <!-- On a phone the details pane is a full-screen sheet (see the overlay below);
              the desktop layout keeps it in this column, in front of the stats. -->
         <ItemDetails v-if="showDetails && !isMobile" @close="browser.clearItem()" />
-        <StatsPane v-else-if="!showDetails" />
+        <template v-else-if="!showDetails">
+          <div class="panetabs">
+            <button :class="{ active: rightPane === 'stats' }" @click="rightPane = 'stats'">
+              {{ t('Stats') }}
+            </button>
+            <button :class="{ active: rightPane === 'graphs' }" @click="rightPane = 'graphs'">
+              {{ t('Graphs') }}
+            </button>
+          </div>
+          <StatsPane v-if="rightPane === 'stats'" />
+          <GraphsPanel v-else />
+        </template>
       </aside>
     </main>
 
@@ -338,6 +352,28 @@ function changeLocale(event: Event) {
   background: var(--bg-panel);
   min-height: 0;
   overflow: auto;
+}
+
+.panetabs {
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.panetabs button {
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: none;
+  padding: 3px 8px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.panetabs button.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
 }
 
 .itembar {

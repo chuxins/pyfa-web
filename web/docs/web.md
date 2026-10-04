@@ -40,6 +40,11 @@ single-page app in the browser:
   and the charges that item can take -- a tab that is only there when it can take any
 * the same stats the desktop window shows: firepower (with spool-up ranges),
   capacitor, tank, resistances, resources, targeting, remote reps, mining
+* the desktop's graphs as charts: a Graphs tab next to the stats runs pyfa's own
+  graph data layer headless (damage stats, capacitor, shield regen, the ammo
+  segmented application profile, lock time, mobility, ...), drawn in the browser
+  with ECharts; the curve data, the hover points and the graph definitions all
+  come from the same `graphs/data/` code the desktop window uses (see "Charts")
 * editing with **the desktop's own undo/redo stack** for every fit
 * live updates: two tabs on the same fit stay in sync over server-sent events
 * the UI chrome in English or simplified Chinese, with the language picked per
@@ -519,6 +524,42 @@ run fully in parallel. Idle user databases are closed after 30 minutes.
 * Ship icons come from `/img/renders/<graphicID>`, item icons from
   `/img/icons/<iconID>`, straight off disk with immutable cache headers. Ships
   have no `iconID` in the static data -- their picture is the render.
+
+### Charts
+
+The desktop graphs window (`graphs/gui/`) is wx + matplotlib and cannot run on
+the server, but everything underneath it -- the `FitGraph` declarations, the
+`PointGetter` calculations, ammo optimisation, recursive smoothing -- lives in
+`graphs/data/` and is GUI-free. `web/services/graphs.py` drives that layer
+directly: it builds the same `mainInput` / `miscInputs` / `src` / `tgt`
+arguments `canvasPanel.py` builds, calls `getPlotPoints` / `getPlotSegments` /
+`getPoint`, and serialises the result. Three read-only endpoints:
+
+* `GET /api/fits/{id}/graphs` -- every visible graph with its axes, inputs,
+  checkboxes and vector controls, plus the targets to plot against (the fit's
+  own target profile, saved profiles, built-ins, ideal target)
+* `GET /api/fits/{id}/graphs/{graph}/plot` -- one series per source/target pair
+  (per ammo segment for the application profile), each with its colour, line
+  style and points; `x`/`y` are `handle:unit`, `range` is `low,high`, and the
+  optional `inputs`/`checkboxes`/`vectors` query parameters are JSON objects
+  matching the graph's input handles
+* `GET /api/fits/{id}/graphs/{graph}/point` -- the exact engine value at one `x`
+  position, which is what a hover readout wants
+
+Nothing is cached across requests (each user has a private database), and
+`graphs.data` is imported lazily on the first request because it needs the
+headless wx shim the engine installs at startup. The browser renders the series
+with ECharts in `GraphsPanel.vue`, re-reading the theme's CSS variables so dark
+and light mode both work.
+
+Built-in target profiles are generated once with English names (eos' `_t` in
+`eos/saveddata/targetProfile.py` is a no-op, so the desktop shows them the same
+way in every language). `_list_targets` translates each `[category]` and the
+tail through pyfa's locale catalogues (`wx.GetTranslation`, see `pyfa_compat/
+wx_headless.py`) so the target dropdown and the legend follow the server
+language; user-created profiles are shown exactly as the user typed them. The
+missing Chinese fragments for the burner ships were added to
+`locale/zh_CN/LC_MESSAGES/lang.po`.
 
 ## Tests
 

@@ -250,6 +250,23 @@ const ZH_CN: Record<string, string> = {
   'Miner / drone': '采矿器 / 无人机',
   'Not computed': '未计算',
 
+  // -- graphs panel (GraphsPanel.vue) -----------------------------------------------------
+  Graphs: '图表',
+  Graph: '图',
+  'X axis': 'X 轴',
+  'Y axis': 'Y 轴',
+  Target: '目标',
+  'Ammo style': '弹药样式',
+  'Ammo quality': '弹药等级',
+  Color: '彩色',
+  Pattern: '图案',
+  None: '无',
+  Navy: '海军',
+  All: '全部',
+  auto: '自动',
+  'No data to draw': '没有可绘制的数据',
+  'no target': '未选择目标',
+
   // -- server-provided enumerations -----------------------------------------------------
   // The engine sends these as plain strings; naming them here means the pane reads
   // Chinese without the server having to know about the UI language.

@@ -10,7 +10,7 @@ must not hold the user's lock, so it lives on its own router.
 
 from fastapi import APIRouter, Depends
 
-from web.api import auth, commands, esi, events, fits, items, meta, ships
+from web.api import auth, commands, esi, events, fits, graphs, items, meta, ships
 from web.deps import user_context
 
 #: Everything that touches the database, one user at a time
@@ -20,6 +20,7 @@ api.include_router(meta.router)
 api.include_router(auth.router)
 api.include_router(ships.router)
 api.include_router(fits.router)
+api.include_router(graphs.router)
 api.include_router(items.router)
 api.include_router(commands.router)
 api.include_router(esi.router)

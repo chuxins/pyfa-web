@@ -405,6 +405,11 @@ export const api = {
   searchFits: (q: string) => request<{ fits: FitSummary[] }>(`/api/fits?q=${encodeURIComponent(q)}`),
   fit: (fitId: number, stats = true) => request<Fit>(`/api/fits/${fitId}?stats=${stats}`),
   stats: (fitId: number) => request<{ id: number; stats: Stats }>(`/api/fits/${fitId}/stats`),
+  graphList: (fitId: number) => request<GraphList>(`/api/fits/${fitId}/graphs`),
+  graphPlot: (fitId: number, graphId: string, params: Record<string, string>) =>
+    request<GraphPlot>(`/api/fits/${fitId}/graphs/${graphId}/plot?${new URLSearchParams(params)}`),
+  graphPoint: (fitId: number, graphId: string, params: Record<string, string>) =>
+    request<GraphPoint>(`/api/fits/${fitId}/graphs/${graphId}/point?${new URLSearchParams(params)}`),
   createFit: (shipId: number, name?: string) =>
     request<Fit>('/api/fits', { method: 'POST', body: JSON.stringify({ shipId, name }) }),
   updateFit: (fitId: number, patch: Partial<{ name: string; notes: string; factorReload: boolean }>) =>
@@ -458,6 +463,88 @@ export interface AttributeRow {
   unit: string | null
   highIsGood: boolean
   description?: string | null
+}
+
+// ---- Graphs (pyfa's chart data layer; see web/services/graphs.py) -----------
+
+export interface GraphAxis {
+  handle: string
+  unit: string | null
+  label: string
+  /** For x axes: the ``(handle, unit)`` of the range input that drives it. */
+  mainInput?: [string, string]
+}
+
+export interface GraphInputDef {
+  handle: string
+  unit: string | null
+  label: string
+  defaultValue: number | null
+  defaultRange: [number, number] | null
+  /** Visibility rules vs the chosen axes, mirroring the desktop's input conditions. */
+  conditions: ([string, string] | null)[][]
+}
+
+export interface GraphCheckboxDef {
+  handle: string
+  label: string
+  defaultValue: boolean
+  conditions: ([string, string] | null)[][]
+}
+
+export interface GraphVectorDef {
+  lengthHandle: string
+  lengthUnit: string
+  angleHandle: string
+  angleUnit: string
+  label: string
+}
+
+export interface GraphMeta {
+  id: string
+  name: string
+  hasTargets: boolean
+  hasSegments: boolean
+  xDefs: GraphAxis[]
+  yDefs: GraphAxis[]
+  inputs: GraphInputDef[]
+  checkboxes: GraphCheckboxDef[]
+  srcVector: GraphVectorDef | null
+  tgtVector: GraphVectorDef | null
+}
+
+export interface GraphTarget {
+  type: 'fit' | 'profile'
+  id: number
+  name: string
+}
+
+export interface GraphList {
+  graphs: GraphMeta[]
+  targets: GraphTarget[]
+  defaultTarget: GraphTarget
+}
+
+export interface GraphSeries {
+  name: string
+  color: string
+  lineType: 'solid' | 'dashed' | 'dotted' | 'dashdot'
+  ammo: string | null
+  points: [number, number][]
+}
+
+export interface GraphPlot {
+  x: GraphAxis
+  y: GraphAxis
+  range: [number, number]
+  series: GraphSeries[]
+  warning?: string
+}
+
+export interface GraphPoint {
+  x: number
+  y: number | null
+  ammo?: string
 }
 
 export function imageUrl(image: ItemImage | null | undefined, size = 1): string | null {
