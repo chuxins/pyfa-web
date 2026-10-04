@@ -187,7 +187,7 @@ const bonusesOpen = ref(true)
         :class="{ empty: module.isEmpty, 'slot-tap': mobile && module.isEmpty && pickableSlot(module) }"
         @click="mobile && module.isEmpty && pickableSlot(module) && openPicker(module)"
       >
-        <img v-if="moduleImage(module)" :src="moduleImage(module)!" class="icon" alt="" loading="lazy" />
+        <img v-if="moduleImage(module)" :src="moduleImage(module)!" class="icon" alt="" />
         <span v-else class="icon placeholder" />
 
         <button
@@ -260,7 +260,7 @@ const bonusesOpen = ref(true)
         }}</span>
       </div>
       <div v-for="(drone, index) in containers.drones" :key="drone.itemId + '-' + index" class="module">
-        <img v-if="drone.item.image" :src="imageUrl(drone.item.image, 1)!" class="icon" alt="" loading="lazy" />
+        <img v-if="drone.item.image" :src="imageUrl(drone.item.image, 1)!" class="icon" alt="" />
         <button class="name" @click="inspect(drone.item, index, 'drone')">{{ drone.item.name }}</button>
         <span class="charge mono">
           <input
@@ -283,7 +283,7 @@ const bonusesOpen = ref(true)
     <section v-if="containers?.fighters.length" class="containerblock">
       <div class="rackhead"><span class="rackname">{{ t('Fighters') }}</span></div>
       <div v-for="(fighter, index) in containers.fighters" :key="fighter.itemId + '-' + index" class="module">
-        <img v-if="fighter.item.image" :src="imageUrl(fighter.item.image, 1)!" class="icon" alt="" loading="lazy" />
+        <img v-if="fighter.item.image" :src="imageUrl(fighter.item.image, 1)!" class="icon" alt="" />
         <button class="name" @click="inspect(fighter.item, index, 'fighter')">{{ fighter.item.name }}</button>
         <span class="charge mono">{{ fighter.amount }}</span>
         <button class="state" :class="fighter.active ? 'active' : 'offline'">
@@ -311,7 +311,7 @@ const bonusesOpen = ref(true)
         </span>
       </div>
       <div v-for="(implant, index) in containers.implants" :key="implant.itemId + '-' + index" class="module">
-        <img v-if="implant.item.image" :src="imageUrl(implant.item.image, 1)!" class="icon" alt="" loading="lazy" />
+        <img v-if="implant.item.image" :src="imageUrl(implant.item.image, 1)!" class="icon" alt="" />
         <button class="name" @click="inspect(implant.item, index, 'implant')">{{ implant.item.name }}</button>
         <span class="charge" />
         <button class="state" :class="implant.active ? 'active' : 'offline'" @click="fitting.toggleImplant(index)">
@@ -325,7 +325,7 @@ const bonusesOpen = ref(true)
     <section v-if="containers?.boosters.length" class="containerblock">
       <div class="rackhead"><span class="rackname">{{ t('Boosters') }}</span></div>
       <div v-for="(booster, index) in containers.boosters" :key="booster.itemId + '-' + index" class="module">
-        <img v-if="booster.item.image" :src="imageUrl(booster.item.image, 1)!" class="icon" alt="" loading="lazy" />
+        <img v-if="booster.item.image" :src="imageUrl(booster.item.image, 1)!" class="icon" alt="" />
         <button class="name" @click="inspect(booster.item, index, 'booster')">{{ booster.item.name }}</button>
         <span class="charge" />
         <button class="state" :class="booster.active ? 'active' : 'offline'" @click="fitting.toggleBooster(index)">
@@ -345,7 +345,7 @@ const bonusesOpen = ref(true)
         </span>
       </div>
       <div v-for="(cargo, index) in containers.cargo" :key="cargo.itemId" class="module">
-        <img v-if="cargo.item.image" :src="imageUrl(cargo.item.image, 1)!" class="icon" alt="" loading="lazy" />
+        <img v-if="cargo.item.image" :src="imageUrl(cargo.item.image, 1)!" class="icon" alt="" />
         <button class="name" @click="inspect(cargo.item, index, 'cargo')">{{ cargo.item.name }}</button>
         <span class="charge mono">
           <input
