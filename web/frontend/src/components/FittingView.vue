@@ -91,9 +91,10 @@ function inspect(item: Item, index: number, kind: FittedKind) {
 }
 
 /**
- * A plain click walks the states up and back down again -- online, active, overheated,
- * online -- which is the whole point of the browser's own ``cycle`` click. Ctrl-click
- * takes a module offline and right-click overloads it directly, as on the desktop.
+ * A plain click walks a full lap of the states -- online, active, overheated, offline
+ * and back to online -- which is the whole point of the browser's own ``cycle`` click.
+ * Ctrl-click still takes a module straight offline and right-click overloads it
+ * directly, as on the desktop.
  */
 function onStateClick(module: Module, event: MouseEvent) {
   if (module.isEmpty) return
@@ -111,10 +112,10 @@ function groupSize(module: Module) {
   return 1 + fitting.groupMates(module).length
 }
 
-/** "offline — click to cycle, ...", in the language of the moment. */
+/** "online — click to cycle, right-click to overheat", in the language of the moment. */
 function stateTitle(module: Module) {
   const state = t(STATE_LABELS[module.state] ?? module.state)
-  const title = t('{state} — click to cycle, ctrl-click to offline, right-click to overheat', { state })
+  const title = t('{state} — click to cycle, right-click to overheat', { state })
   // A grouped weapon moves the whole group, so the tooltip says so before it surprises
   return groupSize(module) > 1 ? title + t(' · the whole weapon group moves together') : title
 }

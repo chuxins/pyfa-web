@@ -232,14 +232,16 @@ def fillWithClonedLocalModules(ctx):
 @command("changeLocalModuleStates",
          requires=("main",),
          args={"main": "reference to clicked module", "positions": "additional module positions",
-               "click": "'cycle' (one state up, overload drops back to online), 'left' (pyfa's"
-                        " toggle), 'right' (overheat) or 'ctrl' (offline)"})
+               "click": "'cycle' (one state up the ladder, a full lap through offline, online,"
+                        " active and overload), 'left' (pyfa's toggle), 'right' (overheat)"
+                        " or 'ctrl' (offline)"})
 def changeLocalModuleStates(ctx):
     """Cycle/heat/offline modules, exactly like clicking the state column.
 
-    ``cycle`` is the browser's own click: it walks online, active, overheated and back to
-    online, which the desktop's vocabulary cannot express -- there a plain click only ever
-    toggles between online and active, so overload is left to the right click.
+    ``cycle`` is the browser's own click: it walks a full lap of the states -- offline,
+    online, active, overheated and back to offline -- which the desktop's vocabulary
+    cannot express: there a plain click only ever toggles between online and active, so
+    overload is left to the right click and offline to the ctrl click.
     """
     main = ctx.resolve(ctx.payload["main"])
     positions = ctx.positions(ctx.payload.get("positions") or [], "module")

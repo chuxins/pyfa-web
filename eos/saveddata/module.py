@@ -55,16 +55,17 @@ LocalMap = {
 }
 
 
-# The same ladder walked all the way up and back down again, overload included:
-# online -> active -> overheated -> online. The desktop application does not send that
-# click (it uses left, right and ctrl), so this only adds a vocabulary entry for
-# callers that want a click to be able to reach the overloaded state -- see the
-# ``cycle`` branch of :meth:`Module.getProposedState`.
+# The full state ladder walked all the way up and back down again, offline and
+# overload included: offline -> online -> active -> overheated -> offline. The desktop
+# application does not send that click (it uses left, right and ctrl), so this only
+# adds a vocabulary entry for callers that want a click to be able to reach the
+# overloaded and the offline state -- see the ``cycle`` branch of
+# :meth:`Module.getProposedState`.
 LocalCycleMap = {
     FittingModuleState.OFFLINE: FittingModuleState.ONLINE,
     FittingModuleState.ONLINE: FittingModuleState.ACTIVE,
     FittingModuleState.ACTIVE: FittingModuleState.OVERHEATED,
-    FittingModuleState.OVERHEATED: FittingModuleState.ONLINE
+    FittingModuleState.OVERHEATED: FittingModuleState.OFFLINE
 }
 
 
@@ -1091,7 +1092,7 @@ class Module(HandledItem, HandledCharge, ItemAttrShortcut, ChargeAttrShortcut, M
             state = FittingModuleState.OFFLINE
         elif click == "cycle":
             # A full lap of the state column: each click moves one state up, and overload
-            # drops back to online instead of walking back down through what it passed.
+            # drops back to offline instead of walking back down through what it passed.
             # Only local modules have that ladder; projected ones and system effects keep
             # their own, one-step map.
             if transitionMap is LocalMap:

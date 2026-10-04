@@ -133,8 +133,8 @@ const ZH_CN: Record<string, string> = {
   online: '在线',
   active: '激活',
   overheated: '超载',
-  '{state} — click to cycle, ctrl-click to offline, right-click to overheat':
-    '{state} — 单击切换，Ctrl+单击离线，右键超载',
+  '{state} — click to cycle, right-click to overheat':
+    '{state} — 单击切换状态，右键超载',
   // -- the high rack's weapon grouping --------------------------------------------------
   'group weapons': '武器编组',
   'ungroup weapons': '取消编组',

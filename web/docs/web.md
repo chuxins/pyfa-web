@@ -24,7 +24,9 @@ single-page app in the browser:
   限量版舰船 -> 盖伦特 -> 万王宝座级联邦型 and so on
 * fitting view: high/med/low/rig/subsystem racks, drones, fighters, cargo,
   implants, boosters, projected items, with a state chip on every module -- click
-  walks online, active and overloaded, ctrl-click takes it offline. A module that
+  walks the whole ladder online, active, overloaded, offline and back, ctrl-click
+  still takes a module straight offline. An offline module is exactly like one that
+  is not fitted: no bonuses, and no share of the stacking penalty. A module that
   takes ammunition carries a charge slot beside its name; the game data's charge
   groups decide, so a heat sink, an armor plate or a microwarpdrive has none and
   the fit never offers to load a charge into one. Clicking the charge that is in a
@@ -500,11 +502,14 @@ run fully in parallel. Idle user databases are closed after 30 minutes.
   are unaffected; the point is that importing that package no longer drags the
   wxPython widget tree in, which is what lets the web server use it
 * `eos/saveddata/module.py` -- `Module.getProposedState()` accepts one more click,
-  ``'cycle'``, which walks a module online, active, overheated and back to online. The
-  browser's state chip sends it, because a desktop click cannot reach the overloaded
-  state at all: left toggles online and active, right overloads, ctrl offlines. Every
-  existing click keeps its meaning, and a module with nowhere to go (passive, activation
-  blocked, not overloadable) still walks pyfa's own two states.
+  ``'cycle'``, which walks a module a full lap of the state ladder: online, active,
+  overheated, offline, and back to online. The browser's state chip sends it, because a
+  desktop click cannot reach the overloaded or the offline state at all: left toggles
+  online and active, right overloads, ctrl offlines. Every existing click keeps its
+  meaning, and a module with nowhere to go (passive, activation blocked, not
+  overloadable) still walks pyfa's own two states. Offline means exactly "not fitted":
+  the engine applies none of the module's effects, so it adds no bonus and no stacking
+  penalty.
 * `service/market.py` -- `Market.getInstance()` is guarded by a lock. `Market.__init__`
   starts the ship browser's worker thread, and that thread waits only
   ``mktRdy.wait(5)`` before it calls back in, so a start whose construction takes longer

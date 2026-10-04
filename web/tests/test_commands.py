@@ -17,6 +17,10 @@ LAUNCHER_ID = 2404
 #: Damage Control II. ``maxGroupFitted`` is 1, a reason the refusal does not spell out.
 DAMAGE_CONTROL_ID = 2048
 
+#: 'Basic' Gyrostabilizer. A passive low-slot module whose damage multiplier bonus is
+#: stacking penalised, which is what makes it the probe for "offline = not fitted".
+GYROSTABILIZER_ID = 518
+
 #: Hornet EC-300. A Rifter has no fighter tubes, so this is always refused
 FIGHTER_ID = 23707
 
@@ -125,12 +129,13 @@ def test_module_states_and_workflow(user_client):
     assert module_at(online.json(), "high", position)["state"] in ("online", "active")
 
 
-def test_state_click_cycles_through_overload(user_client):
-    """A plain click walks online, active, overheated and back to online.
+def test_state_click_cycles_through_offline_and_overload(user_client):
+    """A plain click walks the whole ladder: online, active, overheated, offline.
 
     ``cycle`` is the browser's own click (see ``web/services/commands.py``): the desktop's
-    left click only ever toggles online and active, so without it overload is reachable
-    through the right click alone, which is what a browser cannot discover.
+    left click only ever toggles online and active, so without it the overloaded and the
+    offline state are reachable through the right and ctrl click alone, which is what a
+    browser cannot discover.
     """
     fit_id = make_fit(user_client)
     run_command(user_client, fit_id, "addLocalModule", itemId=AUTOCANNON_ID)
@@ -145,14 +150,53 @@ def test_state_click_cycles_through_overload(user_client):
         return module_at(response.json(), "high", position)["state"]
 
     assert click("cycle") == "overheated"
-    # Overload is the top of the ladder: the next click drops back to online
+    # Overload is the top of the ladder: the next click goes offline, then the
+    # module comes back online and active -- a full lap of all four states
+    assert click("cycle") == "offline"
     assert click("cycle") == "online"
     assert click("cycle") == "active"
-    # Off is still ctrl-click, and the ladder starts again from there
+    # Ctrl still jumps straight to offline, and the ladder starts again from there
     assert click("ctrl") == "offline"
     assert click("cycle") == "online"
     # A right click overloads in one go, from wherever the module is
     assert click("right") == "overheated"
+
+
+def test_offline_module_is_like_not_fitted(user_client):
+    """An offline module adds no bonus and no stacking penalty.
+
+    Two gyrostabilizers stack on the turret damage multiplier. With the second one
+    offline the fit must read exactly like the fit with a single module -- no bonus, and
+    no share of the stacking penalty.
+    """
+    fit_id = make_fit(user_client)
+    run_command(user_client, fit_id, "addLocalModule", itemId=AUTOCANNON_ID)
+    detail = user_client.get("/api/fits/{}".format(fit_id)).json()
+    gun = next(m for m in detail["racks"]["high"] if m["itemId"] == AUTOCANNON_ID)
+    run_command(user_client, fit_id, "changeLocalModuleCharges",
+                positions=[gun["position"]], chargeItemId=EMP_S_ID)
+
+    one = run_command(user_client, fit_id, "addLocalModule", itemId=GYROSTABILIZER_ID)
+    assert one.status_code == 200, one.text
+    first = next(m for m in one.json()["racks"]["low"] if m["itemId"] == GYROSTABILIZER_ID)
+    assert first["state"] == "online"
+    one_damage = one.json()["stats"]["firepower"]["weapon"]["value"]["em"]
+
+    two = run_command(user_client, fit_id, "addLocalModule", itemId=GYROSTABILIZER_ID)
+    assert two.status_code == 200, two.text
+    gyros = [m for m in two.json()["racks"]["low"] if m["itemId"] == GYROSTABILIZER_ID]
+    assert len(gyros) == 2
+    two_damage = two.json()["stats"]["firepower"]["weapon"]["value"]["em"]
+    # The second module stacks on the first (penalised, but still an improvement)
+    assert two_damage > one_damage
+
+    offline = run_command(user_client, fit_id, "changeLocalModuleStates",
+                          main={"kind": "module", "position": gyros[1]["position"]}, click="ctrl")
+    assert offline.status_code == 200, offline.text
+    assert module_at(offline.json(), "low", gyros[1]["position"])["state"] == "offline"
+    # The offline module is exactly as if it were not fitted: no bonus, and no
+    # share of the stacking penalty either
+    assert offline.json()["stats"]["firepower"]["weapon"]["value"]["em"] == pytest.approx(one_damage, rel=1e-9)
 
 
 def test_a_module_with_nowhere_to_go_is_answered_not_refused(user_client):
