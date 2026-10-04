@@ -300,9 +300,10 @@ under the ship it belongs to. The ship browser's **Import my EVE fits** button i
 endpoint; ships that have fits show the count, and the fits are listed under the ship in
 the tree.
 
-It is one-way. Nothing is written back to EVE: renaming or deleting the copy in pyfa
-leaves the in-game fitting alone, and `esi-fittings.write_fittings.v1` is not used by this
-path.
+It is one-way. Nothing is written back to EVE: renaming the copy in pyfa leaves the
+in-game fitting alone, and `esi-fittings.write_fittings.v1` is not used by this path. A
+fit that came out of the game is also the game's, so the web will not delete it (see
+"Deleting a fit" below).
 
 * A fitting is skipped when the pilot already has a fit with the same name on the same
   ship, matched one for one -- so pressing the button twice does not double everything,
@@ -331,6 +332,25 @@ Reading EVE's fittings turned up an old mismatch in pyfa's own importer, fixed h
 EVE's inventory flag ids, and `service/port/esi.py` only understood the ids -- so a
 fitting imported from ESI arrived without its drones and cargo. `_flagId()` now accepts
 both spellings, which the desktop's "Browse EVE Fittings" window benefits from too.
+
+### Deleting a fit
+
+Every fit row in the ship browser carries a delete button, but not every fit may be
+deleted there. A fit is deletable while it is the web's alone: one created here, or a
+save-as copy, stays deletable until it is saved into the game. Two kinds of fit are the
+game's too, and the button says where to delete instead of deleting:
+
+* a fit **imported from the game** (`POST /api/esi/fittings/import` marks it
+  `fromGame`): EVE still holds the original;
+* a fit **saved into the game** (`POST /api/esi/fittings/export` marks it
+  `importedToGame`): EVE now holds a copy.
+
+Both are answered with a hint to delete the fit in the game, and `DELETE /api/fits/{id}`
+refuses them with `409 deleteInGame` as well. Exporting a fit as TXT never marks it: a
+text file is not the game, so it changes nothing. Duplicating a fit resets both flags --
+a save-as copy has not been near EVE and is deletable again. The two flags live on the
+`fits` table (migration 51) and travel in every fit payload as `fromGame` /
+`importedToGame`.
 
 ## Configuration
 

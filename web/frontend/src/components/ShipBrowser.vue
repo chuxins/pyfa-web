@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { raceKey, raceSections, useBrowserStore } from '@/stores/browser'
 import type { RaceSection } from '@/stores/browser'
 import { useFittingStore } from '@/stores/fitting'
-import { imageUrl } from '@/api'
+import { imageUrl, type FitSummary } from '@/api'
 import { t } from '@/i18n'
 
 const browser = useBrowserStore()
@@ -31,6 +31,21 @@ async function newFit() {
   if (browser.shipId === null) return
   const fitId = await fitting.create(browser.shipId)
   if (fitId !== null) browser.noteFitAdded(browser.shipId)
+}
+
+/**
+ * Delete a fit the web owns, or explain why the game has to: the row carries the flags
+ * that say where the fit came from, so the store can tell the two apart (see the store).
+ */
+function removeFit(fit: FitSummary) {
+  void fitting.removeFit(fit.id, fit)
+}
+
+/** What the delete button's tooltip says: the reason a fit cannot be deleted here. */
+function deleteTitle(fit: FitSummary): string {
+  if (fit.fromGame) return t('This fit came from EVE; delete it in the game')
+  if (fit.importedToGame) return t('Please delete this fit in the game')
+  return t('Delete')
 }
 
 function renderUrl(ship: { image?: { kind: string; id: number } | null }) {
@@ -121,16 +136,25 @@ function renderUrl(ship: { image?: { kind: string; id: number } | null }) {
                         >
                           {{ t('reading fits…') }}
                         </div>
-                        <button
+                        <div
                           v-for="fit in browser.shipFitsById[ship.id] ?? []"
                           :key="fit.id"
                           class="fitrow nested"
                           :class="{ selected: fitting.fit?.id === fit.id, deep: !!section.name }"
+                          role="button"
+                          tabindex="0"
                           @click="openFit(fit.id)"
+                          @keydown.enter.prevent="openFit(fit.id)"
+                          @keydown.space.prevent="openFit(fit.id)"
                         >
-                          <span class="fitname">{{ fit.name }}</span>
-                          <span v-if="fit.booster" class="tag">{{ t('booster') }}</span>
-                        </button>
+                          <span class="fitlabel">
+                            <span class="fitname">{{ fit.name }}</span>
+                            <span v-if="fit.booster" class="tag">{{ t('booster') }}</span>
+                          </span>
+                          <button class="fitdelete" :title="deleteTitle(fit)" @click.stop="removeFit(fit)">
+                            &times;
+                          </button>
+                        </div>
                       </template>
                     </template>
                   </template>
@@ -161,16 +185,25 @@ function renderUrl(ship: { image?: { kind: string; id: number } | null }) {
 
       <div class="fits scroll">
         <div v-if="!browser.shipFits.length" class="dim empty">{{ t('No saved fits yet') }}</div>
-        <button
+        <div
           v-for="fit in browser.shipFits"
           :key="fit.id"
           class="fitrow"
           :class="{ selected: fitting.fit?.id === fit.id }"
+          role="button"
+          tabindex="0"
           @click="openFit(fit.id)"
+          @keydown.enter.prevent="openFit(fit.id)"
+          @keydown.space.prevent="openFit(fit.id)"
         >
-          <span class="fitname">{{ fit.name }}</span>
-          <span v-if="fit.booster" class="tag">{{ t('booster') }}</span>
-        </button>
+          <span class="fitlabel">
+            <span class="fitname">{{ fit.name }}</span>
+            <span v-if="fit.booster" class="tag">{{ t('booster') }}</span>
+          </span>
+          <button class="fitdelete" :title="deleteTitle(fit)" @click.stop="removeFit(fit)">
+            &times;
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -322,10 +355,34 @@ function renderUrl(ship: { image?: { kind: string; id: number } | null }) {
   display: flex;
   justify-content: space-between;
   gap: 6px;
+  align-items: center;
   text-align: left;
   background: none;
   border: none;
   padding: 3px 6px;
+  cursor: pointer;
+}
+
+/* The name and its tag stay together on the left; the delete button sits far right. */
+.fitlabel {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+}
+
+.fitdelete {
+  background: none;
+  border: none;
+  padding: 0 2px;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.fitdelete:hover {
+  color: var(--danger);
 }
 
 .fitrow.nested {

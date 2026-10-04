@@ -287,6 +287,10 @@ def test_create_fit_and_read_back(user_client):
     assert len(detail["racks"]["high"]) == 3
     assert all(module["isEmpty"] for module in detail["racks"]["high"])
     assert detail["stats"]["errors"] == {}
+    # A web-created fit has been nowhere near EVE, so the web may delete it
+    assert detail["fromGame"] is False
+    assert detail["importedToGame"] is False
+    assert user_client.get("/api/fits").json()["fits"][0]["fromGame"] is False
 
 
 def test_create_fit_with_an_unknown_ship_is_a_clean_400(user_client):
@@ -341,6 +345,21 @@ def test_fit_rename_and_delete(user_client):
 
     assert user_client.delete("/api/fits/{}".format(fit_id)).status_code == 204
     assert user_client.get("/api/fits/{}".format(fit_id)).status_code == 404
+
+
+def test_duplicating_a_fit_makes_a_deletable_web_copy(user_client):
+    """A save-as copy is a new web fit: whatever the original was, the copy has not been
+    near EVE, so the web may delete it -- and deleting the copy leaves the original."""
+    fit_id = user_client.post("/api/fits", json={"shipId": RIFTER_ID, "name": "Original"}).json()["id"]
+
+    clone = user_client.post("/api/fits/{}/duplicate".format(fit_id))
+    assert clone.status_code == 201, clone.text
+    assert clone.json()["name"] == "Original (copy)"
+    assert clone.json()["fromGame"] is False
+    assert clone.json()["importedToGame"] is False
+
+    assert user_client.delete("/api/fits/{}".format(clone.json()["id"])).status_code == 204
+    assert user_client.get("/api/fits/{}".format(fit_id)).status_code == 200
 
 
 def test_fits_are_isolated_between_users(user_client, second_user_client):

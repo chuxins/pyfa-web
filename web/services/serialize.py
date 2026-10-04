@@ -438,6 +438,10 @@ def serialize_fit(fit, includeStats=True, statsSections=None):
         "calculated": bool(fit.calculated),
         "factorReload": bool(getattr(fit, "factorReload", False)),
         "ignoreRestrictions": bool(getattr(fit, "ignoreRestrictions", False)),
+        #: Where the fit came from decides whether the web may delete it: a fit imported
+        #: from EVE, or one already saved into it, belongs to the game too (see fits.py)
+        "fromGame": bool(getattr(fit, "fromGame", False)),
+        "importedToGame": bool(getattr(fit, "importedToGame", False)),
         "implantLocation": int(getattr(fit, "implantLocation", ImplantLocation.FIT)),
         "systemSecurity": int(getattr(fit, "systemSecurity", 0) or 0),
         "pilotSecurity": getattr(fit, "pilotSecurity", None),
@@ -489,6 +493,8 @@ def serialize_fit_summary(fit):
         "shipImage": item_image(shipItem),
         "modified": _iso(fit.modifiedCoalesce),
         "notes": fit.notes,
+        "fromGame": bool(getattr(fit, "fromGame", False)),
+        "importedToGame": bool(getattr(fit, "importedToGame", False)),
     }
 
 

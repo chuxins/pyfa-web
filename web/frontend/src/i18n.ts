@@ -69,6 +69,12 @@ const ZH_CN: Record<string, string> = {
   'Search ships…': '搜索舰船…',
   'Results ({count})': '搜索结果（{count}）',
   'New fit': '新建装配',
+  'Delete': '删除',
+  'Delete this fit?': '确定删除该装配？',
+  'This fit came from EVE; delete it in the game': '该装配来自游戏内，请到游戏内删除该装配',
+  'Please delete this fit in the game': '请到游戏内删除该装配',
+  'this fit was imported from the game or saved into it; delete it in the game':
+    '该装配来自游戏内或已导入游戏，请到游戏内删除该装配',
   'No saved fits yet': '暂无保存的装配',
   'Import my EVE fits': '导入我的 EVE 装配',
   'importing…': '导入中…',

@@ -66,6 +66,12 @@ fits_table = Table("fits", saveddata_meta,
                    Column("modified", DateTime, nullable=True, default=datetime.datetime.now, onupdate=datetime.datetime.now),
                    Column("systemSecurity", Integer, nullable=True),
                    Column("pilotSecurity", Float, nullable=True),
+                   #: The fit came out of the EVE client (imported via ESI); the web cannot
+                   #: delete it, because the game still holds the original (see web/api/fits.py)
+                   Column("fromGame", Boolean, nullable=False, default=0),
+                   #: The fit was saved into the EVE client (exported via ESI); the web
+                   #: cannot delete it, because the game now holds a copy of it
+                   Column("importedToGame", Boolean, nullable=False, default=0),
                    )
 
 projectedFits_table = Table("projectedFits", saveddata_meta,

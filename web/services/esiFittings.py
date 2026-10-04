@@ -189,7 +189,10 @@ def export_fitting_to_game(user, server_name, fit_id):
         raise EsiError("esiUnreachable", "EVE could not be reached: {}".format(ex)) from ex
 
     # An expired access token was refreshed on the way through, and that new token only
-    # exists in memory until it is written down.
+    # exists in memory until it is written down. The fit has now been saved into the EVE
+    # client, so it is the game's too: the web stops offering to delete it (see the
+    # deletion rules in web/api/fits.py).
+    fit.importedToGame = True
     eos.db.save(character)
     eos.db.commit()
 
@@ -257,6 +260,9 @@ def import_fittings(fittings, character):
             # side, so recalculate the way a newly created fit is calculated.
             sFit.recalc(fit)
             sFit.fill(fit)
+            # The fit came out of the EVE client, so the web must not delete it: the
+            # game still holds the original (see the deletion rules in web/api/fits.py).
+            fit.fromGame = True
             entry_payload = dict(serialize_fit_summary(fit))
             entry_payload["esiFittingId"] = entry.get("fitting_id")
             imported.append(entry_payload)

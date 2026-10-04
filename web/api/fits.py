@@ -70,6 +70,10 @@ def list_fits(
                 "shipName": shipName,
                 "modified": modified.isoformat() if modified is not None else None,
                 "notes": notes,
+                # The search list carries the deletion flags like every other fit row, so
+                # its delete button knows when a fit belongs to the game too.
+                "fromGame": False,
+                "importedToGame": False,
             })
         return {"fits": fits[:limit]}
 
@@ -161,12 +165,19 @@ def update_fit(fit_id: int, payload: FitUpdate, user=Depends(user_or_guest)):
 
 @router.post("/{fit_id}/duplicate", status_code=201)
 def duplicate_fit(fit_id: int, user=Depends(user_or_guest)):
-    """Copy a fit; the copy lands in the same database, the caller's own or the guest's."""
+    """Copy a fit; the copy lands in the same database, the caller's own or the guest's.
+
+    The copy is a *new web fit*: whatever the original was (imported from the game, or
+    already saved into it), the copy has not been anywhere near EVE, so it stays
+    deletable here until it is exported into the game itself.
+    """
     import eos.db
 
     fit = _require_fit(fit_id)
     clone = copy.deepcopy(fit)
     clone.name = "{} (copy)".format(fit.name)
+    clone.fromGame = False
+    clone.importedToGame = False
     eos.db.save(clone)
     publish(event_channel(user), "fit.created", fitId=clone.ID)
     return serialize_fit_summary(clone)
@@ -174,7 +185,23 @@ def duplicate_fit(fit_id: int, user=Depends(user_or_guest)):
 
 @router.delete("/{fit_id}", status_code=204)
 def delete_fit(fit_id: int, user=Depends(user_or_guest), userData=Depends(get_user_data)):
-    _require_fit(fit_id)
+    """Delete a fit the web owns.
+
+    A fit that came out of the EVE client, or that was saved into it, is the game's too:
+    deleting it here would leave a copy in EVE that only the pilot can remove, so those
+    are refused with ``deleteInGame`` and the browser says where to delete them instead.
+    """
+    fit = _require_fit(fit_id)
+    if getattr(fit, "fromGame", False) or getattr(fit, "importedToGame", False):
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "this fit was imported from the game or saved into it; "
+                           "delete it in the game",
+                "code": "deleteInGame",
+                "params": {},
+            },
+        )
     _service_fit().deleteFit(fit_id)
     # The engine only forgets its own per-fit stack; ours is keyed per user, so
     # without this the deleted fit's commands would outlive it, and a later fit

@@ -298,17 +298,55 @@ export const useFittingStore = defineStore('fitting', {
       }
     },
 
-    async remove() {
-      if (!this.fit) return null
-      const fitId = this.fit.id
+    /**
+     * Delete a fit the web owns. A fit that came out of the EVE client, or that was
+     * already saved into it, is the game's too: deleting it here would leave a copy in
+     * EVE that only the pilot can remove, so those get a hint saying where instead.
+     * Only saving the fit into the game marks it -- a TXT export never does.
+     *
+     * `summary` is the list row the delete button sat on; without it the flags come from
+     * the open fit. Returns true when the fit was actually deleted.
+     */
+    async removeFit(fitId: number, summary?: Pick<FitSummary, 'fromGame' | 'importedToGame'>) {
+      const flags = summary ?? this.fit
+      if (flags?.fromGame) {
+        this.notice = t('This fit came from EVE; delete it in the game')
+        this.clearNoticeSoon()
+        return false
+      }
+      if (flags?.importedToGame) {
+        this.notice = t('Please delete this fit in the game')
+        this.clearNoticeSoon()
+        return false
+      }
+      if (!window.confirm(t('Delete this fit?'))) return false
       try {
         await api.deleteFit(fitId)
-        this.fit = null
-        return fitId
+        if (this.fit?.id === fitId) this.fit = null
+        this.notice = t('This fit was deleted')
+        this.clearNoticeSoon()
+        // The fit's ship changed its count and its list, and the tree and the detail
+        // panel share the one `shipFitsById`; re-read what is on screen.
+        void useBrowserStore().refreshFits()
+        return true
       } catch (error) {
         this.setError(error)
-        return null
+        return false
       }
+    },
+
+    /** The open fit's delete button; list rows pass the row's own flags instead. */
+    async remove() {
+      if (!this.fit) return null
+      return (await this.removeFit(this.fit.id, this.fit)) ? this.fit.id : null
+    },
+
+    /** Let the notice banner get out of the way again after a moment. */
+    clearNoticeSoon(delay = 4000) {
+      const text = this.notice
+      window.setTimeout(() => {
+        if (this.notice === text) this.notice = ''
+      }, delay)
     },
 
     async addItem(item: { id: number; itemKind: string }) {

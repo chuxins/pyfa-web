@@ -42,6 +42,8 @@ const TEMPLATES: Record<string, string> = {
   fitEmpty: 'the fit has nothing fitted, so there is nothing to export',
   esiSaveRefused: 'EVE refused to save the fitting ({reason})',
   esiExportFailed: 'the fitting could not be exported; the server log has the reason',
+  // A fit the game also holds (see web/api/fits.py): the web will not delete it
+  deleteInGame: 'this fit was imported from the game or saved into it; delete it in the game',
 }
 
 /** Racks and hardpoints are named the way the desktop names them, so the catalogue

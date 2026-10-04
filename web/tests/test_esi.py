@@ -353,3 +353,66 @@ def test_one_account_cannot_export_another_accounts_fit(pilot_client, second_use
     response = second_user_client.post("/api/esi/fittings/export", json={"fitId": fit_id})
     assert response.status_code == 409
     assert esi.posted == []
+
+
+def test_an_imported_fit_is_not_deletable_here(pilot_client, esi):
+    """A fit that came out of the EVE client belongs to the game too: the web refuses to
+    delete it, and the refusal carries ``deleteInGame`` so the browser can say where."""
+    payload = pilot_client.post("/api/esi/fittings/import").json()
+    fit_id = payload["imported"][0]["id"]
+
+    detail = pilot_client.get("/api/fits/{}".format(fit_id)).json()
+    assert detail["fromGame"] is True
+    assert detail["importedToGame"] is False
+    # The list rows carry the same flags, which is what the delete button reads
+    assert fits_for(pilot_client, RIFTER_ID)[0]["fromGame"] is True
+
+    response = pilot_client.delete("/api/fits/{}".format(fit_id))
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "deleteInGame"
+    # ... and the fit is still there
+    assert pilot_client.get("/api/fits/{}".format(fit_id)).status_code == 200
+
+
+def test_an_exported_fit_is_no_longer_deletable_here(pilot_client, app_state, esi):
+    """'Export to Game' saves the fit into the EVE client; from then on the web refuses
+    to delete it, because the game holds a copy (TXT exports never mark a fit)."""
+    fit_id = _fitted_rifter(pilot_client)
+    exported = pilot_client.post("/api/esi/fittings/export", json={"fitId": fit_id})
+    assert exported.status_code == 200
+
+    detail = pilot_client.get("/api/fits/{}".format(fit_id)).json()
+    assert detail["importedToGame"] is True
+    assert detail["fromGame"] is False
+
+    response = pilot_client.delete("/api/fits/{}".format(fit_id))
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "deleteInGame"
+    assert pilot_client.get("/api/fits/{}".format(fit_id)).status_code == 200
+
+
+def test_a_txt_export_does_not_mark_the_fit(pilot_client, esi):
+    """Exporting a fit as EFT text writes a file the server never sees again, so the
+    fit stays deletable -- only saving it into the game marks it."""
+    fit_id = _fitted_rifter(pilot_client)
+    exported = pilot_client.get("/api/fits/{}/export-txt".format(fit_id))
+    assert exported.status_code == 200
+    assert pilot_client.get("/api/fits/{}".format(fit_id)).json()["importedToGame"] is False
+    assert pilot_client.delete("/api/fits/{}".format(fit_id)).status_code == 204
+
+
+def test_duplicating_a_game_fit_makes_a_deletable_web_fit(pilot_client, esi):
+    """A save-as copy of a game fit is a new web fit: it has not been near EVE, so it
+    can be deleted here, and the game fit itself stays untouched."""
+    payload = pilot_client.post("/api/esi/fittings/import").json()
+    imported_id = payload["imported"][0]["id"]
+
+    clone = pilot_client.post("/api/fits/{}/duplicate".format(imported_id))
+    assert clone.status_code == 201, clone.text
+    assert clone.json()["fromGame"] is False
+    assert clone.json()["importedToGame"] is False
+    assert pilot_client.delete("/api/fits/{}".format(clone.json()["id"])).status_code == 204
+
+    # The game fit is still there, still the game's
+    assert pilot_client.get("/api/fits/{}".format(imported_id)).status_code == 200
+    assert pilot_client.delete("/api/fits/{}".format(imported_id)).status_code == 409
