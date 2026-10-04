@@ -572,7 +572,7 @@ const containers = computed(() => fitting.fit)
   .module {
     grid-template-columns: 30px minmax(0, 1fr) auto auto;
     grid-template-areas:
-      'icon name state'
+      'icon name state .'
       'icon charge remove swap';
     gap: 2px 8px;
     padding: 4px 8px;
