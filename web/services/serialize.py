@@ -269,6 +269,9 @@ def serialize_module(module, position=None):
         if rahPattern:
             data["rahPattern"] = rahPattern
         data["isValidState"] = bool(module.isValidState(module.state))
+        #: Whether the row can be overloaded at all: a rig or a passive module cannot,
+        #: so the fitting view promises no right-click to overheat for it
+        data["canOverheat"] = bool(module.isValidState(FittingModuleState.OVERHEATED))
         try:
             data["maxRange"] = module.maxRange
         except Exception:

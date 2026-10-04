@@ -453,11 +453,14 @@ An item id that is not in the game data is answered the same way rather than cra
 the engine, which is what used to happen: every command dereferences its item while it
 is being built.
 
-A state click the module cannot follow -- the chip of a passive module, which has no
-state above online -- is answered with `stateUnchanged` and the state the module is
-already in. The engine reports "nothing changed" the same way it reports a refusal, so
-without that the browser would show "the item may not fit" for a click that merely
-reached the end of the ladder.
+A state click the module cannot follow is answered with `stateUnchanged` and the state
+the module is already in. That still happens on the *right* click of a module that
+cannot overheat (a rig, a passive module like a damage control): the engine reports
+"nothing changed" the same way it reports a refusal, so without that the browser would
+show "the item may not fit" for a click that merely reached the end of the ladder. The
+plain click never gets there -- its lap skips the states the module cannot hold, so for
+those same modules it collapses to online and offline (see `eos/saveddata/module.py`
+below).
 
 ### Per-user isolation
 
@@ -506,12 +509,13 @@ run fully in parallel. Idle user databases are closed after 30 minutes.
   overheated, offline, and back to online. The browser's state chip sends it, because a
   desktop click cannot reach the overloaded or the offline state at all: left toggles
   online and active, right overloads, ctrl offlines. Every existing click keeps its
-  meaning, and a module with nowhere to go (passive, activation blocked, not
-  overloadable) still walks pyfa's own two states. A rig is the same idea one step
-  further: it has no active or overloaded state to climb to, so its lap collapses to
-  online and offline -- a plain click still reaches the offline state. Offline means
-  exactly "not fitted": the engine applies none of the module's effects, so it adds no
-  bonus and no stacking penalty.
+  meaning. The lap skips the rungs the module cannot hold, which is what keeps the
+  plain click reachable for every module: for a rig or a passive module -- nothing
+  above online -- it collapses to online and offline, so a plain click still reaches
+  the offline state. Offline means exactly "not fitted": the engine applies none of the
+  module's effects, so it adds no bonus and no stacking penalty. (The serialized module
+  carries `canOverheat` for the same reason, so the fitting view does not promise a
+  right-click to overheat on a module that has no overheat state.)
 * `service/market.py` -- `Market.getInstance()` is guarded by a lock. `Market.__init__`
   starts the ship browser's worker thread, and that thread waits only
   ``mktRdy.wait(5)`` before it calls back in, so a start whose construction takes longer
@@ -579,8 +583,8 @@ under, the order its race row goes in, and the group pyfa keeps in memory alone 
 tree lists whether or not the category it read holds that group), the
 engine numbers (a Rifter with a 200mm AutoCannon II
 and EMP S must show 38.96 DPS, exactly as the desktop does), the edit commands, what a
-refused edit explains, the state chip's click cycle (overload included, and the passive
-module the engine answers with "already online"), what the item panel reads for every
+refused edit explains, the state chip's click cycle (overload included, and a passive
+module's plain click reaching offline), what the item panel reads for every
 row of a fit (the charge in a module is not the module, the names come from the game
 data's language columns, and an attribute the game data does not name is left out),
 whether a row takes a charge at all (the flag the fitting view draws its charge slot

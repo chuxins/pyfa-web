@@ -115,9 +115,10 @@ function groupSize(module: Module) {
 /** "online — click to cycle, right-click to overheat", in the language of the moment. */
 function stateTitle(module: Module) {
   const state = t(STATE_LABELS[module.state] ?? module.state)
-  // A rig cannot overheat, so its chip promises only what a plain click does
+  // A module that cannot overheat (a rig, a passive module) promises only what
+  // a plain click does
   const title = t(
-    module.slot === 'rig' ? '{state} — click to cycle' : '{state} — click to cycle, right-click to overheat',
+    module.canOverheat ? '{state} — click to cycle, right-click to overheat' : '{state} — click to cycle',
     { state },
   )
   // A grouped weapon moves the whole group, so the tooltip says so before it surprises

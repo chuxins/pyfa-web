@@ -122,6 +122,8 @@ export interface Module {
   mutations?: Record<string, number>
   spool?: { type: number; amount: number }
   isValidState?: boolean
+  /** Whether the module can be overloaded at all: a rig or a passive module cannot */
+  canOverheat?: boolean
   maxRange?: number | null
 }
 

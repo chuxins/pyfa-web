@@ -1096,22 +1096,20 @@ class Module(HandledItem, HandledCharge, ItemAttrShortcut, ChargeAttrShortcut, M
             # Only local modules have that ladder; projected ones and system effects keep
             # their own, one-step map.
             if transitionMap is LocalMap:
-                if mod.slot == FittingSlot.RIG:
-                    # A rig has no active or overloaded state to climb to, so the lap
-                    # above online is unreachable and the click toggles the two states a
-                    # rig can hold: online and offline. That keeps the offline state on a
-                    # plain click, exactly as it is for a module that can heat up -- and
-                    # an offline rig is simply not fitted (no bonus, no stacking penalty).
-                    state = (FittingModuleState.OFFLINE if currState >= FittingModuleState.ONLINE
-                             else FittingModuleState.ONLINE)
+                # Walk the lap, skipping the rungs this module cannot hold. For a rig or
+                # a passive module -- nothing above online -- the lap collapses to the
+                # two states it can hold, online and offline: a plain click still reaches
+                # the offline state, and an offline module is simply not fitted (no
+                # bonus, no stacking penalty).
+                state = currState
+                for _ in range(len(LocalCycleMap)):
+                    state = LocalCycleMap.get(state, FittingModuleState.ONLINE)
+                    if state != currState and mod.isValidState(state):
+                        break
                 else:
-                    state = LocalCycleMap.get(currState, FittingModuleState.ONLINE)
-                    if not mod.isValidState(state):
-                        # There is nothing up there to reach: a passive module, one that is
-                        # activation blocked, or one that cannot be overloaded. Keeping pyfa's
-                        # two-step toggle in that case is what stops the click from proposing the
-                        # state the module is already in, which reads as "nothing changed".
-                        state = LocalMap.get(currState, FittingModuleState.ONLINE)
+                    # Wrapped the whole lap without finding a state the module can move
+                    # to; the click is answered with the state it is already in.
+                    state = currState
             else:
                 state = transitionMap.get(currState, min(transitionMap))
         else:

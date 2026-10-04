@@ -122,6 +122,8 @@ def test_module_states_and_workflow(user_client):
     detail = user_client.get("/api/fits/{}".format(fit_id)).json()
     position = next(m["position"] for m in detail["racks"]["high"] if m["itemId"] == AUTOCANNON_ID)
     assert module_at(detail, "high", position)["state"] == "active"
+    # A weapon has an overheat state to promise in its chip's tooltip
+    assert module_at(detail, "high", position)["canOverheat"] is True
 
     # ctrl-click puts a module offline; a plain click cycles it back
     offline = run_command(user_client, fit_id, "changeLocalModuleStates",
@@ -172,7 +174,9 @@ def test_offline_module_is_like_not_fitted(user_client):
 
     Two gyrostabilizers stack on the turret damage multiplier. With the second one
     offline the fit must read exactly like the fit with a single module -- no bonus, and
-    no share of the stacking penalty.
+    no share of the stacking penalty. The gyrostabilizer is passive (no active or
+    overloaded state to hold), so its plain click's lap collapses to online and offline
+    the way a rig's does -- that is the click that takes the second one offline here.
     """
     fit_id = make_fit(user_client)
     run_command(user_client, fit_id, "addLocalModule", itemId=AUTOCANNON_ID)
@@ -196,7 +200,7 @@ def test_offline_module_is_like_not_fitted(user_client):
     assert two_damage > one_damage
 
     offline = run_command(user_client, fit_id, "changeLocalModuleStates",
-                          main={"kind": "module", "position": gyros[1]["position"]}, click="ctrl")
+                          main={"kind": "module", "position": gyros[1]["position"]}, click="cycle")
     assert offline.status_code == 200, offline.text
     assert module_at(offline.json(), "low", gyros[1]["position"])["state"] == "offline"
     # The offline module is exactly as if it were not fitted: no bonus, and no
@@ -270,8 +274,15 @@ def test_offline_rig_is_like_not_fitted(user_client):
     assert offline.json()["stats"]["resistances"]["hp"]["shield"] == pytest.approx(one_shield, rel=1e-9)
 
 
-def test_a_module_with_nowhere_to_go_is_answered_not_refused(user_client):
-    """A passive module's chip: nothing to change, and the refusal names the state."""
+def test_passive_module_state_click_cycles_through_offline(user_client):
+    """A passive module's chip walks the two states it can hold: online and offline.
+
+    Damage Control II cannot be activated or overloaded in this engine (it has no
+    ``active`` effect), so its plain click's full lap collapses to online <-> offline,
+    exactly like a rig's. The offline state is what matters: an offline module is as if
+    it were not fitted. The right click still cannot overheat it and is answered, not
+    refused silently.
+    """
     fit_id = make_fit(user_client)
     added = run_command(user_client, fit_id, "addLocalModule", itemId=DAMAGE_CONTROL_ID)
     assert added.status_code == 200, added.text
@@ -280,9 +291,20 @@ def test_a_module_with_nowhere_to_go_is_answered_not_refused(user_client):
     assert module["state"] == "online"
     # Not a weapon, so the high rack would never offer to group it
     assert module["hardpoint"] is None
+    # And it has no overheat to promise: the chip's tooltip must not offer one
+    assert module["canOverheat"] is False
 
+    def click(kind):
+        response = run_command(user_client, fit_id, "changeLocalModuleStates",
+                               main={"kind": "module", "position": position}, click=kind)
+        assert response.status_code == 200, response.text
+        return module_at(response.json(), "low", position)["state"]
+
+    assert click("cycle") == "offline"
+    assert click("cycle") == "online"
+    # A passive module has nowhere to overheat: the right click is answered, not moved
     detail = refusal(run_command(user_client, fit_id, "changeLocalModuleStates",
-                                 main={"kind": "module", "position": position}, click="cycle"))
+                                 main={"kind": "module", "position": position}, click="right"))
     assert detail["code"] == "stateUnchanged"
     assert detail["params"] == {"name": module["item"]["name"], "state": "online"}
     # The fit is untouched
