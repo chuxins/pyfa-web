@@ -111,6 +111,37 @@ export interface EsiExportResult {
   fittingId: number | null
 }
 
+// ---- Fit text import/export, backup and mutated items (web/services/port.py) ----
+
+/** The text export formats the server can produce. HTML is a frontend concern and
+ *  `optimizePrices` is refused until the price work (P2), so neither is here. */
+export type ExportFormat = 'eft' | 'dna' | 'multibuy' | 'shipstats' | 'efs' | 'esiJson'
+
+/** What a fit-text import did: new fits saved, items applied to one fit, or both. */
+export interface PortImportResult {
+  /** eft | eftConfig | dna | dnaAlt | xml | esiJson | mutant | drones | fighters | implants | boosters | cargo */
+  format: string
+  /** The fits the text created, saved under their ships */
+  created: FitSummary[]
+  /** Set when item-level text was applied to an existing fit (desktop paste semantics) */
+  appliedToFitId: number | null
+  skipped: { name: string; reason: string }[]
+}
+
+/** A mutated-module paste, described (`web/services/port.py: parse_mutant`). */
+export interface MutantParseResult {
+  baseItemId: number
+  baseItemName: string
+  mutaplasmidId: number | null
+  /** attributeId -> rolled value, as the paste spelled them */
+  mutations: Record<string, number>
+}
+
+export interface BackupImportResult {
+  /** How many fits the backup XML restored */
+  imported: number
+}
+
 export interface Module {
   position: number
   slot: string
@@ -357,29 +388,63 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     ...init,
   })
   if (response.status === 204) return undefined as T
-  const text = await response.text()
-  let body: any = null
-  if (text) {
-    try {
-      body = JSON.parse(text)
-    } catch {
-      body = text
-    }
-  }
-  if (!response.ok) {
-    if (response.status === 401) unauthorizedHandler?.()
-    const detail = body && typeof body === 'object' ? body.detail : body
-    if (typeof detail === 'string') throw new ApiError(response.status, detail)
-    if (detail && typeof detail === 'object' && typeof detail.message === 'string') {
-      throw new ApiError(response.status, detail.message, {
-        message: detail.message,
-        code: typeof detail.code === 'string' ? detail.code : 'engineRefused',
-        params: detail.params ?? {},
-      })
-    }
-    throw new ApiError(response.status, response.statusText)
-  }
+  const body = parseBody(await response.text())
+  if (!response.ok) throwFor(response, body)
   return body as T
+}
+
+/** Parse a response body: JSON when it parses, the raw text otherwise. */
+function parseBody(text: string): any {
+  if (!text) return null
+  try {
+    return JSON.parse(text)
+  } catch {
+    return text
+  }
+}
+
+/** Turn a failed response into the `ApiError` the callers see (401 included). */
+function throwFor(response: Response, body: any): never {
+  if (response.status === 401) unauthorizedHandler?.()
+  const detail = body && typeof body === 'object' ? body.detail : body
+  if (typeof detail === 'string') throw new ApiError(response.status, detail)
+  if (detail && typeof detail === 'object' && typeof detail.message === 'string') {
+    throw new ApiError(response.status, detail.message, {
+      message: detail.message,
+      code: typeof detail.code === 'string' ? detail.code : 'engineRefused',
+      params: detail.params ?? {},
+    })
+  }
+  throw new ApiError(response.status, response.statusText)
+}
+
+/** A file the server answered with: the text plus its filename in `Content-Disposition`. */
+export interface ExportedFile {
+  filename: string
+  contentType: string
+  text: string
+}
+
+/**
+ * The fit export and backup endpoints answer with a file, not JSON: the text and
+ * its filename in a `Content-Disposition` header. `request` would parse an EFS or
+ * ESI JSON export into an object, so this path keeps the raw text and the header
+ * instead. Failures map exactly the way `request` maps them.
+ */
+async function requestFile(path: string, init: RequestInit = {}): Promise<ExportedFile> {
+  const response = await fetch(path, {
+    credentials: 'same-origin',
+    headers: init.body ? { 'Content-Type': 'application/json' } : undefined,
+    ...init,
+  })
+  if (!response.ok) throwFor(response, parseBody(await response.text()))
+  const disposition = response.headers.get('Content-Disposition') ?? ''
+  const match = /filename="?([^";]+)"?/.exec(disposition)
+  return {
+    filename: match?.[1] ?? 'export',
+    contentType: response.headers.get('Content-Type') ?? 'text/plain',
+    text: await response.text(),
+  }
 }
 
 /**
@@ -438,6 +503,25 @@ export const api = {
   /** Save the open fit into the EVE client of the pilot's login */
   exportFitToGame: (fitId: number) =>
     request<EsiExportResult>('/api/esi/fittings/export', { method: 'POST', body: JSON.stringify({ fitId }) }),
+
+  // Fit text import/export, backup and mutated items (web/services/port.py). The
+  // imports are writes but, like every write, they are open to guests (they land
+  // in the shared guest database); the exports are reads and open as well.
+
+  /** Import pasted or uploaded fit text; `targetFitId` applies item text to that fit */
+  portImport: (text: string, targetFitId: number | null = null) =>
+    request<PortImportResult>('/api/port/import', { method: 'POST', body: JSON.stringify({ text, targetFitId }) }),
+  /** Export a saved fit as text; the filename comes back in `Content-Disposition` */
+  exportFit: (fitId: number, format: ExportFormat, options: Record<string, boolean> = {}) =>
+    requestFile(`/api/fits/${fitId}/export`, { method: 'POST', body: JSON.stringify({ format, options }) }),
+  /** Every fit of this user as one XML backup document */
+  backupExport: () => requestFile('/api/backup/export', { method: 'POST' }),
+  /** Restore fits from a backup XML document */
+  backupImport: (text: string) =>
+    request<BackupImportResult>('/api/backup/import', { method: 'POST', body: JSON.stringify({ text }) }),
+  /** Describe a mutated-module paste (base item, mutaplasmid, rolled attributes) */
+  mutantParse: (text: string) =>
+    request<MutantParseResult>('/api/items/mutant/parse', { method: 'POST', body: JSON.stringify({ text }) }),
 
   commands: () => request<{ commands: { name: string; summary: string; requires: string[]; args: Record<string, string> }[] }>('/api/commands'),
   runCommand: (fitId: number, command: string, args: Record<string, unknown>) =>

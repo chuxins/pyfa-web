@@ -752,8 +752,13 @@ comfortable on two cores; the expensive parts are the first request after startu
   (`service/price.py`), but the price cache is global while pyfa stores price rows
   per user, so it needs a decision about where that cache lives before it is
   wired up. This is the largest piece of the desktop still missing.
-* **Import/export** (EFT/DNA/XML/ESI fittings, clipboard, HTML export) is not
-  exposed yet; `service/port/*` is reusable for it.
+* **Clipboard text import/export, but no HTML export yet.** The **Import/Export**
+  button (top bar) opens a dialog that imports EFT / DNA / XML / ESI JSON and
+  mutated-item text (as new fits, or applied to the open fit like a desktop
+  paste), exports the open fit as EFT / DNA / Multibuy / Ship stats / EFS /
+  ESI JSON (download or clipboard), and does the whole-fits XML backup/restore
+  round trip. HTML export is not implemented yet, and Multibuy's "optimize
+  prices" waits for the price work; the server refuses both with a clear error.
 * **Graphs** (capacitor simulation, DPS over range, ...) are not implemented. The
   data modules in `graphs/data/*` are GUI-free and are the intended source; the
   plan is to serialise their series and draw them client-side.

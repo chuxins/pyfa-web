@@ -46,6 +46,11 @@ const TEMPLATES: Record<string, string> = {
   noGameFittingId: 'this fit came in before the web kept its in-game id; delete it in the game first, then here',
   esiDeleteRefused: 'EVE refused to delete the fitting ({reason}); nothing was deleted',
   notInGame: 'this fit is not saved in EVE, so there is nothing to delete from the game',
+  // A refused fit-text import or export (see `web/services/port.py`)
+  importUnreadable: 'the import text could not be read; check the format and try again',
+  importUnsupported: 'no importable fit format was recognised in that text',
+  importPartial: 'the fit refused the imported items; nothing was applied',
+  exportUnsupported: 'that export format is not available for this fit',
 }
 
 /** Racks and hardpoints are named the way the desktop names them, so the catalogue

@@ -13,6 +13,7 @@ import StatsPane from '@/components/StatsPane.vue'
 import GraphsPanel from '@/components/GraphsPanel.vue'
 import ItemBrowser from '@/components/ItemBrowser.vue'
 import ItemDetails from '@/components/ItemDetails.vue'
+import ImportExportDialog from '@/components/ImportExportDialog.vue'
 
 const session = useSessionStore()
 const browser = useBrowserStore()
@@ -20,6 +21,8 @@ const fitting = useFittingStore()
 
 const itemPaneOpen = ref(true)
 const detailsOpen = ref(false)
+/** The import/export and backup dialog (M1); the button sits in the top bar. */
+const portDialogOpen = ref(false)
 /** Which view the right-hand column shows when no item is selected: the numbers or the charts. */
 const rightPane = ref<'stats' | 'graphs'>('stats')
 
@@ -153,6 +156,8 @@ function changeLocale(event: Event) {
         <span v-if="fitting.busy" class="dim">{{ t('working…') }}</span>
       </div>
 
+      <button class="port" @click="portDialogOpen = true">{{ t('Import/Export') }}</button>
+
       <div class="spacer" />
 
       <button class="itembtn" @click="itemPaneOpen = !itemPaneOpen">
@@ -229,6 +234,7 @@ function changeLocale(event: Event) {
 
     <ItemDetails v-if="showDetails && isMobile" class="details-overlay" @close="browser.clearItem()" />
 
+    <ImportExportDialog v-if="portDialogOpen" @close="portDialogOpen = false" />
     <LoginPrompt v-if="session.loginPrompt" @close="session.dismissLoginPrompt()" />
   </div>
 </template>

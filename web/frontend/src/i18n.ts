@@ -343,6 +343,45 @@ const ZH_CN: Record<string, string> = {
   'this fit came in before the web kept its in-game id; delete it in the game first, then here': '该装配早于本版本，未保存游戏内 ID；请先在游戏内删除，再在此处删除。',
   'EVE refused to delete the fitting ({reason}); nothing was deleted': 'EVE 拒绝删除该装配（{reason}），未删除任何内容。',
   'this fit is not saved in EVE, so there is nothing to delete from the game': '该装配未保存在 EVE 中，因此无需从游戏内删除。',
+
+  // -- fit text import/export and XML backup (M1, ImportExportDialog.vue) --------------
+  'Import/Export': '导入/导出',
+  Import: '导入',
+  Export: '导出',
+  Backup: '备份',
+  'Paste fit text below, or pick a file': '在下方粘贴装配文本，或选择文件',
+  'Pick a file': '选择文件',
+  'Apply to the open fit': '应用到当前装配',
+  'Import as new fits': '导入为新装配',
+  'Imported {count} fit(s)': '已导入 {count} 个装配',
+  'Imported into the open fit': '已应用到当前装配',
+  'Skipped {count} item(s)': '已跳过 {count} 个条目',
+  'Open a fit to export it': '打开装配后即可导出',
+  EFT: 'EFT',
+  DNA: 'DNA',
+  Multibuy: 'Multibuy',
+  'Ship stats': '舰船统计',
+  'EFS JSON': 'EFS JSON',
+  'ESI JSON': 'ESI JSON',
+  'Loaded charges': '已装填弹药',
+  'Formatting tags': '格式化标签',
+  Download: '下载',
+  'Downloaded {filename}': '已下载 {filename}',
+  'Copy to clipboard': '复制到剪贴板',
+  'Copied to clipboard': '已复制到剪贴板',
+  'Could not copy to the clipboard': '无法复制到剪贴板',
+  'Export backup': '导出备份',
+  'Restore backup': '恢复备份',
+  'Paste the backup XML below, or pick a file': '在下方粘贴备份 XML，或选择文件',
+  'Backup restored {count} fit(s)': '已从备份恢复 {count} 个装配',
+
+  // -- a refused fit-text import or export (see @/errors, web/services/port.py) --------
+  'the import text could not be read; check the format and try again':
+    '无法读取导入文本，请检查格式后重试。',
+  'no importable fit format was recognised in that text': '未能识别该文本中的装配格式。',
+  'the fit refused the imported items; nothing was applied':
+    '当前装配拒绝了导入的物品，未做任何更改。',
+  'that export format is not available for this fit': '该导出格式不适用于此装配。',
 }
 
 /** The English catalogue is the identity: `t()` falls back to the key itself. */
