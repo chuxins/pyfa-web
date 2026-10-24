@@ -172,6 +172,15 @@ a {
   overflow: hidden;
   padding: 20px;
   position: relative;
+  transition: padding-right 0.18s ease;
+}
+
+/* When the skills drawer opens, reserve its width on the right so the fit
+   ring (sized by container queries inside .fit) scales down proportionally
+   instead of being covered; the padding transition above animates the
+   shrink/grow in step with the drawer's 0.18s slide. */
+.content.skillsOpen {
+  padding-right: 320px; /* 300px panel + 20px gutter */
 }
 
 /* modal portal anchor: no box at all (display:contents) so it neither takes a
@@ -2136,8 +2145,10 @@ body {
 
 /* ---- skills sidebar ---------------------------------------------------- */
 
-/* A right-edge drawer over the rounded container (.content is position:
-   relative), so opening it never squeezes the fit ring or the statistics. */
+/* A right-edge drawer inside the rounded container (.content is position:
+   relative). When open it floats in the 320px right gutter reserved by
+   .content.skillsOpen, which shrinks the fit ring proportionally rather than
+   covering it. */
 .skillsPanel {
   position: absolute;
   top: 10px;
@@ -2293,28 +2304,123 @@ body {
   white-space: nowrap;
 }
 
+.skillSourcesLabel {
+  color: #6a6a6a;
+}
+
+/* Divider/heading between the required-skill and auxiliary-skill groups. */
+.skillsSection + .skillsSection {
+  margin-top: 8px;
+  border-top: 1px solid #2e2e2e;
+  padding-top: 6px;
+}
+
+.skillsSectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 2px;
+  color: #9a9a9a;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.skillsSectionCount {
+  background: #333;
+  border-radius: 8px;
+  color: #b5b5b5;
+  font-size: 10px;
+  padding: 0 6px;
+}
+
+/* Auxiliary (bonus-only) skills are visually quieter than requirements:
+   dimmer icon/name, never red. Their missing required-pip row is a blank
+   spacer so the current-level row keeps aligning with the rows above. */
+.skillRow.auxiliary {
+  opacity: 0.85;
+}
+
+.skillRow.auxiliary .skillName {
+  color: #b5b5b5;
+}
+
+.skillPips.required.placeholder {
+  visibility: hidden;
+}
+
 .skillLevels {
   flex: 0 0 auto;
-  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+/* pyfa-style skill rank: five small boxes per level row (required on top,
+   current below); learned levels are solid white, the rest are hollow. */
+.skillPips {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.skillPip {
+  width: 9px;
+  height: 9px;
+  border: 1px solid #6a6a6a;
+  border-radius: 2px;
+  background: transparent;
+}
+
+.skillPip.learned {
+  background: #ffffff;
+  border-color: #ffffff;
+}
+
+/* The two rows are colour-coded to match the legend: required ranks on top
+   in EVE skill-amber, the character's current ranks below in white. */
+.skillPips.required .skillPip.learned {
+  background: #d9a441;
+  border-color: #d9a441;
+}
+
+/* While a requirement is unmet, its required row turns red so the missing
+   ranks read at a glance; the whole row is already tinted red. */
+.skillRow.unmet .skillPips.required .skillPip.learned {
+  background: #ff6b70;
+  border-color: #ff6b70;
+}
+
+/* Legend bar under the header explaining the two pip colours. */
+.skillsLegend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 14px;
+  border-bottom: 1px solid #333;
+  font-size: 11px;
+  color: #9a9a9a;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   white-space: nowrap;
 }
 
-.skillRequired {
-  color: #e0e0e0;
-  font-weight: 600;
+.legendSwatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex: 0 0 auto;
 }
 
-.skillRow.unmet .skillRequired {
-  color: #ff6b70;
+.legendSwatch.required {
+  background: #d9a441;
 }
 
-.skillSep {
-  color: #555;
-  margin: 0 2px;
-}
-
-.skillCurrent {
-  color: #8dc169;
+.legendSwatch.current {
+  background: #ffffff;
 }
 
 /* The slim edge tab that re-opens the drawer; sits flush on the container's

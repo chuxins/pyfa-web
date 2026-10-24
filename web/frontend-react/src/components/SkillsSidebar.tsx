@@ -17,11 +17,70 @@ function rememberedOpen(): boolean {
 const ROMAN = ["0", "I", "II", "III", "IV", "V"]
 
 /**
+ * pyfa-style skill rank: five boxes, one per level I-V. Boxes at or below the
+ * rank are solid white, the rest hollow.
+ */
+const LevelPips = ({ level, kind, label }: { level: number; kind: "required" | "current"; label: string }) => (
+  <span
+    className={"skillPips " + kind}
+    role="img"
+    aria-label={t("{label}: level {level}", { label, level: ROMAN[level] ?? level })}
+    title={label + " " + (ROMAN[level] ?? level)}
+  >
+    {[1, 2, 3, 4, 5].map((n) => (
+      <span key={n} className={"skillPip" + (n <= level ? " learned" : "")} />
+    ))}
+  </span>
+)
+
+/**
+ * One sidebar row: icon, name, source items and the level pips. Auxiliary
+ * (bonus-only) skills have no required level, so their upper pip row is empty
+ * and the "prerequisite" tag is replaced by an "affects" hint.
+ */
+const SkillRowItem = ({ row, auxiliary = false }: { row: FitSkillRow; auxiliary?: boolean }) => {
+  const icon = imageUrl(row.image, 1)
+  const sourcesTitle = row.sources.join("、")
+  return (
+    <div className={"skillRow" + (auxiliary ? " auxiliary" : row.met ? "" : " unmet")}>
+      {icon ? (
+        <img className="skillIcon" src={icon} alt="" width={24} height={24} />
+      ) : (
+        <div className="skillIcon placeholder" />
+      )}
+      <div className="skillInfo">
+        <div className="skillName" title={sourcesTitle}>
+          {row.name}
+          {!auxiliary && row.prerequisiteOnly && <span className="skillPreTag">{t("Prerequisite")}</span>}
+        </div>
+        {row.sources.length > 0 && (
+          <div className="skillSources">
+            <span className="skillSourcesLabel">{auxiliary ? t("Affects") + " " : ""}</span>
+            {sourcesTitle}
+          </div>
+        )}
+      </div>
+      <div
+        className="skillLevels"
+        title={auxiliary ? t("Current level") : t("Required / current level")}
+      >
+        {!auxiliary && (
+          <LevelPips kind="required" level={row.requiredLevel} label={t("Required level")} />
+        )}
+        {auxiliary && <span className="skillPips required placeholder" />}
+        <LevelPips kind="current" level={row.currentLevel} label={t("Current level")} />
+      </div>
+    </div>
+  )
+}
+
+/**
  * A collapsible right-hand drawer listing every skill that affects the open
  * fit: the skills its fitted items require (prerequisites included), the level
  * the fit needs, the fit character's current level and the items that demand
- * each skill. The list is fetched per fit from /api/fits/{id}/skills and
- * refetched whenever a command changes the fit.
+ * each skill, plus an auxiliary section of bonus skills the fit does not
+ * require but which still change its numbers. The list is fetched per fit from
+ * /api/fits/{id}/skills and refetched whenever a command changes the fit.
  */
 export const SkillsSidebar = () => {
   const fit = useFittingStore((state) => state.fit)
@@ -34,8 +93,10 @@ export const SkillsSidebar = () => {
     }
   })
   const [rows, setRows] = React.useState<FitSkillRow[]>([])
+  const [auxRows, setAuxRows] = React.useState<FitSkillRow[]>([])
   const [missing, setMissing] = React.useState(0)
   const [total, setTotal] = React.useState(0)
+  const [auxTotal, setAuxTotal] = React.useState(0)
   const [loading, setLoading] = React.useState(false)
   const [failed, setFailed] = React.useState(false)
 
@@ -44,8 +105,10 @@ export const SkillsSidebar = () => {
   React.useEffect(() => {
     if (fitId === null) {
       setRows([])
+      setAuxRows([])
       setMissing(0)
       setTotal(0)
+      setAuxTotal(0)
       setFailed(false)
       return
     }
@@ -56,8 +119,10 @@ export const SkillsSidebar = () => {
       .then((payload) => {
         if (cancelled) return
         setRows(payload.skills)
+        setAuxRows(payload.auxiliary ?? [])
         setMissing(payload.missing)
         setTotal(payload.total)
+        setAuxTotal(payload.auxiliaryTotal ?? 0)
         setFailed(false)
       })
       .catch(() => {
@@ -70,6 +135,17 @@ export const SkillsSidebar = () => {
       cancelled = true
     }
   }, [fitId, fit?.modified])
+
+  // While the panel is open, reserve space on the parent .content so the fit
+  // ring scales down (it is sized by container queries) instead of being
+  // covered by the absolutely-positioned drawer.
+  React.useEffect(() => {
+    const host = document.querySelector<HTMLElement>(".content")
+    if (host) host.classList.toggle("skillsOpen", open)
+    return () => {
+      if (host) host.classList.remove("skillsOpen")
+    }
+  }, [open])
 
   const toggleOpen = () => {
     setOpen((was) => {
@@ -96,6 +172,7 @@ export const SkillsSidebar = () => {
   }
 
   const visibleRows = showMet ? rows : rows.filter((row) => !row.met)
+  const visibleAux = showMet ? auxRows : auxRows.filter((row) => row.currentLevel > 0)
 
   return (
     <>
@@ -128,39 +205,54 @@ export const SkillsSidebar = () => {
             &rsaquo;
           </button>
         </div>
+        <div className="skillsLegend">
+          <span className="legendItem">
+            <span className="legendSwatch required" />
+            {t("Required level")}
+          </span>
+          <span className="legendItem">
+            <span className="legendSwatch current" />
+            {t("Current level")}
+          </span>
+        </div>
         <div className="skillsBody">
           {fitId === null && <div className="skillsHint">{t("Open a fit to see its skills")}</div>}
           {fitId !== null && loading && rows.length === 0 && (
             <div className="skillsHint">{t("Loading…")}</div>
           )}
           {fitId !== null && failed && <div className="skillsHint">{t("Failed to load skills")}</div>}
-          {fitId !== null && !loading && !failed && visibleRows.length === 0 && (
+          {fitId !== null && !loading && !failed && visibleRows.length === 0 && visibleAux.length === 0 && (
             <div className="skillsHint">
               {missing === 0 && rows.length > 0 && !showMet
                 ? t("All skills trained")
                 : t("This fit needs no skills")}
             </div>
           )}
-          {visibleRows.map((row) => {
-            const icon = imageUrl(row.image, 1)
-            return (
-              <div key={row.id} className={"skillRow" + (row.met ? "" : " unmet")}>
-                {icon ? <img className="skillIcon" src={icon} alt="" width={24} height={24} /> : <div className="skillIcon placeholder" />}
-                <div className="skillInfo">
-                  <div className="skillName" title={row.sources.join("、")}>
-                    {row.name}
-                    {row.prerequisiteOnly && <span className="skillPreTag">{t("Prerequisite")}</span>}
-                  </div>
-                  {row.sources.length > 0 && <div className="skillSources">{row.sources.join("、")}</div>}
-                </div>
-                <div className="skillLevels" title={t("Required / current level")}>
-                  <span className="skillRequired">{ROMAN[row.requiredLevel] ?? row.requiredLevel}</span>
-                  <span className="skillSep">/</span>
-                  <span className="skillCurrent">{ROMAN[row.currentLevel] ?? row.currentLevel}</span>
-                </div>
+          {visibleRows.length > 0 && (
+            <div className="skillsSection">
+              <div className="skillsSectionTitle">
+                {t("Required skills")}
+                <span className="skillsSectionCount">{total}</span>
               </div>
-            )
-          })}
+              {visibleRows.map((row) => (
+                <SkillRowItem key={"req-" + row.id} row={row} />
+              ))}
+            </div>
+          )}
+          {visibleAux.length > 0 && (
+            <div className="skillsSection">
+              <div
+                className="skillsSectionTitle"
+                title={t("Bonus skills the fit does not require, but which change its numbers")}
+              >
+                {t("Auxiliary skills")}
+                <span className="skillsSectionCount">{auxTotal}</span>
+              </div>
+              {visibleAux.map((row) => (
+                <SkillRowItem key={"aux-" + row.id} row={row} auxiliary />
+              ))}
+            </div>
+          )}
         </div>
       </aside>
     </>

@@ -400,12 +400,20 @@ const ZH_CN: Record<string, string> = {
   "Hide trained": "隐藏已会",
   "Show trained": "显示已会",
   "Required / current level": "需求等级 / 当前等级",
+  "Required level": "需求等级",
+  "Current level": "当前等级",
+  "{label}: level {level}": "{label}：{level} 级",
   Prerequisite: "前置",
   "Open a fit to see its skills": "打开一个装配即可查看相关技能",
   "Loading…": "加载中…",
   "Failed to load skills": "技能加载失败",
   "All skills trained": "所有技能均已满足",
   "This fit needs no skills": "该装配无需技能",
+  "Required skills": "需求技能",
+  "Auxiliary skills": "辅助技能（加成）",
+  "Bonus skills the fit does not require, but which change its numbers":
+    "装配不要求、但训练后可提升本装配数值的技能",
+  "Affects": "作用于",
 }
 
 const CATALOGUES: Partial<Record<LocaleCode, Record<string, string>>> = { zh_CN: ZH_CN }

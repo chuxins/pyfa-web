@@ -364,15 +364,20 @@ export interface FitSkillRow {
   met: boolean
   /** True when the skill is needed only through another skill's prerequisites. */
   prerequisiteOnly: boolean
-  /** Fitted item names that require the skill directly. */
+  /** True for bonus-only skills the fit does not require (auxiliary section). */
+  auxiliary?: boolean
+  /** Fitted item names that require the skill directly / that it affects. */
   sources: string[]
 }
 
 export interface FitSkills {
   id: number
   skills: FitSkillRow[]
+  /** Bonus skills the fit does not require but which change its numbers. */
+  auxiliary: FitSkillRow[]
   missing: number
   total: number
+  auxiliaryTotal: number
 }
 
 export type DetailTab = "attributes" | "charges" | "variations" | "skills"

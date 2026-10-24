@@ -114,5 +114,70 @@ def test_all_zero_character_marks_everything_unmet(user_client):
     assert all(not row["met"] and row["currentLevel"] == 0 for row in payload["skills"])
 
 
+def test_auxiliary_skills_listed_separately(client):
+    """Skills the fit does not require but which change its numbers (CPU
+    Management boosts the Rifter's power grid output, etc.) are returned in a
+    distinct `auxiliary` section and never duplicated into `skills`."""
+    fit_id = make_fit(client)
+
+    payload = skills_of(client, fit_id)
+    assert "auxiliary" in payload
+    assert payload["auxiliaryTotal"] == len(payload["auxiliary"])
+
+    required_ids = {row["id"] for row in payload["skills"]}
+    aux_by_name = {row["name"]: row for row in payload["auxiliary"]}
+    assert not (required_ids & {row["id"] for row in payload["auxiliary"]})
+
+    # CPU Management is a passive ship bonus, never a fit requirement.
+    cpu = aux_by_name["CPU Management"]
+    assert cpu["requiredLevel"] == 0
+    assert cpu["auxiliary"] is True
+    assert "Rifter" in cpu["sources"]
+    # The default test character is All 5.
+    assert cpu["currentLevel"] == 5
+
+    # Auxiliary rows are sorted by name, and auxiliary never counts as missing.
+    names = [row["name"] for row in payload["auxiliary"]]
+    assert names == sorted(names)
+    assert payload["missing"] == sum(1 for row in payload["skills"] if not row["met"])
+
+
+def test_auxiliary_skills_exclude_required_chain(client):
+    """With a projectile turret fitted, Gunnery stays in the requirement chain
+    (it is a prerequisite of the turret skills) instead of being reported as
+    auxiliary, while a purely bonus skill (e.g. Weapon Upgrades, if it applies)
+    still shows up on the auxiliary side."""
+    fit_id = make_fit(client)
+    added = client.post("/api/fits/{}/commands".format(fit_id),
+                        json={"command": "addLocalModule", "args": {"itemId": AUTOCANNON_ID}})
+    assert added.status_code == 200, added.text
+
+    payload = skills_of(client, fit_id)
+    required_names = {row["name"] for row in payload["skills"]}
+    aux_names = {row["name"] for row in payload["auxiliary"]}
+
+    assert "Gunnery" in required_names
+    assert "Gunnery" not in aux_names
+    assert "CPU Management" in aux_names
+
+
+def test_auxiliary_skills_all_zero_character(user_client):
+    """Level-0 characters still see the auxiliary skills available to the fit:
+    passive skill effects register at level 0, and they never look unmet."""
+    presets = {entry["name"]: entry["id"]
+               for entry in user_client.get("/api/meta").json()["characters"]
+               if entry["kind"] == "preset"}
+    fit_id = make_fit(user_client)
+    changed = user_client.post("/api/fits/{}/commands".format(fit_id),
+                               json={"command": "changeChar", "args": {"characterId": presets["All 0"]}})
+    assert changed.status_code == 200, changed.text
+
+    payload = skills_of(user_client, fit_id)
+    assert payload["auxiliaryTotal"] >= 1
+    assert all(row["currentLevel"] == 0 and row["met"] for row in payload["auxiliary"])
+    # Auxiliary skills never contribute to the unmet count.
+    assert payload["missing"] == payload["total"]
+
+
 def test_unknown_fit_is_404(client):
     assert client.get("/api/fits/99999999/skills").status_code == 404
