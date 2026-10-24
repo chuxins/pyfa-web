@@ -366,6 +366,8 @@ export interface FitSkillRow {
   prerequisiteOnly: boolean
   /** True for skills the pilot pinned to the fit by hand (custom section). */
   custom?: boolean
+  /** True when the level is an unsaved simulation edit (differs from the saved sheet). */
+  dirty?: boolean
   /** Fitted item names that require the skill directly. */
   sources: string[]
 }
@@ -378,6 +380,10 @@ export interface FitSkills {
   missing: number
   total: number
   customTotal: number
+  /** False for the built-in All 0 / All 5 presets, whose levels cannot be edited. */
+  characterEditable: boolean
+  /** Number of skills whose level is temporarily simulated (unsaved). */
+  dirtyTotal: number
   /** Present on add responses: false when the skill was already pinned. */
   added?: boolean
 }
@@ -576,6 +582,15 @@ export const api = {
     }),
   removeCustomSkill: (fitId: number, skillId: number) =>
     request<FitSkills>(`/api/fits/${fitId}/custom-skills/${skillId}`, { method: "DELETE" }),
+  /** Temporarily simulate a skill level on the fit's character (not persisted). */
+  setSkillLevel: (fitId: number, skillId: number, level: number) =>
+    request<FitSkills>(`/api/fits/${fitId}/skills/${skillId}/level`, {
+      method: "PUT",
+      body: JSON.stringify({ level }),
+    }),
+  /** Restore the character's saved skill sheet, discarding simulated levels. */
+  resetSkills: (fitId: number) =>
+    request<FitSkills>(`/api/fits/${fitId}/skills/reset`, { method: "POST" }),
   graphList: (fitId: number) => request<GraphList>(`/api/fits/${fitId}/graphs`),
   graphPlot: (fitId: number, graphId: string, params: Record<string, string>) =>
     request<GraphPlot>(`/api/fits/${fitId}/graphs/${graphId}/plot?${new URLSearchParams(params)}`),

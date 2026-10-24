@@ -418,6 +418,16 @@ const ZH_CN: Record<string, string> = {
   "Searching…": "搜索中…",
   "No skills found": "未找到技能",
   "Remove custom skill": "移除自定义技能",
+  Edit: "编辑",
+  Done: "完成",
+  Reset: "重置",
+  "Edit skill levels": "编辑技能等级",
+  "Finish editing skill levels": "结束技能等级编辑",
+  "Reset simulated levels to the character's saved skills": "将模拟的技能等级重置为角色已保存的技能表",
+  "Set level {level}": "设为 {level} 级",
+  "Simulated level, not saved": "模拟等级，未保存",
+  "Click a level box to simulate the trained rank; Reset restores the saved sheet":
+    "点击等级格子模拟学习等级；重置可恢复已保存的技能表",
 }
 
 const CATALOGUES: Partial<Record<LocaleCode, Record<string, string>>> = { zh_CN: ZH_CN }

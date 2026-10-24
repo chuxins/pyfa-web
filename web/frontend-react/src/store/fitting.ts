@@ -602,6 +602,9 @@ export const useFittingStore = create<FittingState>((set, get) => ({
       const fit = get().fit
       if (!fit) return
       if (Array.isArray(payload.fitIds) && payload.fitIds.includes(fit.id)) {
+        // Skill simulations are unsaved, so they do not bump the fit's modified
+        // timestamp; let the skills sidebar know on a dedicated event.
+        window.dispatchEvent(new CustomEvent("pyfa:fit-skills-changed", { detail: { fitId: fit.id } }))
         if (Date.now() < get().quietUntil) return
         void get().refreshStats()
       }

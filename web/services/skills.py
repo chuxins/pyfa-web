@@ -86,7 +86,7 @@ def _collect(item, required, sources):
             sources.setdefault(skill.ID, set()).add(item.name)
 
 
-def _custom_row(skillId, character):
+def _custom_row(skillId, character, dirty_ids):
     """One pinned custom skill row, or None when the game data lacks the type."""
     skillItem = eos.db.getItem(skillId)
     if skillItem is None:
@@ -103,6 +103,7 @@ def _custom_row(skillId, character):
         "met": True,
         "prerequisiteOnly": False,
         "custom": True,
+        "dirty": skillId in dirty_ids,
         "sources": [],
     }
 
@@ -129,6 +130,15 @@ def fit_skills(fit):
         _collect(item, required, sources)
 
     character = fit.character
+    # Skill ids with unsaved "skill simulation" edits (the desktop's dirtySkills):
+    # their active level differs from the sheet saved for the character, so the
+    # sidebar can mark them and offer a reset back to the trained levels.
+    dirty_ids = set()
+    editable = False
+    if character is not None:
+        editable = not character.ro
+        if editable:
+            dirty_ids = {skill.itemID for skill in character.dirtySkills if skill.isDirty}
     rows = []
     for skillId, neededLevel in required.items():
         skillItem = eos.db.getItem(skillId)
@@ -146,6 +156,7 @@ def fit_skills(fit):
             "currentLevel": currentLevel,
             "met": currentLevel >= neededLevel,
             "prerequisiteOnly": not names,
+            "dirty": skillId in dirty_ids,
             "sources": names,
         })
 
@@ -166,7 +177,7 @@ def fit_skills(fit):
         # A skill needed by the fitted items is already in the main list.
         if skillId in required:
             continue
-        row = _custom_row(skillId, character)
+        row = _custom_row(skillId, character, dirty_ids)
         if row is not None:
             custom_rows.append(row)
     custom_rows.sort(key=lambda row: row["name"])
@@ -177,4 +188,8 @@ def fit_skills(fit):
         "missing": missing,
         "total": len(rows),
         "customTotal": len(custom_rows),
+        # False for the built-in All 0 / All 5 presets: their levels are fixed
+        # by the engine, so the sidebar must not offer editing on them.
+        "characterEditable": editable,
+        "dirtyTotal": len(dirty_ids),
     }

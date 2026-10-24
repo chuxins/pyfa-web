@@ -1,8 +1,10 @@
-"""Skills that affect a fit: GET /api/fits/{id}/skills.
+﻿"""Skills that affect a fit: GET /api/fits/{id}/skills.
 
 Checks the aggregation itself (direct skills, recursive prerequisites, sources,
 highest level wins) and the comparison against the fit character's levels.
 """
+
+from eos.db import sessionctx
 
 from web.tests.conftest import AUTOCANNON_ID, EMP_S_ID, RIFTER_ID
 
@@ -246,3 +248,200 @@ def test_custom_skills_are_isolated_between_fits(client):
 
 def test_unknown_fit_is_404(client):
     assert client.get("/api/fits/99999999/skills").status_code == 404
+
+
+# -- editable skill levels (skill simulation) --------------------------------------------
+
+
+def fit_on_editable(app_state, suffix=""):
+    """A Rifter fit sitting on a fresh, non-preset (all-zero) pilot.
+
+    Built entirely inside one bound guest context: the engine loads fits and
+    characters lazily through the context's session, so mixing HTTP-created
+    rows with direct service calls in the same test confuses its identity map.
+    A uniquely named pilot per test keeps cases independent, mirroring what a
+    signed-in pilot's data looks like after an EVE skill sync.
+    """
+    import eos.db
+    from service.character import Character
+    from service.fit import Fit
+
+    fit_on_editable._counter += 1
+    name = "Web Editable Tester{}".format(suffix or " {}".format(fit_on_editable._counter))
+    with sessionctx.bind_context(app_state.registry.get_guest().context):
+        char = Character.new(name)
+        fit_id = Fit.getInstance().newFit(RIFTER_ID, name="Editable Pilot Fit")
+        Fit.getInstance().changeChar(fit_id, char.ID)
+        eos.db.commit()
+        return fit_id
+
+
+fit_on_editable._counter = 0
+
+
+def test_skills_payload_marks_presets_non_editable(client):
+    """All 5/All 0 presets report characterEditable=False and no dirty skills."""
+    payload = skills_of(client, make_fit(client))
+    assert payload["characterEditable"] is False
+    assert payload["dirtyTotal"] == 0
+    assert all(row["dirty"] is False for row in payload["skills"])
+
+
+def test_level_change_is_applied_flagged_dirty_and_reverts(client, app_state):
+    """PUT sets the active level and marks the row dirty; reset restores 0.
+
+    The pilot starts untrained, so the ship skill is a gap. Setting it to the
+    required level closes the gap (missing count moves), then reset brings the
+    saved empty sheet back.
+    """
+    fit_id = fit_on_editable(app_state)
+    payload = skills_of(client, fit_id)
+    assert payload["characterEditable"] is True
+
+    frigate = next(row for row in payload["skills"] if row["name"] == "Minmatar Frigate")
+    assert frigate["currentLevel"] == 0
+    assert frigate["met"] is False
+    assert frigate["dirty"] is False
+    missing_before = payload["missing"]
+    assert missing_before >= 1
+
+    changed = client.put(
+        "/api/fits/{}/skills/{}/level".format(fit_id, frigate["id"]),
+        json={"level": frigate["requiredLevel"]},
+    )
+    assert changed.status_code == 200, changed.text
+    after = changed.json()
+    row = next(r for r in after["skills"] if r["id"] == frigate["id"])
+    assert row["currentLevel"] == frigate["requiredLevel"]
+    assert row["met"] is True
+    assert row["dirty"] is True
+    assert after["dirtyTotal"] >= 1
+    assert after["missing"] == missing_before - 1
+
+    reset = client.post("/api/fits/{}/skills/reset".format(fit_id))
+    assert reset.status_code == 200, reset.text
+    restored = reset.json()
+    row = next(r for r in restored["skills"] if r["id"] == frigate["id"])
+    assert row["currentLevel"] == 0
+    assert row["met"] is False
+    assert row["dirty"] is False
+    assert restored["dirtyTotal"] == 0
+    assert restored["missing"] == missing_before
+
+
+def test_level_change_then_reset_clears_dirty(client, app_state):
+    """After a simulation the dirty state only clears with Reset: setting a
+    never-trained skill to 0 still diverges from its stored NULL row (pyfa's
+    dirtySkills compares against the persisted level, not against zero)."""
+    fit_id = fit_on_editable(app_state)
+    skill_id = next(iter(skills_of(client, fit_id)["skills"]))["id"]
+
+    changed = client.put("/api/fits/{}/skills/{}/level".format(fit_id, skill_id), json={"level": 3})
+    assert changed.status_code == 200
+    assert changed.json()["dirtyTotal"] >= 1
+
+    back = client.put("/api/fits/{}/skills/{}/level".format(fit_id, skill_id), json={"level": 0})
+    assert back.status_code == 200
+    row = next(r for r in back.json()["skills"] if r["id"] == skill_id)
+    assert row["currentLevel"] == 0
+    assert row["dirty"] is True
+
+    reset = client.post("/api/fits/{}/skills/reset".format(fit_id))
+    assert reset.status_code == 200
+    row = next(r for r in reset.json()["skills"] if r["id"] == skill_id)
+    assert row["currentLevel"] == 0
+    assert row["dirty"] is False
+    assert reset.json()["dirtyTotal"] == 0
+
+
+def test_level_change_on_preset_is_409(client, app_state):
+    """The built-in characters reject edits; their levels are fixed.
+
+    The fit is built directly in the guest context (not via the HTTP create
+    path): the process-wide Fit service memoizes its default pilot, so a fit
+    created after another test switched the service default would otherwise
+    ride that pilot instead of All 5.
+    """
+    import eos.db
+    from eos.saveddata.character import Character as es_Character
+    from service.fit import Fit
+
+    with sessionctx.bind_context(app_state.registry.get_guest().context):
+        all5 = es_Character.getAll5()
+        eos.db.commit()
+        fit_id = Fit.getInstance().newFit(RIFTER_ID, name="All Five Fit")
+        Fit.getInstance().changeChar(fit_id, all5.ID)
+        eos.db.commit()
+    # pick a required skill id through the read API
+    skill_id = skills_of(client, fit_id)["skills"][0]["id"]
+    refused = client.put(
+        "/api/fits/{}/skills/{}/level".format(fit_id, skill_id),
+        json={"level": 1},
+    )
+    assert refused.status_code == 409, refused.text
+    # Nothing moved.
+    assert skills_of(client, fit_id)["dirtyTotal"] == 0
+
+
+def test_level_change_validates_level_and_skill(client, app_state):
+    fit_id = fit_on_editable(app_state)
+    skill_id = skills_of(client, fit_id)["skills"][0]["id"]
+    assert client.put(
+        "/api/fits/{}/skills/{}/level".format(fit_id, skill_id), json={"level": 6}
+    ).status_code == 422
+    assert client.put(
+        "/api/fits/{}/skills/{}/level".format(fit_id, RIFTER_ID), json={"level": 1}
+    ).status_code == 400
+
+
+def test_simulated_levels_are_not_persisted(client, app_state):
+    """A simulation only moves in-memory active levels; the characterSkills
+    row keeps its stored (untrained NULL) level instead of the simulated one."""
+    import eos.db
+    import sqlalchemy
+
+    fit_id = fit_on_editable(app_state)
+    with sessionctx.bind_context(app_state.registry.get_guest().context):
+        char_id = eos.db.getFit(fit_id).character.ID
+    skill_id = next(iter(skills_of(client, fit_id)["skills"]))["id"]
+    changed = client.put(
+        "/api/fits/{}/skills/{}/level".format(fit_id, skill_id), json={"level": 4}
+    )
+    assert changed.status_code == 200
+
+    def stored_levels():
+        with sessionctx.bind_context(app_state.registry.get_guest().context):
+            return eos.db.saveddata_session.execute(
+                sqlalchemy.text(
+                    "select _Skill__level from characterSkills "
+                    "where characterID = :c and itemID = :s"
+                ),
+                {"c": char_id, "s": skill_id},
+            ).fetchall()
+
+    # The pilot never trained this skill: the row exists (created with the
+    # character) at NULL, and the simulation must not turn it into 4.
+    assert stored_levels() == [(None,)]
+
+    client.post("/api/fits/{}/skills/reset".format(fit_id))
+    assert stored_levels() == [(None,)]
+
+
+def test_custom_skill_level_is_editable_and_resets(client, app_state):
+    """The pilot's own pinned skills are editable in the same way."""
+    fit_id = fit_on_editable(app_state)
+    client.post("/api/fits/{}/custom-skills".format(fit_id), json={"skillId": CPU_MANAGEMENT_ID})
+    skill_id = CPU_MANAGEMENT_ID
+
+    changed = client.put(
+        "/api/fits/{}/skills/{}/level".format(fit_id, skill_id), json={"level": 2}
+    )
+    assert changed.status_code == 200, changed.text
+    row = next(r for r in changed.json()["custom"] if r["id"] == skill_id)
+    assert row["currentLevel"] == 2
+    assert row["dirty"] is True
+
+    reset = client.post("/api/fits/{}/skills/reset".format(fit_id)).json()
+    row = next(r for r in reset["custom"] if r["id"] == skill_id)
+    assert row["currentLevel"] == 0
+    assert row["dirty"] is False

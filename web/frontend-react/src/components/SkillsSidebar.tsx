@@ -18,20 +18,56 @@ const ROMAN = ["0", "I", "II", "III", "IV", "V"]
 
 /**
  * pyfa-style skill rank: five boxes, one per level I-V. Boxes at or below the
- * rank are solid white, the rest hollow.
+ * rank are solid white, the rest hollow. In edit mode the current row's boxes
+ * become buttons: clicking box N sets the level to N, and clicking the box at
+ * the current level sets it one step lower (so the active level can be cleared
+ * to 0).
  */
-const LevelPips = ({ level, kind, label }: { level: number; kind: "required" | "current"; label: string }) => (
-  <span
-    className={"skillPips " + kind}
-    role="img"
-    aria-label={t("{label}: level {level}", { label, level: ROMAN[level] ?? level })}
-    title={label + " " + (ROMAN[level] ?? level)}
-  >
-    {[1, 2, 3, 4, 5].map((n) => (
-      <span key={n} className={"skillPip" + (n <= level ? " learned" : "")} />
-    ))}
-  </span>
-)
+const LevelPips = ({
+  level,
+  kind,
+  label,
+  editable = false,
+  busy = false,
+  onLevel,
+}: {
+  level: number
+  kind: "required" | "current"
+  label: string
+  editable?: boolean
+  busy?: boolean
+  onLevel?: (level: number) => void
+}) => {
+  const pick = (n: number) => {
+    if (!editable || busy) return
+    onLevel?.(n === level ? n - 1 : n)
+  }
+  return (
+    <span
+      className={"skillPips " + kind + (editable ? " editable" : "")}
+      role={editable ? "group" : "img"}
+      aria-label={t("{label}: level {level}", { label, level: ROMAN[level] ?? level })}
+      title={label + " " + (ROMAN[level] ?? level)}
+    >
+      {[1, 2, 3, 4, 5].map((n) => {
+        const className = "skillPip" + (n <= level ? " learned" : "")
+        return editable ? (
+          <button
+            key={n}
+            type="button"
+            className={className}
+            aria-label={t("Set level {level}", { level: ROMAN[n] ?? n })}
+            aria-pressed={n <= level}
+            disabled={busy}
+            onClick={() => pick(n)}
+          />
+        ) : (
+          <span key={n} className={className} />
+        )
+      })}
+    </span>
+  )
+}
 
 /**
  * One sidebar row: icon, name, source items and the level pips. Custom
@@ -41,16 +77,29 @@ const LevelPips = ({ level, kind, label }: { level: number; kind: "required" | "
 const SkillRowItem = ({
   row,
   custom = false,
+  editing = false,
+  busy = false,
+  onLevel,
   onRemove,
 }: {
   row: FitSkillRow
   custom?: boolean
+  editing?: boolean
+  busy?: boolean
+  onLevel?: (skillId: number, level: number) => void
   onRemove?: (skillId: number) => void
 }) => {
   const icon = imageUrl(row.image, 1)
   const sourcesTitle = row.sources.join("、")
   return (
-    <div className={"skillRow" + (custom ? " custom" : row.met ? "" : " unmet")}>
+    <div
+      className={
+        "skillRow" +
+        (custom ? " custom" : row.met ? "" : " unmet") +
+        (editing ? " editing" : "") +
+        (row.dirty ? " dirty" : "")
+      }
+    >
       {icon ? (
         <img className="skillIcon" src={icon} alt="" width={24} height={24} />
       ) : (
@@ -59,6 +108,7 @@ const SkillRowItem = ({
       <div className="skillInfo">
         <div className="skillName" title={custom ? row.name : sourcesTitle}>
           {row.name}
+          {row.dirty && <span className="skillDirtyTag" title={t("Simulated level, not saved")}>*</span>}
           {!custom && row.prerequisiteOnly && <span className="skillPreTag">{t("Prerequisite")}</span>}
         </div>
         {!custom && row.sources.length > 0 && <div className="skillSources">{sourcesTitle}</div>}
@@ -69,7 +119,14 @@ const SkillRowItem = ({
       >
         {!custom && <LevelPips kind="required" level={row.requiredLevel} label={t("Required level")} />}
         {custom && <span className="skillPips required placeholder" />}
-        <LevelPips kind="current" level={row.currentLevel} label={t("Current level")} />
+        <LevelPips
+          kind="current"
+          level={row.currentLevel}
+          label={t("Current level")}
+          editable={editing}
+          busy={busy}
+          onLevel={(level) => onLevel?.(row.id, level)}
+        />
       </div>
       {custom && (
         <button
@@ -244,6 +301,12 @@ export const SkillsSidebar = () => {
   const [customTotal, setCustomTotal] = React.useState(0)
   const [loading, setLoading] = React.useState(false)
   const [failed, setFailed] = React.useState(false)
+  const [editable, setEditable] = React.useState(false)
+  const [dirtyTotal, setDirtyTotal] = React.useState(0)
+  const [editing, setEditing] = React.useState(false)
+  const [busyId, setBusyId] = React.useState<number | null>(null)
+  const [resetting, setResetting] = React.useState(false)
+  const busyRef = React.useRef(false)
 
   const fitId = fit?.id ?? null
 
@@ -253,8 +316,22 @@ export const SkillsSidebar = () => {
     setMissing(payload.missing)
     setTotal(payload.total)
     setCustomTotal(payload.customTotal ?? (payload.custom ?? []).length)
+    setEditable(payload.characterEditable ?? false)
+    setDirtyTotal(payload.dirtyTotal ?? 0)
     setFailed(false)
   }, [])
+
+  const reloadSkills = React.useCallback(
+    (id: number) => {
+      setLoading(true)
+      api
+        .fitSkills(id)
+        .then(applyPayload)
+        .catch(() => setFailed(true))
+        .finally(() => setLoading(false))
+    },
+    [applyPayload],
+  )
 
   React.useEffect(() => {
     if (fitId === null) {
@@ -263,6 +340,9 @@ export const SkillsSidebar = () => {
       setMissing(0)
       setTotal(0)
       setCustomTotal(0)
+      setEditable(false)
+      setDirtyTotal(0)
+      setEditing(false)
       setFailed(false)
       return
     }
@@ -283,6 +363,19 @@ export const SkillsSidebar = () => {
       cancelled = true
     }
   }, [fitId, fit?.modified, applyPayload])
+
+  // Another tab editing this fit's skills publishes fit.changed (skill
+  // simulations do not bump the fit's modified timestamp, so the effect above
+  // would not catch them); re-fetch then.
+  React.useEffect(() => {
+    if (fitId === null) return
+    const onRemote = (event: Event) => {
+      const detail = (event as CustomEvent<{ fitId?: number }>).detail
+      if (detail?.fitId === fitId && !busyRef.current) reloadSkills(fitId)
+    }
+    window.addEventListener("pyfa:fit-skills-changed", onRemote)
+    return () => window.removeEventListener("pyfa:fit-skills-changed", onRemote)
+  }, [fitId, reloadSkills])
 
   // While the panel is open, reserve space on the parent .content so the fit
   // ring scales down (it is sized by container queries) instead of being
@@ -332,6 +425,40 @@ export const SkillsSidebar = () => {
       .catch(() => undefined)
   }
 
+  // Simulate a skill at a different level. The change is unsaved on the
+  // server; the sidebar re-fetches and the fit's numbers follow via the SSE
+  // fit.changed event the endpoint publishes.
+  const changeLevel = (skillId: number, level: number) => {
+    if (fitId === null || busyRef.current) return
+    busyRef.current = true
+    setBusyId(skillId)
+    api
+      .setSkillLevel(fitId, skillId, level)
+      .then(applyPayload)
+      .catch(() => undefined)
+      .finally(() => {
+        busyRef.current = false
+        setBusyId(null)
+      })
+  }
+
+  const resetLevels = () => {
+    if (fitId === null || busyRef.current) return
+    busyRef.current = true
+    setResetting(true)
+    api
+      .resetSkills(fitId)
+      .then(applyPayload)
+      .catch(() => undefined)
+      .finally(() => {
+        busyRef.current = false
+        setResetting(false)
+      })
+  }
+
+  const toggleEditing = () => setEditing((was) => !was)
+  const editBusy = busyId !== null || resetting
+
   // Ids that must not be suggested again: already pinned, or already required
   // by the fit (a required skill already shows in the main section).
   const pickerExclude = React.useMemo(() => {
@@ -360,6 +487,27 @@ export const SkillsSidebar = () => {
               {missing > 0 ? t("{missing}/{total} missing", { missing, total }) : total}
             </span>
           </div>
+          {editable && (
+            <button
+              className={"skillsEdit" + (editing ? " active" : "")}
+              onClick={toggleEditing}
+              disabled={editBusy}
+              title={editing ? t("Finish editing skill levels") : t("Edit skill levels")}
+            >
+              {editing ? t("Done") : t("Edit")}
+            </button>
+          )}
+          {editable && dirtyTotal > 0 && (
+            <button
+              className="skillsReset"
+              onClick={resetLevels}
+              disabled={editBusy}
+              title={t("Reset simulated levels to the character's saved skills")}
+            >
+              {t("Reset")}
+              {dirtyTotal > 0 && <span className="skillsResetCount">{dirtyTotal}</span>}
+            </button>
+          )}
           <button
             className="skillsHideMet"
             onClick={toggleShowMet}
@@ -381,6 +529,11 @@ export const SkillsSidebar = () => {
             {t("Current level")}
           </span>
         </div>
+        {editing && (
+          <div className="skillsEditHint">
+            {t("Click a level box to simulate the trained rank; Reset restores the saved sheet")}
+          </div>
+        )}
         <div className="skillsBody">
           {fitId === null && <div className="skillsHint">{t("Open a fit to see its skills")}</div>}
           {fitId !== null && loading && rows.length === 0 && (
@@ -399,7 +552,13 @@ export const SkillsSidebar = () => {
                 <span className="skillsSectionCount">{total}</span>
               </div>
               {visibleRows.map((row) => (
-                <SkillRowItem key={"req-" + row.id} row={row} />
+                <SkillRowItem
+                  key={"req-" + row.id}
+                  row={row}
+                  editing={editing}
+                  busy={editBusy}
+                  onLevel={changeLevel}
+                />
               ))}
             </div>
           )}
@@ -413,7 +572,15 @@ export const SkillsSidebar = () => {
                 <span className="skillsSectionCount">{customTotal}</span>
               </div>
               {visibleCustom.map((row) => (
-                <SkillRowItem key={"cus-" + row.id} row={row} custom onRemove={removeCustom} />
+                <SkillRowItem
+                  key={"cus-" + row.id}
+                  row={row}
+                  custom
+                  editing={editing}
+                  busy={editBusy}
+                  onLevel={changeLevel}
+                  onRemove={removeCustom}
+                />
               ))}
               <CustomSkillPicker fitId={fitId} excludeIds={pickerExclude} onAdded={applyPayload} />
             </div>

@@ -204,6 +204,61 @@ def remove_custom_skill(
     return payload
 
 
+class SkillLevelBody(BaseModel):
+    level: int = Field(ge=0, le=5)
+
+
+@router.put("/{fit_id}/skills/{skill_id}/level", status_code=200)
+def set_fit_skill_level(
+    fit_id: int,
+    skill_id: int,
+    payload: SkillLevelBody,
+    user=Depends(user_or_guest),
+):
+    """Temporarily simulate one skill at a new level on the fit's character.
+
+    The change is unsaved (the desktop's "skill simulation"): the fit is
+    recalculated with the simulated sheet, but the character's stored skills
+    are untouched and ``POST .../skills/reset`` restores them. The built-in
+    All 0 / All 5 presets are read-only and answer 409.
+    """
+    from eos.saveddata.character import ReadOnlyException
+
+    from web.services import character as characterService
+    from web.services.skills import fit_skills
+
+    fit = _require_fit(fit_id)
+    try:
+        characterService.set_skill_level(fit, skill_id, payload.level)
+    except ReadOnlyException:
+        raise HTTPException(status_code=409, detail="This character is read-only")
+    except ValueError as ex:
+        raise HTTPException(status_code=400, detail=str(ex))
+    # Other tabs open on the same fit refresh their numbers; the caller itself
+    # is quieted by applyFit's quietUntil in the store.
+    publish(event_channel(user), "fit.changed", fitIds=[fit.ID], action="skills")
+    out = fit_skills(fit)
+    out["id"] = fit.ID
+    return out
+
+
+@router.post("/{fit_id}/skills/reset", status_code=200)
+def reset_fit_skills(
+    fit_id: int,
+    user=Depends(user_or_guest),  # noqa: ARG001 - SSE channel only
+):
+    """Discard every unsaved skill simulation, back to the character's sheet."""
+    from web.services import character as characterService
+    from web.services.skills import fit_skills
+
+    fit = _require_fit(fit_id)
+    characterService.reset_skills(fit)
+    publish(event_channel(user), "fit.changed", fitIds=[fit.ID], action="skills")
+    out = fit_skills(fit)
+    out["id"] = fit.ID
+    return out
+
+
 @router.patch("/{fit_id}")
 def update_fit(fit_id: int, payload: FitUpdate, user=Depends(user_or_guest)):
     """Rename a fit, edit its notes, or toggle its flags. Open to guests."""

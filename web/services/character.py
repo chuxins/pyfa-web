@@ -116,3 +116,58 @@ def _refresh_skills(char):
     except Exception as ex:
         pyfalog.warn("Could not refresh skills for {}: {}", char.name, ex)
         eos.db.commit()
+
+
+def set_skill_level(fit, skill_id, level):
+    """Temporarily change one skill's level on the fit's character ("skill sim").
+
+    Mirrors the desktop's skill editor: :meth:`Skill.setLevel` is called without
+    persisting, so only the skill's ``activeLevel`` moves and the engine records
+    it in ``character.dirtySkills`` -- nothing is written to ``saveddata.db``.
+    The fit is recalculated so its numbers follow the simulated sheet, and a
+    later :func:`reset_skills` (or a server restart) brings the saved levels
+    back.
+
+    Returns the fit character, or raises ``ValueError`` when the character is
+    read-only (the built-in All 0 / All 5 presets) or ``level`` is out of range.
+    """
+    from eos.saveddata.character import ReadOnlyException
+    from service.fit import Fit
+
+    char = fit.character
+    if char is None:
+        raise ValueError("this fit has no character")
+    if char.ro:
+        raise ReadOnlyException("This character is read-only")
+    if not isinstance(level, int) or level < 0 or level > 5:
+        raise ValueError("level must be between 0 and 5")
+
+    skill_item = eos.db.getItem(skill_id)
+    if skill_item is None or getattr(getattr(skill_item, "group", None), "category", None) is None \
+            or skill_item.group.category.ID != 16:
+        raise ValueError("not a skill")
+
+    skill = char.getSkill(skill_item)
+    # persist=False keeps the saved ``__level`` untouched; the skill lands in
+    # dirtySkills until resetLevels restores the trained value.
+    skill.setLevel(level, persist=False)
+    Fit.getInstance().recalc(fit)
+    return char
+
+
+def reset_skills(fit):
+    """Restore the fit character's skills to its saved sheet and recalculate.
+
+    Drops every unsaved simulation edit: :meth:`Character.revertLevels` copies
+    each dirty skill's persisted level back into ``activeLevel``, after which
+    the fit is recalculated. Presets have no dirty skills, so this is a harmless
+    no-op on them.
+    """
+    from service.fit import Fit
+
+    char = fit.character
+    if char is None:
+        return None
+    char.revertLevels()
+    Fit.getInstance().recalc(fit)
+    return char

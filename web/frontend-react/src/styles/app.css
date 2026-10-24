@@ -2215,6 +2215,55 @@ body {
   background: #3a3a3a;
 }
 
+/* Header buttons for the unsaved skill-level simulation. */
+.skillsEdit,
+.skillsReset {
+  background: #2a2a2a;
+  border: 1px solid #4f4f4f;
+  border-radius: 4px;
+  color: #c5c5c5;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 3px 8px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.skillsEdit:hover:not(:disabled),
+.skillsReset:hover:not(:disabled) {
+  background: #3a3a3a;
+}
+
+.skillsEdit.active {
+  border-color: #d9a441;
+  color: #e6b655;
+}
+
+.skillsReset {
+  border-color: #8a5f2a;
+  color: #e6b655;
+}
+
+.skillsResetCount {
+  background: #d9a441;
+  border-radius: 8px;
+  color: #1a1a1a;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  min-width: 14px;
+  padding: 2px 4px;
+  text-align: center;
+}
+
+.skillsEdit:disabled,
+.skillsReset:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
 .skillsClose {
   background: none;
   border: none;
@@ -2516,6 +2565,50 @@ body {
 .skillRow.unmet .skillPips.required .skillPip.learned {
   background: #ff6b70;
   border-color: #ff6b70;
+}
+
+/* Edit mode: the current-level boxes are clickable buttons. */
+.skillPips.editable {
+  gap: 3px;
+}
+
+button.skillPip {
+  appearance: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+button.skillPip:hover:not(:disabled) {
+  border-color: #ffffff;
+  box-shadow: 0 0 3px rgba(217, 164, 65, 0.7);
+}
+
+button.skillPip:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* A simulated (unsaved) current level is amber instead of white so the pilot
+   sees at once which rows diverge from the saved skill sheet. */
+.skillRow.dirty .skillPips.current .skillPip.learned {
+  background: #d9a441;
+  border-color: #d9a441;
+}
+
+.skillDirtyTag {
+  color: #d9a441;
+  font-size: 12px;
+  font-weight: 700;
+  margin-left: 3px;
+}
+
+/* Hint strip shown while level editing is on. */
+.skillsEditHint {
+  padding: 5px 14px 7px;
+  border-bottom: 1px solid #333;
+  color: #c9a45f;
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 /* Legend bar under the header explaining the two pip colours. */
