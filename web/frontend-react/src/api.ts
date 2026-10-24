@@ -364,20 +364,22 @@ export interface FitSkillRow {
   met: boolean
   /** True when the skill is needed only through another skill's prerequisites. */
   prerequisiteOnly: boolean
-  /** True for bonus-only skills the fit does not require (auxiliary section). */
-  auxiliary?: boolean
-  /** Fitted item names that require the skill directly / that it affects. */
+  /** True for skills the pilot pinned to the fit by hand (custom section). */
+  custom?: boolean
+  /** Fitted item names that require the skill directly. */
   sources: string[]
 }
 
 export interface FitSkills {
   id: number
   skills: FitSkillRow[]
-  /** Bonus skills the fit does not require but which change its numbers. */
-  auxiliary: FitSkillRow[]
+  /** Skills the pilot pinned by hand; only the current level is shown. */
+  custom: FitSkillRow[]
   missing: number
   total: number
-  auxiliaryTotal: number
+  customTotal: number
+  /** Present on add responses: false when the skill was already pinned. */
+  added?: boolean
 }
 
 export type DetailTab = "attributes" | "charges" | "variations" | "skills"
@@ -563,6 +565,17 @@ export const api = {
   fit: (fitId: number, stats = true) => request<Fit>(`/api/fits/${fitId}?stats=${stats}`),
   stats: (fitId: number) => request<{ id: number; stats: Stats }>(`/api/fits/${fitId}/stats`),
   fitSkills: (fitId: number) => request<FitSkills>(`/api/fits/${fitId}/skills`),
+  searchSkills: (q: string, limit = 20) =>
+    request<{ query: string; results: Item[] }>(
+      `/api/fits/skills/search?q=${encodeURIComponent(q)}&limit=${limit}`,
+    ),
+  addCustomSkill: (fitId: number, skillId: number) =>
+    request<FitSkills>(`/api/fits/${fitId}/custom-skills`, {
+      method: "POST",
+      body: JSON.stringify({ skillId }),
+    }),
+  removeCustomSkill: (fitId: number, skillId: number) =>
+    request<FitSkills>(`/api/fits/${fitId}/custom-skills/${skillId}`, { method: "DELETE" }),
   graphList: (fitId: number) => request<GraphList>(`/api/fits/${fitId}/graphs`),
   graphPlot: (fitId: number, graphId: string, params: Record<string, string>) =>
     request<GraphPlot>(`/api/fits/${fitId}/graphs/${graphId}/plot?${new URLSearchParams(params)}`),

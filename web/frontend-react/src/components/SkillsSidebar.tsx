@@ -1,5 +1,5 @@
 import React from "react"
-import { api, imageUrl, type FitSkillRow } from "../api"
+import { api, imageUrl, type FitSkillRow, type FitSkills } from "../api"
 import { useFittingStore } from "../store/fitting"
 import { t } from "../i18n"
 
@@ -34,42 +34,186 @@ const LevelPips = ({ level, kind, label }: { level: number; kind: "required" | "
 )
 
 /**
- * One sidebar row: icon, name, source items and the level pips. Auxiliary
- * (bonus-only) skills have no required level, so their upper pip row is empty
- * and the "prerequisite" tag is replaced by an "affects" hint.
+ * One sidebar row: icon, name, source items and the level pips. Custom
+ * (manually pinned) skills have no required level, so their upper pip row is
+ * empty and the row carries a remove button instead of sources/tags.
  */
-const SkillRowItem = ({ row, auxiliary = false }: { row: FitSkillRow; auxiliary?: boolean }) => {
+const SkillRowItem = ({
+  row,
+  custom = false,
+  onRemove,
+}: {
+  row: FitSkillRow
+  custom?: boolean
+  onRemove?: (skillId: number) => void
+}) => {
   const icon = imageUrl(row.image, 1)
   const sourcesTitle = row.sources.join("、")
   return (
-    <div className={"skillRow" + (auxiliary ? " auxiliary" : row.met ? "" : " unmet")}>
+    <div className={"skillRow" + (custom ? " custom" : row.met ? "" : " unmet")}>
       {icon ? (
         <img className="skillIcon" src={icon} alt="" width={24} height={24} />
       ) : (
         <div className="skillIcon placeholder" />
       )}
       <div className="skillInfo">
-        <div className="skillName" title={sourcesTitle}>
+        <div className="skillName" title={custom ? row.name : sourcesTitle}>
           {row.name}
-          {!auxiliary && row.prerequisiteOnly && <span className="skillPreTag">{t("Prerequisite")}</span>}
+          {!custom && row.prerequisiteOnly && <span className="skillPreTag">{t("Prerequisite")}</span>}
         </div>
-        {row.sources.length > 0 && (
-          <div className="skillSources">
-            <span className="skillSourcesLabel">{auxiliary ? t("Affects") + " " : ""}</span>
-            {sourcesTitle}
-          </div>
-        )}
+        {!custom && row.sources.length > 0 && <div className="skillSources">{sourcesTitle}</div>}
       </div>
       <div
         className="skillLevels"
-        title={auxiliary ? t("Current level") : t("Required / current level")}
+        title={custom ? t("Current level") : t("Required / current level")}
       >
-        {!auxiliary && (
-          <LevelPips kind="required" level={row.requiredLevel} label={t("Required level")} />
-        )}
-        {auxiliary && <span className="skillPips required placeholder" />}
+        {!custom && <LevelPips kind="required" level={row.requiredLevel} label={t("Required level")} />}
+        {custom && <span className="skillPips required placeholder" />}
         <LevelPips kind="current" level={row.currentLevel} label={t("Current level")} />
       </div>
+      {custom && (
+        <button
+          type="button"
+          className="skillRemove"
+          title={t("Remove custom skill")}
+          onClick={() => onRemove?.(row.id)}
+        >
+          ×
+        </button>
+      )}
+    </div>
+  )
+}
+
+type SkillOption = {
+  id: number
+  name: string
+  image: { kind: "icons" | "renders" | "gui"; id: number } | null
+}
+
+/**
+ * The add-skill control for the custom section: a small "+" button turns into
+ * a search box whose debounced queries hit /api/fits/skills/search; picking a
+ * result pins it to the fit. Skills already shown (pinned, or required by the
+ * fit) are filtered out of the suggestions.
+ */
+const CustomSkillPicker = ({
+  fitId,
+  excludeIds,
+  onAdded,
+}: {
+  fitId: number
+  excludeIds: Set<number>
+  onAdded: (payload: FitSkills) => void
+}) => {
+  const [open, setOpen] = React.useState(false)
+  const [query, setQuery] = React.useState("")
+  const [results, setResults] = React.useState<SkillOption[]>([])
+  const [searching, setSearching] = React.useState(false)
+  const [busyId, setBusyId] = React.useState<number | null>(null)
+  const inputRef = React.useRef<HTMLInputElement>(null)
+
+  React.useEffect(() => {
+    if (open) inputRef.current?.focus()
+  }, [open])
+
+  React.useEffect(() => {
+    if (!open) return
+    const q = query.trim()
+    if (q.length === 0) {
+      setResults([])
+      setSearching(false)
+      return
+    }
+    setSearching(true)
+    const handle = window.setTimeout(() => {
+      api
+        .searchSkills(q)
+        .then((data) => {
+          setResults(data.results.filter((item) => !excludeIds.has(item.id)))
+          setSearching(false)
+        })
+        .catch(() => {
+          setResults([])
+          setSearching(false)
+        })
+    }, 250)
+    return () => window.clearTimeout(handle)
+  }, [query, open, excludeIds])
+
+  const close = () => {
+    setOpen(false)
+    setQuery("")
+    setResults([])
+  }
+
+  const pick = (skillId: number) => {
+    setBusyId(skillId)
+    api
+      .addCustomSkill(fitId, skillId)
+      .then((payload) => {
+        onAdded(payload)
+        setQuery("")
+        setResults([])
+        inputRef.current?.focus()
+      })
+      .catch(() => undefined)
+      .finally(() => setBusyId(null))
+  }
+
+  if (!open) {
+    return (
+      <button type="button" className="customSkillAdd" onClick={() => setOpen(true)}>
+        + {t("Add skill")}
+      </button>
+    )
+  }
+
+  return (
+    <div className="customPicker">
+      <div className="customPickerRow">
+        <input
+          ref={inputRef}
+          className="customPickerInput"
+          value={query}
+          placeholder={t("Search skills…")}
+          onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") close()
+          }}
+        />
+        <button type="button" className="customPickerCancel" onClick={close} title={t("Cancel")}>
+          ×
+        </button>
+      </div>
+      {query.trim().length > 0 && (
+        <div className="customPickerResults">
+          {searching && <div className="customPickerHint">{t("Searching…")}</div>}
+          {!searching && results.length === 0 && (
+            <div className="customPickerHint">{t("No skills found")}</div>
+          )}
+          {!searching &&
+            results.map((item) => {
+              const icon = imageUrl(item.image, 1)
+              return (
+                <button
+                  type="button"
+                  key={item.id}
+                  className="customPickerItem"
+                  disabled={busyId === item.id}
+                  onClick={() => pick(item.id)}
+                >
+                  {icon ? (
+                    <img className="skillIcon" src={icon} alt="" width={22} height={22} />
+                  ) : (
+                    <div className="skillIcon placeholder" />
+                  )}
+                  <span className="customPickerName">{item.name}</span>
+                </button>
+              )
+            })}
+        </div>
+      )}
     </div>
   )
 }
@@ -78,9 +222,10 @@ const SkillRowItem = ({ row, auxiliary = false }: { row: FitSkillRow; auxiliary?
  * A collapsible right-hand drawer listing every skill that affects the open
  * fit: the skills its fitted items require (prerequisites included), the level
  * the fit needs, the fit character's current level and the items that demand
- * each skill, plus an auxiliary section of bonus skills the fit does not
- * require but which still change its numbers. The list is fetched per fit from
- * /api/fits/{id}/skills and refetched whenever a command changes the fit.
+ * each skill, plus a custom section of skills the pilot pinned to the fit by
+ * hand, where only the character's current level is displayed. The list is
+ * fetched per fit from /api/fits/{id}/skills and refetched whenever a command
+ * changes the fit.
  */
 export const SkillsSidebar = () => {
   const fit = useFittingStore((state) => state.fit)
@@ -93,22 +238,31 @@ export const SkillsSidebar = () => {
     }
   })
   const [rows, setRows] = React.useState<FitSkillRow[]>([])
-  const [auxRows, setAuxRows] = React.useState<FitSkillRow[]>([])
+  const [customRows, setCustomRows] = React.useState<FitSkillRow[]>([])
   const [missing, setMissing] = React.useState(0)
   const [total, setTotal] = React.useState(0)
-  const [auxTotal, setAuxTotal] = React.useState(0)
+  const [customTotal, setCustomTotal] = React.useState(0)
   const [loading, setLoading] = React.useState(false)
   const [failed, setFailed] = React.useState(false)
 
   const fitId = fit?.id ?? null
 
+  const applyPayload = React.useCallback((payload: FitSkills) => {
+    setRows(payload.skills)
+    setCustomRows(payload.custom ?? [])
+    setMissing(payload.missing)
+    setTotal(payload.total)
+    setCustomTotal(payload.customTotal ?? (payload.custom ?? []).length)
+    setFailed(false)
+  }, [])
+
   React.useEffect(() => {
     if (fitId === null) {
       setRows([])
-      setAuxRows([])
+      setCustomRows([])
       setMissing(0)
       setTotal(0)
-      setAuxTotal(0)
+      setCustomTotal(0)
       setFailed(false)
       return
     }
@@ -117,13 +271,7 @@ export const SkillsSidebar = () => {
     api
       .fitSkills(fitId)
       .then((payload) => {
-        if (cancelled) return
-        setRows(payload.skills)
-        setAuxRows(payload.auxiliary ?? [])
-        setMissing(payload.missing)
-        setTotal(payload.total)
-        setAuxTotal(payload.auxiliaryTotal ?? 0)
-        setFailed(false)
+        if (!cancelled) applyPayload(payload)
       })
       .catch(() => {
         if (!cancelled) setFailed(true)
@@ -134,7 +282,7 @@ export const SkillsSidebar = () => {
     return () => {
       cancelled = true
     }
-  }, [fitId, fit?.modified])
+  }, [fitId, fit?.modified, applyPayload])
 
   // While the panel is open, reserve space on the parent .content so the fit
   // ring scales down (it is sized by container queries) instead of being
@@ -172,7 +320,25 @@ export const SkillsSidebar = () => {
   }
 
   const visibleRows = showMet ? rows : rows.filter((row) => !row.met)
-  const visibleAux = showMet ? auxRows : auxRows.filter((row) => row.currentLevel > 0)
+  // With trained skills hidden, keep only custom skills the character has at
+  // least one level in -- same idea as the requirements filter above.
+  const visibleCustom = showMet ? customRows : customRows.filter((row) => row.currentLevel > 0)
+
+  const removeCustom = (skillId: number) => {
+    if (fitId === null) return
+    api
+      .removeCustomSkill(fitId, skillId)
+      .then(applyPayload)
+      .catch(() => undefined)
+  }
+
+  // Ids that must not be suggested again: already pinned, or already required
+  // by the fit (a required skill already shows in the main section).
+  const pickerExclude = React.useMemo(() => {
+    const ids = new Set<number>(customRows.map((row) => row.id))
+    for (const row of rows) ids.add(row.id)
+    return ids
+  }, [customRows, rows])
 
   return (
     <>
@@ -221,11 +387,9 @@ export const SkillsSidebar = () => {
             <div className="skillsHint">{t("Loading…")}</div>
           )}
           {fitId !== null && failed && <div className="skillsHint">{t("Failed to load skills")}</div>}
-          {fitId !== null && !loading && !failed && visibleRows.length === 0 && visibleAux.length === 0 && (
+          {fitId !== null && !loading && !failed && visibleRows.length === 0 && !showMet && (
             <div className="skillsHint">
-              {missing === 0 && rows.length > 0 && !showMet
-                ? t("All skills trained")
-                : t("This fit needs no skills")}
+              {missing === 0 && rows.length > 0 ? t("All skills trained") : t("This fit needs no skills")}
             </div>
           )}
           {visibleRows.length > 0 && (
@@ -239,18 +403,19 @@ export const SkillsSidebar = () => {
               ))}
             </div>
           )}
-          {visibleAux.length > 0 && (
+          {fitId !== null && (
             <div className="skillsSection">
               <div
                 className="skillsSectionTitle"
-                title={t("Bonus skills the fit does not require, but which change its numbers")}
+                title={t("Skills you added yourself; the fit character's current level is shown")}
               >
-                {t("Auxiliary skills")}
-                <span className="skillsSectionCount">{auxTotal}</span>
+                {t("Custom skills")}
+                <span className="skillsSectionCount">{customTotal}</span>
               </div>
-              {visibleAux.map((row) => (
-                <SkillRowItem key={"aux-" + row.id} row={row} auxiliary />
+              {visibleCustom.map((row) => (
+                <SkillRowItem key={"cus-" + row.id} row={row} custom onRemove={removeCustom} />
               ))}
+              <CustomSkillPicker fitId={fitId} excludeIds={pickerExclude} onAdded={applyPayload} />
             </div>
           )}
         </div>

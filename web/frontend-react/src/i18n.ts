@@ -410,10 +410,14 @@ const ZH_CN: Record<string, string> = {
   "All skills trained": "所有技能均已满足",
   "This fit needs no skills": "该装配无需技能",
   "Required skills": "需求技能",
-  "Auxiliary skills": "辅助技能（加成）",
-  "Bonus skills the fit does not require, but which change its numbers":
-    "装配不要求、但训练后可提升本装配数值的技能",
-  "Affects": "作用于",
+  "Custom skills": "自定义技能",
+  "Skills you added yourself; the fit character's current level is shown":
+    "自行添加的技能，仅显示当前角色的学习等级",
+  "Add skill": "添加技能",
+  "Search skills…": "搜索技能…",
+  "Searching…": "搜索中…",
+  "No skills found": "未找到技能",
+  "Remove custom skill": "移除自定义技能",
 }
 
 const CATALOGUES: Partial<Record<LocaleCode, Record<string, string>>> = { zh_CN: ZH_CN }

@@ -135,10 +135,70 @@ def get_fit_stats(fit_id: int, sections: str | None = Query(None)):
 @router.get("/{fit_id}/skills")
 def get_fit_skills(fit_id: int):
     """Every skill that affects the fit: required level, the fit character's
-    current level and the fitted items that demand each skill."""
+    current level and the fitted items that demand each skill, plus the skills
+    the pilot pinned to this fit by hand."""
     from web.services.skills import fit_skills
 
     fit = _require_fit(fit_id)
+    payload = fit_skills(fit)
+    payload["id"] = fit.ID
+    return payload
+
+
+class CustomSkillBody(BaseModel):
+    skillId: int
+
+
+@router.get("/skills/search")
+def search_all_skills(q: str = Query(..., min_length=1), limit: int = Query(20, ge=1, le=50)):
+    """Search the skill catalogue (category Skill) by name for the custom-skill
+    picker. Open like every read; only game data is touched."""
+    from web.services import customskills
+    from web.services.serialize import serialize_item
+
+    items = customskills.search_skills(q, limit=limit)
+    return {"query": q, "results": [serialize_item(item) for item in items]}
+
+
+@router.post("/{fit_id}/custom-skills", status_code=201)
+def add_custom_skill(
+    fit_id: int,
+    payload: CustomSkillBody,
+    user=Depends(user_or_guest),  # noqa: ARG001 - writes follow the guest policy
+):
+    """Pin one skill from the catalogue to the fit. The skill only displays the
+    fit character's current level; it never changes the fit or its requirements.
+    """
+    import eos.db
+
+    from web.services import customskills
+    from web.services.skills import fit_skills
+
+    fit = _require_fit(fit_id)
+    skill = eos.db.getItem(payload.skillId)
+    category = getattr(getattr(skill, "group", None), "category", None)
+    if skill is None or getattr(category, "ID", None) != 16:
+        raise HTTPException(status_code=400, detail="not a skill")
+    added = customskills.add_custom(fit.ID, payload.skillId)
+
+    payload_out = fit_skills(fit)
+    payload_out["id"] = fit.ID
+    payload_out["added"] = added
+    return payload_out
+
+
+@router.delete("/{fit_id}/custom-skills/{skill_id}", status_code=200)
+def remove_custom_skill(
+    fit_id: int,
+    skill_id: int,
+    user=Depends(user_or_guest),  # noqa: ARG001 - writes follow the guest policy
+):
+    """Unpin a custom skill from the fit."""
+    from web.services import customskills
+    from web.services.skills import fit_skills
+
+    fit = _require_fit(fit_id)
+    customskills.remove_custom(fit.ID, skill_id)
     payload = fit_skills(fit)
     payload["id"] = fit.ID
     return payload

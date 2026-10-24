@@ -87,6 +87,20 @@ class UserData:
 
         isNew = not self.db_path.is_file() or self.db_path.stat().st_size == 0
         eos.db.saveddata_meta.create_all(self.engine)
+        # Web-only table (pinned custom skills per fit); kept out of eos's own
+        # metadata so desktop pyfa stays unaware of it. Runs for new and old
+        # databases alike; CREATE TABLE IF NOT EXISTS is a no-op afterwards.
+        with self.engine.begin() as connection:
+            connection.exec_driver_sql(
+                """
+                CREATE TABLE IF NOT EXISTS fitCustomSkills (
+                    fitID    INTEGER NOT NULL,
+                    skillID  INTEGER NOT NULL,
+                    position INTEGER NOT NULL,
+                    PRIMARY KEY (fitID, skillID)
+                )
+                """
+            )
         if isNew:
             with self.engine.begin() as connection:
                 connection.exec_driver_sql("PRAGMA user_version = {}".format(migration.getAppVersion()))

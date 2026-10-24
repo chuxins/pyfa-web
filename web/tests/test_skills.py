@@ -114,69 +114,134 @@ def test_all_zero_character_marks_everything_unmet(user_client):
     assert all(not row["met"] and row["currentLevel"] == 0 for row in payload["skills"])
 
 
-def test_auxiliary_skills_listed_separately(client):
-    """Skills the fit does not require but which change its numbers (CPU
-    Management boosts the Rifter's power grid output, etc.) are returned in a
-    distinct `auxiliary` section and never duplicated into `skills`."""
+CPU_MANAGEMENT_ID = 3426  # passive skill a Rifter fit never requires
+
+
+def search_skill(client, query):
+    response = client.get("/api/fits/skills/search", params={"q": query})
+    assert response.status_code == 200, response.text
+    return response.json()["results"]
+
+
+def test_skill_search_returns_skill_category_only(client):
+    """The picker searches the Skill category; every result is a skill."""
+    results = search_skill(client, "CPU Management")
+    assert any(row["id"] == CPU_MANAGEMENT_ID for row in results)
+    assert all(row["category"] == "Skill" for row in results)
+
+
+def test_custom_skill_added_listed_and_shows_current_level(client):
+    """A pinned skill lands in the `custom` section with no required level,
+    reports the fit character's trained level (All 5 by default) and never
+    counts as missing; `custom` stays disjoint from the required list."""
     fit_id = make_fit(client)
+
+    added = client.post("/api/fits/{}/custom-skills".format(fit_id),
+                        json={"skillId": CPU_MANAGEMENT_ID})
+    assert added.status_code == 201, added.text
+    body = added.json()
+    assert body["added"] is True
+    custom_by_name = {row["name"]: row for row in body["custom"]}
+    cpu = custom_by_name["CPU Management"]
+    assert cpu["requiredLevel"] == 0
+    assert cpu["currentLevel"] == 5
+    assert cpu["custom"] is True
+    assert cpu["sources"] == []
+    assert body["customTotal"] == 1
 
     payload = skills_of(client, fit_id)
-    assert "auxiliary" in payload
-    assert payload["auxiliaryTotal"] == len(payload["auxiliary"])
-
     required_ids = {row["id"] for row in payload["skills"]}
-    aux_by_name = {row["name"]: row for row in payload["auxiliary"]}
-    assert not (required_ids & {row["id"] for row in payload["auxiliary"]})
-
-    # CPU Management is a passive ship bonus, never a fit requirement.
-    cpu = aux_by_name["CPU Management"]
-    assert cpu["requiredLevel"] == 0
-    assert cpu["auxiliary"] is True
-    assert "Rifter" in cpu["sources"]
-    # The default test character is All 5.
-    assert cpu["currentLevel"] == 5
-
-    # Auxiliary rows are sorted by name, and auxiliary never counts as missing.
-    names = [row["name"] for row in payload["auxiliary"]]
-    assert names == sorted(names)
+    assert CPU_MANAGEMENT_ID not in required_ids
+    assert [row["id"] for row in payload["custom"]] == [CPU_MANAGEMENT_ID]
+    # Custom skills never inflate the requirement total or missing count.
     assert payload["missing"] == sum(1 for row in payload["skills"] if not row["met"])
+    assert all(row["met"] for row in payload["custom"])
 
 
-def test_auxiliary_skills_exclude_required_chain(client):
-    """With a projectile turret fitted, Gunnery stays in the requirement chain
-    (it is a prerequisite of the turret skills) instead of being reported as
-    auxiliary, while a purely bonus skill (e.g. Weapon Upgrades, if it applies)
-    still shows up on the auxiliary side."""
+def test_custom_skill_duplicate_add_is_idempotent(client):
+    """Pinning the same skill twice keeps one row and reports added=False."""
     fit_id = make_fit(client)
+    url = "/api/fits/{}/custom-skills".format(fit_id)
+
+    first = client.post(url, json={"skillId": CPU_MANAGEMENT_ID})
+    assert first.status_code == 201
+    assert first.json()["added"] is True
+
+    second = client.post(url, json={"skillId": CPU_MANAGEMENT_ID})
+    assert second.status_code == 201
+    assert second.json()["added"] is False
+    assert second.json()["customTotal"] == 1
+
+
+def test_custom_skill_removed(client):
+    """Unpinning removes the row; removing an absent pin is a quiet no-op."""
+    fit_id = make_fit(client)
+    client.post("/api/fits/{}/custom-skills".format(fit_id),
+                json={"skillId": CPU_MANAGEMENT_ID})
+
+    removed = client.delete("/api/fits/{}/custom-skills/{}".format(fit_id, CPU_MANAGEMENT_ID))
+    assert removed.status_code == 200, removed.text
+    assert removed.json()["custom"] == []
+    assert skills_of(client, fit_id)["customTotal"] == 0
+
+    # Deleting a pin that does not exist is still a successful no-op.
+    again = client.delete("/api/fits/{}/custom-skills/{}".format(fit_id, CPU_MANAGEMENT_ID))
+    assert again.status_code == 200
+
+
+def test_add_non_skill_is_rejected(client):
+    """Only Skill-category types may be pinned."""
+    fit_id = make_fit(client)
+    bad = client.post("/api/fits/{}/custom-skills".format(fit_id), json={"skillId": RIFTER_ID})
+    assert bad.status_code == 400
+    assert skills_of(client, fit_id)["customTotal"] == 0
+
+
+def test_custom_skill_in_required_chain_hidden_from_custom(client):
+    """Gunnery can be pinned, but with a gun fitted it is a requirement and
+    must only appear in the required list, never duplicated into custom."""
+    fit_id = make_fit(client)
+    pinned = client.post("/api/fits/{}/custom-skills".format(fit_id), json={"skillId": 3300})
+    assert pinned.status_code == 201
+    assert any(row["id"] == 3300 for row in pinned.json()["custom"])
+
     added = client.post("/api/fits/{}/commands".format(fit_id),
                         json={"command": "addLocalModule", "args": {"itemId": AUTOCANNON_ID}})
     assert added.status_code == 200, added.text
 
     payload = skills_of(client, fit_id)
-    required_names = {row["name"] for row in payload["skills"]}
-    aux_names = {row["name"] for row in payload["auxiliary"]}
-
-    assert "Gunnery" in required_names
-    assert "Gunnery" not in aux_names
-    assert "CPU Management" in aux_names
+    assert any(row["id"] == 3300 for row in payload["skills"])
+    assert all(row["id"] != 3300 for row in payload["custom"])
 
 
-def test_auxiliary_skills_all_zero_character(user_client):
-    """Level-0 characters still see the auxiliary skills available to the fit:
-    passive skill effects register at level 0, and they never look unmet."""
+def test_custom_skills_all_zero_character(user_client):
+    """An untrained pinned skill still shows up (at level 0) and never counts
+    as a missing requirement."""
     presets = {entry["name"]: entry["id"]
                for entry in user_client.get("/api/meta").json()["characters"]
                if entry["kind"] == "preset"}
     fit_id = make_fit(user_client)
+    user_client.post("/api/fits/{}/custom-skills".format(fit_id),
+                     json={"skillId": CPU_MANAGEMENT_ID})
     changed = user_client.post("/api/fits/{}/commands".format(fit_id),
                                json={"command": "changeChar", "args": {"characterId": presets["All 0"]}})
     assert changed.status_code == 200, changed.text
 
     payload = skills_of(user_client, fit_id)
-    assert payload["auxiliaryTotal"] >= 1
-    assert all(row["currentLevel"] == 0 and row["met"] for row in payload["auxiliary"])
-    # Auxiliary skills never contribute to the unmet count.
+    cpu = next(row for row in payload["custom"] if row["id"] == CPU_MANAGEMENT_ID)
+    assert cpu["currentLevel"] == 0
+    assert cpu["met"] is True
     assert payload["missing"] == payload["total"]
+
+
+def test_custom_skills_are_isolated_between_fits(client):
+    """Pins belong to one fit and do not leak into another fit's list."""
+    first = make_fit(client)
+    second = make_fit(client)
+    client.post("/api/fits/{}/custom-skills".format(first), json={"skillId": CPU_MANAGEMENT_ID})
+
+    assert skills_of(client, first)["customTotal"] == 1
+    assert skills_of(client, second)["customTotal"] == 0
 
 
 def test_unknown_fit_is_404(client):

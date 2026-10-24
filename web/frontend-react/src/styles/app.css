@@ -2308,7 +2308,7 @@ body {
   color: #6a6a6a;
 }
 
-/* Divider/heading between the required-skill and auxiliary-skill groups. */
+/* Divider/heading between the required-skill and custom-skill groups. */
 .skillsSection + .skillsSection {
   margin-top: 8px;
   border-top: 1px solid #2e2e2e;
@@ -2333,19 +2333,147 @@ body {
   padding: 0 6px;
 }
 
-/* Auxiliary (bonus-only) skills are visually quieter than requirements:
+/* Custom (manually pinned) skills are visually quieter than requirements:
    dimmer icon/name, never red. Their missing required-pip row is a blank
    spacer so the current-level row keeps aligning with the rows above. */
-.skillRow.auxiliary {
-  opacity: 0.85;
+.skillRow.custom {
+  opacity: 0.9;
 }
 
-.skillRow.auxiliary .skillName {
+.skillRow.custom .skillName {
   color: #b5b5b5;
 }
 
 .skillPips.required.placeholder {
   visibility: hidden;
+}
+
+/* Remove (unpin) button at the custom row's right edge. */
+.skillRemove {
+  flex: 0 0 auto;
+  background: none;
+  border: none;
+  color: #8a8a8a;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.skillRemove:hover {
+  color: #ff6b70;
+  background: #2a2020;
+}
+
+/* "+ Add skill" button under the custom list. */
+.customSkillAdd {
+  margin: 4px 8px;
+  background: none;
+  border: 1px dashed #4f4f4f;
+  border-radius: 6px;
+  color: #9a9a9a;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 5px 8px;
+  width: calc(100% - 16px);
+  text-align: center;
+}
+
+.customSkillAdd:hover {
+  border-color: #6a6a6a;
+  color: #d0d0d0;
+  background: #222;
+}
+
+/* Inline skill search box + suggestion dropdown. */
+.customPicker {
+  position: relative;
+  margin: 4px 8px;
+}
+
+.customPickerRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.customPickerInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: #1f1f1f;
+  border: 1px solid #4f4f4f;
+  border-radius: 5px;
+  color: #e0e0e0;
+  font-size: 12px;
+  padding: 5px 8px;
+  outline: none;
+}
+
+.customPickerInput:focus {
+  border-color: #7a7a7a;
+}
+
+.customPickerCancel {
+  flex: 0 0 auto;
+  background: none;
+  border: none;
+  color: #9a9a9a;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 4px;
+}
+
+.customPickerCancel:hover {
+  color: #e0e0e0;
+}
+
+.customPickerResults {
+  margin-top: 4px;
+  background: #1f1f1f;
+  border: 1px solid #4f4f4f;
+  border-radius: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.customPickerHint {
+  color: #7a7a7a;
+  font-size: 11px;
+  padding: 8px;
+  text-align: center;
+}
+
+.customPickerItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: 5px;
+  color: #d0d0d0;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 6px;
+  text-align: left;
+}
+
+.customPickerItem:hover:not(:disabled) {
+  background: #2c2c2c;
+}
+
+.customPickerItem:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.customPickerName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .skillLevels {
