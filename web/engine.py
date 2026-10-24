@@ -158,6 +158,13 @@ def _bootstrap_config(web_config):
     pyfaConfig.defPaths(customSavePath=str(web_config.system_dir))
     pyfaConfig.defLogging()
 
+    # The web server hosts the SSO application itself: the tokens it stores for a
+    # pilot are issued by web.yml's ``sso.client_id``, so pyfa's ESI client has to
+    # refresh them with that id. ``EsiAccess.client_id`` falls back to it whenever
+    # EsiSettings carry none (they default to the desktop client's own id, which
+    # EVE rejects for these tokens).
+    pyfaConfig.WEB_ESI_CLIENT_ID = web_config.sso.client_id
+
     # defPaths just derived the gamedata language from pyfa's *desktop* locale
     # setting (which the web server never sets); the server's language wins.
     apply_gamedata_language(web_config.language)

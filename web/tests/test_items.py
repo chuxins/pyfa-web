@@ -300,3 +300,71 @@ def test_slot_scope_requires_a_real_fit(client):
     response = client.get('/api/items/search', params={'scope': 'high', 'fitId': 9999})
     assert response.status_code == 404
 
+
+def _all_tree_items(groups):
+    """Every item in a market-tree payload, walking the group tree depth-first."""
+    items = []
+
+    def visit(node):
+        items.extend(node['items'])
+        for child in node['groups']:
+            visit(child)
+
+    for group in groups:
+        visit(group)
+    return items
+
+
+def test_market_tree_lists_every_fit_root(client):
+    """The Hardware tab draws all equipment, so the tree starts at the roots a fit
+    can hold rather than an empty 'type to search' prompt."""
+    payload = client.get('/api/items/market-tree').json()
+    names = {group['name'] for group in payload['groups']}
+    assert 'Ship Equipment' in names
+    assert 'Rigs' in names
+    assert 'Ammunition & Charges' in names
+    assert 'Drones' in names
+    assert 'Subsystems' in names
+
+
+def test_market_tree_reaches_a_known_module_and_charge(client):
+    payload = client.get('/api/items/market-tree').json()
+    by_id = {item['id']: item for item in _all_tree_items(payload['groups'])}
+    module = by_id[AUTOCANNON_ID]
+    assert module['kind'] == 'module'
+    assert module['slotType'] == 'High'
+    charge = by_id[EMP_S_ID]
+    assert charge['kind'] == 'charge'
+    assert charge['slotType'] is None
+
+
+def test_market_tree_rows_carry_the_filter_fields(client):
+    """Each leaf carries what the tab needs to filter locally: the kind for the
+    Modules/Charges split, the slot for the filter icons, the meta for ordering."""
+    payload = client.get('/api/items/market-tree').json()
+    items = _all_tree_items(payload['groups'])
+    assert len(items) > 1000
+    for item in items:
+        assert item['id'] and item['name'] and item['kind']
+        assert 'slotType' in item
+        assert 'metaGroupId' in item
+        assert 'nameEn' in item
+
+
+def test_market_tree_is_well_formed(client):
+    """No group appears twice, and every branch leads to items (no dead ends)."""
+    payload = client.get('/api/items/market-tree').json()
+    seen = set()
+
+    def visit(node):
+        assert node['id'] not in seen, 'market group {} appears twice'.format(node['id'])
+        seen.add(node['id'])
+        assert node['groups'] or node['items'], 'market group {} is empty'.format(node['id'])
+        for child in node['groups']:
+            visit(child)
+
+    for group in payload['groups']:
+        visit(group)
+    assert len(seen) > 100
+
+

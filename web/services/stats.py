@@ -174,6 +174,7 @@ def _capacitor_section(fit):
         "capacity": capacity,
         "delta": fit.capDelta,
         "recharge": recharge,
+        "rechargeRate": _attr(fit, "rechargeRate", 0),  # ms，回充时间（前端 /1000 显示秒）
         "used": used,
         "stable": fit.capStable,
         "state": fit.capState,

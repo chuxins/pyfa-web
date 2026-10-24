@@ -14,8 +14,10 @@ NetEase publishes its issuer without a scheme, CCP with an ``https://`` URL.
 import base64
 import hashlib
 import json
+import os
 import time
 from dataclasses import replace
+from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
@@ -29,7 +31,11 @@ import web.main as webMain
 from web.api.auth import CALLBACK_PATH
 from web.auth import SsoClient
 from web.config import SsoConfig
-from web.tests.conftest import next_character_id
+from web.tests.conftest import RIFTER_ID, next_character_id
+
+#: Real skill type ids in eve.db, for the login's skill-sheet refresh
+GUNNERY_ID = 3300
+SCIENCE_ID = 3402
 
 #: What the live SSO answers at /.well-known/oauth-authorization-server (fetched from
 #: login.eveonline.com), cut down to the fields a login uses.
@@ -205,6 +211,44 @@ def sso(app_state, monkeypatch, keyring):
     monkeypatch.setattr(app_state.config, "sso", config)
     monkeypatch.setattr(app_state.config, "dev_auth_bypass", False)
     monkeypatch.setattr(app_state, "sso", SsoClient(config))
+    return stub
+
+
+class StubEsi:
+    """Stands in for ``service.esi.Esi``: answers the skill-sheet fetch, no network.
+
+    A login stores the tokens and creates the pilot's ``Character`` row, then pulls
+    the row's skills from EVE (``web.services.character`` keeps the sheet in sync,
+    mirroring the desktop's ssoLogin handler), so a login in a test has to answer
+    that fetch. The sheet is empty: the strip's tests care about the row, not its
+    skills.
+    """
+
+    def __init__(self):
+        self.skills = []
+        self.requested = []
+
+    @classmethod
+    def getInstance(cls):
+        return cls.instance
+
+    def getSkills(self, ssoId):
+        self.requested.append(("skills", ssoId))
+        return {"skills": self.skills}
+
+    def getSecStatus(self, ssoId):
+        self.requested.append(("secStatus", ssoId))
+        return {"security_status": 0.0}
+
+
+@pytest.fixture
+def stub_esi(monkeypatch):
+    """Point the login's skill-sheet fetch at the stub for one test."""
+    from web.services import character as webCharacter
+
+    stub = StubEsi()
+    StubEsi.instance = stub
+    monkeypatch.setattr(webCharacter, "Esi", StubEsi)
     return stub
 
 
@@ -387,6 +431,118 @@ def test_signing_in_again_refreshes_the_same_row(client, app_state, sso, keyring
     characters = stored_characters(app_state, user.id)
     assert list(characters) == [character_id]
     assert characters[character_id]["accessToken"] == sso.token_response["access_token"]
+
+
+def test_signing_in_again_does_not_rebind_the_character(client, app_state, sso, keyring, stub_esi):
+    """``ensure_sso_character`` can run again on an already-bound pilot.
+
+    The first login binds the pilot's ``Character`` row to its ``SsoCharacter``;
+    the second used to try to bind it again, which made the flush hit the
+    ``ssoCharacterMap`` unique constraint and left the pilot's session rolled
+    back mid-login (skills/fittings then could not be read until another login).
+    """
+    token_claims = claims()
+    sso.token_response = token_response(keyring["primary"], token_claims)
+    come_back(client, begin_login(client))
+
+    from web.services.character import ensure_sso_character
+
+    user = app_state.users.get_by_character_id(character_id_of(token_claims))
+    with app_state.registry.acquire(user.id) as data:
+        ensure_sso_character(
+            data, character_id_of(token_claims), token_claims["name"], "Tranquility")
+
+    # A follow-up read still works: the session was not left rolled back.
+    characters = client.get("/api/meta").json()["characters"]
+    assert {entry["name"] for entry in characters} >= {"All 5", "All 0", token_claims["name"]}
+
+
+# -- the character strip -----------------------------------------------------------------
+
+
+def test_a_login_puts_the_pilot_in_the_character_strip(client, sso, keyring, stub_esi):
+    """The strip's SSO entry is the row the fit engine can switch a fit onto."""
+    token_claims = claims()
+    sso.token_response = token_response(keyring["primary"], token_claims)
+    come_back(client, begin_login(client))
+
+    characters = client.get("/api/meta").json()["characters"]
+    by_name = {entry["name"]: entry for entry in characters}
+    assert by_name["All 5"]["kind"] == "preset"
+    assert by_name["All 5"]["default"] is True
+    assert by_name["All 0"]["kind"] == "preset"
+    assert by_name["All 0"]["default"] is False
+    pilot = by_name[token_claims["name"]]
+    assert pilot["kind"] == "sso"
+    assert pilot["default"] is False
+    assert isinstance(pilot["id"], int)
+
+    # The strip's own id is the row changeChar switches to
+    fit_id = client.post("/api/fits", json={"shipId": RIFTER_ID, "name": "Pilot Fit"}).json()["id"]
+    switched = client.post(
+        "/api/fits/{}/commands".format(fit_id),
+        json={"command": "changeChar", "args": {"characterId": pilot["id"]}},
+    )
+    assert switched.status_code == 200, switched.text
+    assert switched.json()["character"]["id"] == pilot["id"]
+    assert switched.json()["character"]["name"] == token_claims["name"]
+
+
+def test_a_login_pulls_the_pilots_skills_into_the_character_row(client, app_state, sso, keyring, stub_esi):
+    """The sheet stored for the strip is built from EVE's own skill rows.
+
+    EVE answers the skills endpoint with ``skill_id``/``trained_skill_level``,
+    while pyfa's sheet builder expects ``typeID``/``level`` -- the refresh has to
+    translate between the two, or the pilot's row comes back with no skills and
+    every fit on that character reads as an all-zero fit.
+    """
+    token_claims = claims()
+    sso.token_response = token_response(keyring["primary"], token_claims)
+    stub_esi.skills = [
+        {"active_skill_level": 5, "skill_id": GUNNERY_ID, "skillpoints_in_skill": 5000, "trained_skill_level": 5},
+        {"active_skill_level": 4, "skill_id": SCIENCE_ID, "skillpoints_in_skill": 16000, "trained_skill_level": 4},
+    ]
+    come_back(client, begin_login(client))
+
+    characters = client.get("/api/meta").json()["characters"]
+    pilot = next(entry for entry in characters if entry["kind"] == "sso")
+    skills = client.get("/api/characters/{}/skills".format(pilot["id"])).json()["skills"]
+    by_type = {entry["typeID"]: entry["level"] for entry in skills}
+    assert by_type.get(GUNNERY_ID) == 5
+    assert by_type.get(SCIENCE_ID) == 4
+
+    # The sheet has to really be in the pilot's database, not only on the
+    # in-memory character: a server restart must not come back to an all-zero
+    # pilot (``apiUpdateCharSheet`` alone does not persist the appends).
+    import sqlite3
+    user = app_state.users.get_by_character_id(character_id_of(token_claims))
+    db_path = Path(os.environ["PYFA_WEB_DATA_DIR"]) / "users" / str(user.id) / "saveddata.db"
+    stored = {
+        item_id: level for item_id, level in sqlite3.connect(str(db_path)).execute(
+            "select itemID, _Skill__level from characterSkills")
+    }
+    assert stored.get(GUNNERY_ID) == 5
+    assert stored.get(SCIENCE_ID) == 4
+
+
+def test_logging_out_takes_the_pilot_out_of_the_strip(client, sso, keyring, stub_esi):
+    """After logout the strip is the anonymous one again: just the two presets.
+
+    The pilot's ``SsoCharacter`` row stays in their own database (that is where
+    ESI reads it from later); what changes is who the browser is, so the strip
+    falls back to the presets of the shared guest database.
+    """
+    token_claims = claims()
+    sso.token_response = token_response(keyring["primary"], token_claims)
+    come_back(client, begin_login(client))
+
+    response = client.post("/api/auth/logout", follow_redirects=False)
+    assert response.status_code == 303
+    assert client.cookies.get("pyfa_session") is None
+
+    characters = client.get("/api/meta").json()["characters"]
+    assert {entry["name"] for entry in characters} == {"All 5", "All 0"}
+    assert all(entry["kind"] == "preset" for entry in characters)
 
 
 def test_a_failed_login_leaves_no_account_behind(client, app_state, sso, keyring):

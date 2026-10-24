@@ -32,6 +32,7 @@ _COMMAND_MODULES = {
     'GuiAddCommandLinkCommand': '.gui.commandLink.add',
     'GuiRemoveCommandLinksCommand': '.gui.commandLink.remove',
     'GuiToggleCommandLinkStatesCommand': '.gui.commandLink.toggleStates',
+    'GuiChangeCharCommand': '.gui.changeChar',
     'GuiChangeFitPilotSecurityCommand': '.gui.fitPilotSecurity',
     'GuiRenameFitCommand': '.gui.fitRename',
     'GuiToggleFittingRestrictionsCommand': '.gui.fitRestrictionToggle',

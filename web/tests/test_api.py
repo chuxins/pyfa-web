@@ -18,6 +18,21 @@ def test_meta_reports_engine_and_gamedata(client):
     assert payload["language"] == "en_US"
 
 
+def test_meta_characters_are_the_presets_guests_get(client):
+    """The strip starts with the two skill presets; All 5 is the default one."""
+    characters = client.get("/api/meta").json()["characters"]
+    by_name = {entry["name"]: entry for entry in characters}
+
+    assert set(by_name) == {"All 5", "All 0"}
+    assert by_name["All 5"]["kind"] == "preset"
+    assert by_name["All 5"]["default"] is True
+    assert by_name["All 0"]["kind"] == "preset"
+    assert by_name["All 0"]["default"] is False
+    # The ids are the rows the fit engine switches to, so they have to be real rows
+    assert all(isinstance(entry["id"], int) for entry in characters)
+    assert len(characters) == len(by_name)
+
+
 def test_anonymous_requests_can_read_game_data(client):
     """Static game data needs no login, so the ship browser can load before sign-in."""
     response = client.get("/api/ships/tree")

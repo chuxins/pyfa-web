@@ -39,6 +39,11 @@ dist/
 dist_assets/
 web/frontend/node_modules/
 web/frontend/dist/
+web/frontend-react/node_modules/
+web/frontend-react/dist/
+
+# ---- 临时调试产物（CDP 脚本、接口快照、截图等）----
+.agent_tmp/
 
 # ---- 本机重启服务时的运行日志（调试用，不入库）----
 log-*.out

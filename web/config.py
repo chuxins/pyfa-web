@@ -46,6 +46,7 @@ SCALAR_FIELDS = {
     "language": "LANGUAGE",
     "log_level": "LOG_LEVEL",
     "dev_auth_bypass": "DEV_AUTH_BYPASS",
+    "cors_origins": "CORS_ORIGINS",
 }
 
 
@@ -211,6 +212,11 @@ def _coerce_scalar(key, value):
         return _coerce_flag(value)
     if key == "data_dir":
         return Path(value)
+    if key == "cors_origins":
+        # A YAML list, or a comma separated string (same shape as CORS_ORIGINS).
+        if isinstance(value, str):
+            return tuple(o.strip() for o in value.split(",") if o.strip())
+        return tuple(str(o).strip() for o in value if str(o).strip())
     return value
 
 

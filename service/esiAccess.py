@@ -126,7 +126,13 @@ class EsiAccess:
 
     @property
     def client_id(self):
-        return self.settings.get('clientID') or self.server_base.client_id
+        # A token is refreshed with the client id of the application that issued
+        # it. The web server is that application: web.engine seeds its client id
+        # as config.WEB_ESI_CLIENT_ID so the desktop client's own id (the last
+        # fallback here) is never used for server-issued tokens.
+        return (self.settings.get('clientID')
+                or getattr(config, "WEB_ESI_CLIENT_ID", None)
+                or self.server_base.client_id)
 
     @staticmethod
     def update_token(char, tokenResponse):

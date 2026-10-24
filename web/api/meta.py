@@ -3,7 +3,8 @@
 from fastapi import APIRouter, Depends, Request
 
 import config as pyfaConfig
-from web.deps import AppState, current_user, get_app_state
+from web.deps import AppState, current_user, get_app_state, get_user_data
+from web.services.character import list_characters
 
 router = APIRouter(tags=["meta"])
 
@@ -35,4 +36,7 @@ def get_meta(request: Request, state: AppState = Depends(get_app_state)):
             "characterId": user.character_id,
             "characterName": user.character_name,
         },
+        # The character strip's options: the All 5 / All 0 presets, then the
+        # pilot's own EVE characters (guests still get the presets).
+        "characters": list_characters(get_user_data(request)),
     }

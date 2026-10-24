@@ -10,13 +10,14 @@ must not hold the user's lock, so it lives on its own router.
 
 from fastapi import APIRouter, Depends
 
-from web.api import auth, commands, esi, events, fits, graphs, items, meta, port, ships
+from web.api import auth, characters, commands, esi, events, fits, graphs, items, meta, port, ships
 from web.deps import user_context
 
 #: Everything that touches the database, one user at a time
 api = APIRouter(prefix="/api", dependencies=[Depends(user_context)])
 
 api.include_router(meta.router)
+api.include_router(characters.router)
 api.include_router(auth.router)
 api.include_router(ships.router)
 api.include_router(fits.router)

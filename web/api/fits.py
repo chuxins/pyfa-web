@@ -132,6 +132,18 @@ def get_fit_stats(fit_id: int, sections: str | None = Query(None)):
     return {"id": fit.ID, "stats": build_stats(fit, sections=wanted)}
 
 
+@router.get("/{fit_id}/skills")
+def get_fit_skills(fit_id: int):
+    """Every skill that affects the fit: required level, the fit character's
+    current level and the fitted items that demand each skill."""
+    from web.services.skills import fit_skills
+
+    fit = _require_fit(fit_id)
+    payload = fit_skills(fit)
+    payload["id"] = fit.ID
+    return payload
+
+
 @router.patch("/{fit_id}")
 def update_fit(fit_id: int, payload: FitUpdate, user=Depends(user_or_guest)):
     """Rename a fit, edit its notes, or toggle its flags. Open to guests."""

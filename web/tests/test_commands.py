@@ -470,6 +470,91 @@ def test_undo_stacks_are_per_user(user_client, second_user_client):
                    "/api/fits/{}".format(second_fit)).json()["racks"]["high"])
 
 
+def preset_ids(client):
+    """The two skill presets the strip offers, keyed by name."""
+    characters = client.get("/api/meta").json()["characters"]
+    return {entry["name"]: entry["id"] for entry in characters if entry["kind"] == "preset"}
+
+
+def test_change_char_is_registered_with_a_character_argument(user_client):
+    """The strip hands the browser real character rows, so the argument is a row id."""
+    payload = user_client.get("/api/commands").json()
+    spec = next(entry for entry in payload["commands"] if entry["name"] == "changeChar")
+    assert spec["requires"] == ["characterId"]
+    assert spec["summary"]
+
+
+def test_change_char_switches_the_fit_and_new_fits_follow(user_client):
+    """The strip's switch: the fit's DPS follows the character's skills, and the
+    next fit this user makes is born on the switched character."""
+    all5 = preset_ids(user_client)["All 5"]
+    all0 = preset_ids(user_client)["All 0"]
+
+    fit_id = make_fit(user_client)
+    run_command(user_client, fit_id, "addLocalModule", itemId=AUTOCANNON_ID)
+    fit = user_client.get("/api/fits/{}".format(fit_id)).json()
+    gun = next(module for module in fit["racks"]["high"] if module["itemId"] == AUTOCANNON_ID)
+    run_command(user_client, fit_id, "changeLocalModuleCharges",
+                positions=[gun["position"]], chargeItemId=EMP_S_ID)
+
+    before = user_client.get("/api/fits/{}".format(fit_id)).json()
+    assert before["character"]["id"] == all5
+    all5_dps = before["stats"]["firepower"]["dps"]["value"]["total"]
+    assert all5_dps > 0
+
+    switched = run_command(user_client, fit_id, "changeChar", characterId=all0)
+    assert switched.status_code == 200, switched.text
+    detail = switched.json()
+    assert detail["character"]["id"] == all0
+    assert detail["character"]["name"] == "All 0"
+    # The stack holds the module add, the charge and the switch; the switch is on top
+    assert detail["history"]["depth"] == 3
+    assert detail["history"]["undoName"] == "Change Character"
+    # All 0 has none of the gunnery skills All 5 has: the same gun does less
+    all0_dps = detail["stats"]["firepower"]["dps"]["value"]["total"]
+    assert 0 < all0_dps < all5_dps
+
+    # The switched character is the default for the next fit this user makes
+    follow_up = make_fit(user_client, "Follow Up")
+    assert user_client.get("/api/fits/{}".format(follow_up)).json()["character"]["id"] == all0
+
+
+def test_change_char_refuses_an_unknown_character(user_client):
+    """A character id the database has no row for is refused, not silently applied."""
+    fit_id = make_fit(user_client)
+    assert user_client.get("/api/fits/{}/history".format(fit_id)).json()["depth"] == 0
+
+    detail = refusal(run_command(user_client, fit_id, "changeChar", characterId=UNKNOWN_ITEM_ID))
+
+    assert detail["code"] == "engineRefused"
+    assert detail["params"] == {"command": "changeChar"}
+    # The refusal left no trace: the fit keeps its character and its empty stack
+    assert user_client.get("/api/fits/{}/history".format(fit_id)).json()["depth"] == 0
+    assert user_client.get("/api/fits/{}".format(fit_id)).json()["character"]["id"] == preset_ids(user_client)["All 5"]
+
+
+def test_change_char_undo_and_redo(user_client):
+    """Undo restores the previous skills; redo applies the switch again."""
+    all5 = preset_ids(user_client)["All 5"]
+    all0 = preset_ids(user_client)["All 0"]
+    fit_id = make_fit(user_client)
+    run_command(user_client, fit_id, "addLocalModule", itemId=AUTOCANNON_ID)
+
+    assert run_command(user_client, fit_id, "changeChar", characterId=all0).status_code == 200
+
+    undone = user_client.post("/api/fits/{}/undo".format(fit_id))
+    assert undone.status_code == 200, undone.text
+    payload = undone.json()
+    assert payload["character"]["id"] == all5
+    assert payload["history"]["redoName"] == "Change Character"
+    # Only the skills changed; the module is still fitted
+    assert any(module["itemId"] == AUTOCANNON_ID for module in payload["racks"]["high"])
+
+    redone = user_client.post("/api/fits/{}/redo".format(fit_id))
+    assert redone.status_code == 200, redone.text
+    assert redone.json()["character"]["id"] == all0
+
+
 def test_commands_are_open_to_guests_but_stay_in_the_guest_database(client, user_client):
     """A guest edits the shared guest database, not a pilot's.
 

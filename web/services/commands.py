@@ -115,7 +115,10 @@ class CommandContext:
     # -- payload access -----------------------------------------------------------------
 
     def require(self, *names):
-        missing = [name for name in names if self.payload.get(name) is None]
+        # An argument counts as given when its key is present, even if its value is
+        # null: several commands (e.g. changeLocalModuleCharges) accept null to
+        # mean "clear" (unload the charge).
+        missing = [name for name in names if name not in self.payload]
         if missing:
             raise CommandError("missing argument(s): {}".format(", ".join(missing)))
         for name in names:
@@ -887,6 +890,13 @@ def changeFitPilotSecurity(ctx):
     return ctx.cmd.GuiChangeFitPilotSecurityCommand(fitID=ctx.fitID, secStatus=ctx.payload["secStatus"])
 
 
+@command("changeChar", requires=("characterId",),
+         args={"characterId": "character id (a skill preset or a signed-in pilot)"})
+def changeChar(ctx):
+    """Switch the fit to another character's skills."""
+    return ctx.cmd.GuiChangeCharCommand(fitID=ctx.fitID, characterID=ctx.payload["characterId"])
+
+
 @command("toggleFittingRestrictions", args={})
 def toggleFittingRestrictions(ctx):
     """Ignore or enforce fitting restrictions."""
@@ -1117,7 +1127,10 @@ def execute(userData, userID, fitID, name, payload):
         raise CommandError("unknown command {!r}".format(name))
 
     payload = payload or {}
-    missing = [arg for arg in spec["requires"] if payload.get(arg) is None]
+    # An argument counts as given when its key is present, even if its value is
+    # null: several commands (e.g. changeLocalModuleCharges) accept null to
+    # mean "clear" (unload the charge).
+    missing = [arg for arg in spec["requires"] if arg not in payload]
     if missing:
         raise CommandError("{} requires {}".format(name, ", ".join(missing)))
 

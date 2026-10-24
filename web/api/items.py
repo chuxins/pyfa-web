@@ -159,6 +159,15 @@ def search(
     return {"query": q, "scope": scope, "results": [serialize_item(item) for item in results]}
 
 
+@router.get("/market-tree")
+def get_market_tree():
+    """Every fit item grouped by market group, so the Hardware tab can draw all
+    equipment without a query; the client filters and collapses it locally."""
+    from web.services.market_tree import market_tree
+
+    return market_tree()
+
+
 @router.get("/{item_id}")
 def get_item(item_id: int):
     item = _get_item(item_id, detail=True)

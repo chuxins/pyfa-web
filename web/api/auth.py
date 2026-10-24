@@ -28,6 +28,7 @@ from web.deps import (
     get_app_state,
     set_session_cookie,
 )
+from web.services.character import ensure_sso_character
 
 pyfalog = Logger(__name__)
 
@@ -143,12 +144,15 @@ def callback(
     )
 
     # Store the tokens in the user's own database so pyfa's ESI code can fetch
-    # skills and fittings for this pilot from now on.
+    # skills and fittings for this pilot from now on, and make the pilot's own
+    # Character row exist so the character strip can switch fits onto it.
     try:
         with appState.registry.acquire(user.id) as data:
             store_sso_character(
                 data, character_id, character_name,
                 appState.config.sso.server, token_response)
+            ensure_sso_character(
+                data, character_id, character_name, appState.config.sso.server)
     except Exception:
         pyfalog.exception(
             "Logged in {} but failed to store SSO tokens; skills/fittings import "
