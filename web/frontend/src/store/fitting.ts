@@ -91,6 +91,8 @@ export interface FittingState {
   saveAs: () => Promise<FitSummary | null>
   addItem: (item: { id: number; itemKind: string }) => Promise<Fit | null>
   promptForMissingFit: () => null
+  /** Refresh the left sidebar's fit lists (the tree and the selected ship's fits). */
+  refreshSidebar: () => void
   loadCharge: (chargeItemId: number) => Promise<Fit | null>
   moduleAt: (position: number) => Module | null
   groupMates: (module: { position: number; itemId?: number | null }) => number[]
@@ -212,6 +214,7 @@ export const useFittingStore = create<FittingState>((set, get) => ({
       get().applyFit(fit)
       set({ weaponGroups: false })
       await get().reload()
+      get().refreshSidebar()
       return fit.id
     } catch (error) {
       get().setError(error)
@@ -281,6 +284,8 @@ export const useFittingStore = create<FittingState>((set, get) => ({
 
   async rename(name: string) {
     await get().send("renameFit", { name })
+    // The rail lists fits by name, so it has to be re-read for the two to agree
+    get().refreshSidebar()
   },
 
   /** Switch the fit to another character's skills (a preset or a signed-in pilot). */
@@ -379,9 +384,7 @@ export const useFittingStore = create<FittingState>((set, get) => ({
       await api.deleteFit(fitId)
       if (get().fit?.id === fitId) set({ fit: null })
       get().showNotice(inGame ? t("This fit was deleted from the website and from EVE") : t("This fit was deleted"), 4000)
-      const browser = useBrowserStore.getState()
-      void browser.refreshFits()
-      void browser.loadAllFits()
+      get().refreshSidebar()
       return true
     } catch (error) {
       get().setError(error)
@@ -431,7 +434,7 @@ export const useFittingStore = create<FittingState>((set, get) => ({
       const clone = await api.duplicateFit(fit.id)
       get().showNotice(t("The fit was saved as a new fit"), 4000)
       await get().open(clone.id)
-      void useBrowserStore.getState().refreshFits()
+      get().refreshSidebar()
       return clone
     } catch (error) {
       get().setError(error)
@@ -462,6 +465,20 @@ export const useFittingStore = create<FittingState>((set, get) => ({
   /** A write with no fit open is silently refused: the buttons just stay inert. */
   promptForMissingFit() {
     return null
+  },
+
+  /**
+   * Re-read the left sidebar after a save.
+   *
+   * `allFits` is what the Hull & Fits tree draws (one row per fit under its ship, and the
+   * per-ship count) and `refreshFits` keeps the selected ship's own list in step. Every
+   * save path calls this, and so do the `fit.created` / `fit.renamed` events, so the
+   * sidebar catches up whether the save came from this tab or from another one.
+   */
+  refreshSidebar() {
+    const browser = useBrowserStore.getState()
+    void browser.refreshFits()
+    void browser.loadAllFits()
   },
 
   /** Load a charge into the selected module, or every module that accepts it. */
@@ -650,10 +667,15 @@ export const useFittingStore = create<FittingState>((set, get) => ({
       void browser.refreshFits()
       void browser.loadAllFits()
     })
-    stream.addEventListener("fit.renamed", (event) => {
-      const payload = JSON.parse((event as MessageEvent).data)
+    // A fit was created or renamed -- here or in another tab. The rail shows fits by
+    // name, so both lists are re-read (`invalidateFit` used to drop the row instead of
+    // picking up its new name).
+    stream.addEventListener("fit.created", () => {
+      get().refreshSidebar()
+    })
+    stream.addEventListener("fit.renamed", () => {
       if (get().fit) void get().refreshStats()
-      if (typeof payload.fitId === "number") useBrowserStore.getState().invalidateFit(payload.fitId)
+      get().refreshSidebar()
     })
     stream.addEventListener("fit.removed", (event) => {
       const payload = JSON.parse((event as MessageEvent).data)

@@ -86,6 +86,10 @@ A FastAPI server that reuses pyfa's own engine and editing commands, and a React
   segmented application profile, lock time, mobility, ...), drawn in the browser
   with ECharts; the curve data, the hover points and the graph definitions all
   come from the same `graphs/data/` code the desktop window uses (see "Charts")
+* the fit rail keeps up with saving: "Save as" (and renaming, and deleting) re-reads the
+  ship tree straight away, and the server's `fit.created` / `fit.renamed` events do the
+  same for a save made in another tab -- so a new copy appears under its ship without a
+  page reload
 * editing with **the desktop's own undo/redo stack** for every fit
 * live updates: two tabs on the same fit stay in sync over server-sent events
 * the UI chrome in English or simplified Chinese, with the language picked per
