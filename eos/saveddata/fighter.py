@@ -108,6 +108,28 @@ class Fighter(HandledItem, HandledCharge, ItemAttrShortcut, ChargeAttrShortcut):
             return
 
         self.build()
+        self.normaliseAbilityDefaults()
+
+    def normaliseAbilityDefaults(self):
+        """Undo the ability states the old "switch everything on" rule could store.
+
+        A squadron saved before 2026-10-25 can come back with its attack *and* its
+        anti-fighter missiles switched on -- a pair the pilot can never fire together,
+        which counted both weapons in the fit's damage. Only that impossible combination
+        is corrected here: a squadron that was deliberately flown with one of them, or
+        with its propmod on, keeps exactly what was stored.
+        """
+        active = [ability for ability in self.abilities if ability.active]
+        if not any(ability.effect.name in self.STANDARD_ATTACK_EFFECTS for ability in active):
+            return
+        for ability in active:
+            if ability.effect.name in self.STANDARD_ATTACK_EFFECTS:
+                continue
+            if ability.dealsDamage:
+                pyfalog.debug(
+                    "turning off '{}' for fighter {}: it cannot be flown alongside the attack",
+                    ability.effect.name, self.itemID)
+                ability.active = False
 
     def build(self):
         """ Build object. Assumes proper and valid item already set """

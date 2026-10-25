@@ -141,7 +141,7 @@ const ShipDroneBay = () => {
 
   return (
     <>
-      <div onClick={() => setIsOpen(droneCount !== 0 && !isOpen)} className={droneCount !== 0 ? "sfxDroneBay" : ""}>
+      <div onClick={() => setIsOpen(!isOpen)} className="sfxDroneBay">
         <div className="sfxCargoIcon">
           <Icon name="drone-bay" size={32} />
         </div>
@@ -170,13 +170,13 @@ const ShipFighterBay = () => {
   // Not every hull carries squadrons: hide the chip unless there are tubes or a bay
   if (tubes <= 0 && bayTotal <= 0) return <></>
 
-  if (fighters.length === 0 && isOpen) setIsOpen(false)
-
   return (
     <>
       <div
-        onClick={() => setIsOpen(fighters.length !== 0 && !isOpen)}
-        className={"sfxFighterBay" + (fighters.length !== 0 ? " sfxFighterBayReady" : "")}
+        // Always expandable: an empty bay still has a capacity worth seeing, and the panel
+        // is where a dragged squadron shows up
+        onClick={() => setIsOpen(!isOpen)}
+        className="sfxFighterBay sfxFighterBayReady"
         title={t("Fighter squadrons")}
       >
         <div className="sfxCargoIcon">

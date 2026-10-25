@@ -145,3 +145,59 @@ def test_a_support_squadron_keeps_its_utility_ability(user_client):
         pytest.skip("that fighter has no implemented ability in this game data")
     assert any(state.values()), state
     assert state.get("Microwarpdrive") is not True, state
+# -- the stored state a fit can carry from before the fix -------------------------------
+#
+# A squadron saved by the old rule can hold the attack and the anti-fighter missiles
+# switched on at once. Loading it runs ``normaliseAbilityDefaults``, which these tests
+# drive on a stand-in object (building a real Fighter needs the engine's database
+# context, and the rule itself does not).
+
+
+class _Ability:
+    def __init__(self, name, active, dealsDamage=True):
+        self.effect = type("Effect", (), {"name": name})
+        self.active = active
+        self.dealsDamage = dealsDamage
+
+
+class _StoredSquadron:
+    abilities = ()
+    itemID = 40556
+
+
+def _normalise(abilities):
+    from eos.saveddata.fighter import Fighter
+
+    squadron = _StoredSquadron()
+    squadron.abilities = abilities
+    squadron.STANDARD_ATTACK_EFFECTS = Fighter.STANDARD_ATTACK_EFFECTS
+    Fighter.normaliseAbilityDefaults(squadron)
+    return squadron
+
+
+def test_a_squadron_saved_with_both_weapons_on_is_corrected_on_load():
+    attack = _Ability("fighterAbilityAttackM", True)
+    missiles = _Ability("fighterAbilityMissiles", True)
+    _normalise([attack, missiles])
+
+    assert attack.active is True
+    assert missiles.active is False
+
+
+def test_normalising_leaves_a_deliberate_choice_alone():
+    attack = _Ability("fighterAbilityAttackM", False)
+    missiles = _Ability("fighterAbilityMissiles", True)
+    _normalise([attack, missiles])
+
+    assert attack.active is False
+    assert missiles.active is True
+
+
+def test_normalising_keeps_non_damaging_abilities():
+    """A support squadron's neut is not a weapon, so the rule never touches it."""
+    attack = _Ability("fighterAbilityAttackM", True)
+    neut = _Ability("fighterAbilityEnergyNeutralizer", True, dealsDamage=False)
+    _normalise([attack, neut])
+
+    assert attack.active is True
+    assert neut.active is True
