@@ -37,10 +37,9 @@ eve.db-*
 build/
 dist/
 dist_assets/
-web/frontend/node_modules/
-web/frontend/dist/
-web/frontend-react/node_modules/
-web/frontend-react/dist/
+# 前端源码只有一个（web/frontend）；产物提交在 web/static，node_modules 一律不入库
+node_modules/
+legacy/*/node_modules/
 
 # ---- 临时调试产物（CDP 脚本、接口快照、截图等）----
 .agent_tmp/
@@ -48,6 +47,7 @@ web/frontend-react/dist/
 # ---- 本机重启服务时的运行日志（调试用，不入库）----
 log-*.out
 log-*.err
+_srv_*.log
 
 # ---- 编辑器 / 系统 ----
 .idea/

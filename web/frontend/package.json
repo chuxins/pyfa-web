@@ -1,25 +1,24 @@
 {
-  "name": "pyfa-web-frontend",
+  "name": "pyfa-web-react",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Browser front end for pyfa's fitting engine",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "typecheck": "vue-tsc --noEmit"
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
-    "echarts": "^5.6.0",
-    "pinia": "^2.2.6",
-    "vue": "^3.5.13"
+    "@eveshipfit/images": "^3.3632936.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@types/node": "^26.6.3",
-    "@vitejs/plugin-vue": "^5.2.1",
-    "typescript": "^5.7.2",
-    "vite": "^6.0.5",
-    "vue-tsc": "^2.1.10"
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11",
+    "vite-plugin-static-copy": "^1.0.6"
   }
 }

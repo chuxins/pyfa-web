@@ -10,7 +10,7 @@
 ## 目录结构
 
 ```
-web/frontend-react/
+web/frontend/
   src/
     api.ts          # 完整类型化 API 客户端（服务端权威）
     store/          # zustand 状态：session / browser / fitting / port / ui
@@ -31,7 +31,7 @@ cd D:\dsh\pyfa-web
 .\.venv\Scripts\python.exe -m web
 
 # 2. 启动前端 dev server（vite 5173，/api 与 /img 代理到 8100）
-cd D:\dsh\pyfa-web\web\frontend-react
+cd D:\dsh\pyfa-web\web\frontend
 npm install
 npm run dev
 # 打开 http://localhost:5173
@@ -40,7 +40,7 @@ npm run dev
 ## 构建 / 部署
 
 ```powershell
-cd D:\dsh\pyfa-web\web\frontend-react
+cd D:\dsh\pyfa-web\web\frontend
 npm run build   # tsc --noEmit && vite build → ../static（清空旧产物，含 images/ 图标）
 ```
 

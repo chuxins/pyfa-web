@@ -315,7 +315,7 @@ def test_passive_module_state_click_cycles_through_offline(user_client):
 def test_grouped_weapons_move_together(user_client):
     """What the high rack's grouping button sends: one click, several positions.
 
-    The button itself lives in the browser (see ``web/frontend/src/components/FittingView.vue``);
+    The button itself lives in the browser (see ``web/frontend/src/store/fitting.ts``);
     this is the part that reaches the engine, and it is the multi-position form of the same
     commands the desktop uses when several modules are selected.
     """

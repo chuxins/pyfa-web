@@ -1,32 +1,35 @@
-import { fileURLToPath, URL } from 'node:url'
-import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import { viteStaticCopy } from "vite-plugin-static-copy";
 
-// The build output lands in web/static, which is what FastAPI serves.
+// The backend runs on 8100 (see pyfa-web/web.yml). In dev, the React app is served
+// by vite on 5173 and proxies every /api and /img request to the backend, sharing
+// the session cookie with it (same origin is not required in dev because the proxy
+// forwards cookies).
 export default defineConfig({
-  plugins: [vue()],
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
-    },
-  },
-  build: {
-    outDir: '../static',
-    emptyOutDir: true,
-    sourcemap: false,
-  },
+  plugins: [
+    react(),
+    viteStaticCopy({
+      targets: [
+        {
+          // EVEShipFit/images: the item icons, one WebP per image, served from /images/
+          src: "node_modules/@eveshipfit/images/dist/images/*",
+          dest: "images",
+        },
+      ],
+    }),
+  ],
   server: {
     port: 5173,
-    // npm run dev talks to the API running on 8080
     proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:8080',
-        changeOrigin: false,
-      },
-      '/img': {
-        target: 'http://127.0.0.1:8080',
-        changeOrigin: false,
-      },
+      "/api": { target: "http://127.0.0.1:8100", changeOrigin: true },
+      "/img": { target: "http://127.0.0.1:8100", changeOrigin: true },
     },
   },
-})
+  // The production build lands in web/static, which the FastAPI app already serves
+  // with a SPA fallback (see web/main.py). The previous Vue build is replaced.
+  build: {
+    outDir: "../static",
+    emptyOutDir: true,
+  },
+});

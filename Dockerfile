@@ -1,14 +1,15 @@
 # pyfa web
 #
-# Multi-stage: build the Vue front end with Node, then run the API with the
-# Python dependencies. wxPython is deliberately *not* installed -- the server
-# runs the engine headlessly through pyfa_compat/.
+# Multi-stage: build the React front end (web/frontend) with Node, then run the
+# API with the Python dependencies. wxPython is deliberately *not* installed -- the
+# server runs the engine headlessly through pyfa_compat/.
 
 FROM node:22-slim AS frontend
 WORKDIR /build
 COPY web/frontend/package.json web/frontend/package-lock.json* ./
 RUN npm install --no-fund --no-audit
 COPY web/frontend/ ./
+# vite writes to ../static (see web/frontend/vite.config.ts), i.e. /static here
 RUN npm run build
 
 

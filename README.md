@@ -16,19 +16,46 @@
 
 ## 2. 目录内容
 
+分三层：**上游 pyfa 引擎**（与 `/opt/pyfa` 同名同级，方便继续 `diff -rq`）、**本项目自己的 web 应用**、
+**部署与运行期数据**（后者全部被 git 忽略）。
+
+```
+pyfa-web/
+├─ eos/ gui/ graphs/ utils/ service/ staticdata/ imgs/ locale/   # 上游 pyfa 引擎（顶层路径不能改）
+├─ config.py  db_update.py  version.yml  eve.db                  # 引擎路径约定：eve.db/version.yml
+│                                                                #   必须与这些文件同级
+├─ pyfa_compat/                                                  # 无头 wx 兼容层
+├─ web/                                                          # FastAPI 应用（本项目）
+│  ├─ __main__.py main.py config.py deps.py engine.py ...
+│  ├─ api/  services/                                            # HTTP 层 / 应用服务层
+│  ├─ frontend/                                                  # React 源码（npm run build →）
+│  ├─ static/                                                    #   构建产物（已提交，直接伺服）
+│  ├─ docs/  tests/
+├─ deploy/                                                       # systemd / auto-update.sh
+├─ legacy/vue-frontend/                                          # 已废弃的 Vue 前端（可删）
+└─ webdata/ web.yml eve.db                                       # 运行期数据与配置（git 忽略）
+```
+
 | 路径 | 作用 | 必需 |
 | --- | --- | --- |
-| `web/` | FastAPI 应用：`__main__.py` 入口、`api/`、`auth.py`、`engine.py`、`userdata.py`、`admin.py`、`static/`（预构建前端）、`frontend/`（前端源码）、`docs/`、`tests/` | 是 |
+| `web/` | FastAPI 应用：`__main__.py` 入口、`api/`、`services/`、`auth.py`、`engine.py`、`userdata.py`、`admin.py`、`config.py`（服务端配置，别与仓库根的 pyfa `config.py` 混淆）、`docs/`、`tests/` | 是 |
+| `web/frontend/` | React + Vite 前端源码（当前界面），`npm run build` 输出到 `web/static/` | 是 |
+| `web/static/` | 前端**构建产物**（已提交，部署时直接伺服；`web/config.py` 的 `frontend_dist`） | 是 |
 | `pyfa_compat/` | 无头 wx 兼容层（服务端不需要 wxPython） | 是 |
 | `eos/` | 装配计算引擎、数据模型、`eos/db` 数据库层 | 是 |
-| `service/` | 业务服务层（fit/设置/翻译等） | 是 |
+| `service/` | pyfa 业务服务层（fit/设置/翻译/市场等），**不是** web 层，见 `web/services/` | 是 |
 | `config.py`、`db_update.py` | pyfa 配置与 `eve.db` 构建入口 | 是 |
 | `gui/`、`graphs/`、`utils/` | 被上层 import 依赖（不含桌面 UI 运行所需） | 是（import 依赖） |
 | `staticdata/` | EVE 静态数据，构建 `eve.db` 的唯一数据源 | 是 |
 | `imgs/` | 图标与舰船渲染图，`/img/*` 路由的数据源 | 是 |
 | `locale/` | 翻译资源 | 是 |
-| `version.yml`、`pyproject.toml`、`uv.lock`、`web.yml.example`、`Dockerfile`、`compose.yml`、`LICENSE`、`.python-version` | 版本/依赖/配置/打包参考 | 是 |
-| `eve.db` | 运行时生成的 SQLite 静态数据库（97 MB，18 张表，27808 条 `invtypes`）；**已预生成，可删**，首启会自动重建 | 否（自动生成） |
+| `deploy/` | 服务器侧部署资产：systemd unit/timer、`auto-update.sh`、渲染图回填脚本 | 部署用 |
+| `.github/workflows/` | push 到 `master` 即 SSH 触发服务器自动更新 | CI 用 |
+| `legacy/vue-frontend/` | 已废弃的 Vue 3 前端（被 React 取代，仅作参考；不参与构建与部署，可整目录删除） | 否 |
+| `version.yml`、`pyproject.toml`、`uv.lock`、`web.yml.example`、`Dockerfile`、`.dockerignore`、`compose.yml`、`LICENSE`、`.python-version` | 版本/依赖/配置/打包参考 | 是 |
+| `eve.db` | 运行时生成的 SQLite 静态数据库（97 MB，18 张表，27808 条 `invtypes`）；**已预生成，可删**，首启会自动重建。位置由 `eos/config.py` 写死为 `eos/` 的上一级，**不能挪** | 否（自动生成） |
+| `webdata/` | 运行期数据目录（`app.db`、每用户 `saveddata.db`、日志、`session.key`），默认 `DATA_DIR`，已被 git 忽略 | 否（自动生成） |
+| `web.yml`、`web.env` | 本机/生产部署配置（含 EVE SSO 密钥），从 `web.yml.example` 生成，已被 git 忽略 | 部署用 |
 
 未包含：仓库根 `tests/`（与 web 无关）、`dist_assets/`、`pyfa.spec`（桌面打包用）。
 
@@ -373,9 +400,9 @@ push 到 `master` 后由 GitHub Actions 经 SSH 以 `deploy` 用户执行 `deplo
 | 项 | 值 |
 | --- | --- |
 | 仓库侧 | `deploy/auto-update.sh`、`deploy/pyfa-web.service` + `deploy/pyfa-web.service.d/memory.conf`、`deploy/pyfa-web-update.service`、`deploy/pyfa-web-update.timer`、`.github/workflows/deploy.yml`、`.gitattributes`（部署文件统一 LF） |
-| 服务器侧 | 部署用户 `deploy`（附加组 `pyfaweb`）；`/etc/sudoers.d/pyfaweb-deploy`（NOPASSWD 只放 `systemctl restart/status pyfa-web`）；`/etc/gitconfig` 的 `safe.directory=/opt/pyfa-web`；仓库 `core.sharedRepository=group` |
+| 服务器侧 | **2026-10-25 换机后**：SSH 与部署都用 `root`，脚本内部 `runuser` 降权到 `pyfaweb` 跑 git，因此不再需要 `deploy` 用户与 `/etc/sudoers.d/pyfaweb-deploy`（旧机器那套保留在本节末尾的 §9.1 作为历史）；仍需 `/etc/gitconfig` 的 `safe.directory=/opt/pyfa-web`（root 直接查仓库时用） |
 | 仓库可见性 | **公开仓库**，服务器用 https 匿名只读拉取，**不需要 Deploy Key** |
-| Actions secrets | `SSH_HOST=8.156.88.102`、`SSH_USER=deploy`、`SSH_KEY`（对应公钥在 `/home/deploy/.ssh/authorized_keys`） |
+| Actions secrets | `SSH_HOST=103.210.237.192`、`SSH_USER=root`、`SSH_KEY`（2026-10-25 换机时更新；对应公钥在服务器 `/root/.ssh/authorized_keys`，见 §10） |
 | 触发 | `push` 到 `master`（也可在 Actions 页 `workflow_dispatch` 手动跑）；`pyfa-web-update.timer` 每 2 分钟兜底 |
 | 并发 | 两种触发各跑一次脚本可能撞在一起：脚本在 `/run/lock/pyfa-web-update.lock` 上取 `flock` 串行化，后到的排队（跑完再判断多半就是「已是最新」）；锁文件打不开时不阻塞部署 |
 | 受保护数据 | `web.yml`、`web.env`、`eve.db*`、`webdata/`、`saveddata/`、`session.key`、`logs/` 均在 `.gitignore` 内；脚本用 `git reset --hard`，**绝不**执行 `git clean` |
@@ -487,3 +514,52 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8091/api/meta   # 期�
 | 并发 | 持锁 5 秒期间再跑脚本实测等待 5 秒（串行化生效）；把锁文件改成 `600` 使其打不开时脚本仍能正常完成（降级为无锁） |
 | 服务 | 每次重启后 `systemctl is-active pyfa-web` = active、`/api/meta` = 200；`web/tests` 与线上页面不受部署流程影响 |
 
+
+## 10. 2026-10-25 换机重建（103.210.237.192）
+
+域名 `eve-tools.xyz` 在 10-25 之前已切到新机器 `103.210.237.192`，但 GitHub secrets 仍是
+10-02 的旧值（指向已失联的 `8.156.88.102`），而那次失败又被 workflow 里 `ssh-keyscan … 2>/dev/null`
+吞掉 —— 10-25 01:55 起连续 7 次部署全红、线上站空窗。本节记录在新机器上重建的完整状态。
+
+| 项 | 值 |
+| --- | --- |
+| 主机 | `103.210.237.192`（Ubuntu 20.04.1，2 vCPU / 3.8 GB / 49 GB） |
+| 系统访问 | `root` + `~/.ssh/eve-test.pem`（公钥已装 `/root/.ssh/authorized_keys`） |
+| Python | 3.14.9（uv 装到共享目录 `/opt/uv-python`，venv 为 `/opt/pyfa-web/.venv`，owner `pyfaweb`） |
+| 服务 | `pyfa-web.service`（`User=pyfaweb`，`127.0.0.1:8091`，`Restart=always`），`enabled` |
+| 内存上限 | drop-in 提到 `MemoryHigh=1500M` / `MemoryMax=2600M`（见下"踩到的坑①"） |
+| 配置 | `web.yml`：`data_dir=/var/lib/pyfa-web`、`port=8091`、`public_url=https://eve-tools.xyz/AssemblyPlanning`、`root_path=/AssemblyPlanning`、`language=zh_CN`；`web.env` 目前只有注释（SSO 见"待补"） |
+| nginx | `/etc/nginx/sites-available/pyfa-web`：`/AssemblyPlanning/api/`（strip 前缀、关缓冲、SSE 3600s）+ `/AssemblyPlanning/`（strip 前缀 + `sub_filter` 改写 `/assets/`、`/api/`、`/img/` 与登出的 `location.href="/"`），幂等 `proxy_redirect` 两条；`/` 302 到 `/AssemblyPlanning/` |
+| 证书 | certbot（`--nginx --redirect`），`eve-tools.xyz`，到期 2027-01-23，系统自带 `certbot.timer` 自动续期 |
+| 兜底轮询 | `pyfa-web-update.timer`（2 分钟，`User=root`） |
+| pypi | `/etc/pip.conf` 与 `/etc/uv/uv.toml` 指向清华源 —— 这台机器到 pypi.org 只有 **27 KB/s**，换源后约 1.1 MB/s |
+| 实测 | `https://eve-tools.xyz/AssemblyPlanning/` 200、`api/meta` 200（`gamedata.build=3532181`、`language=zh_CN`）、`/` 302、HTTP 自动 301 到 HTTPS、证书链校验通过；`auto-update.sh` 手工跑一次打印"已是最新" |
+
+**踩到的坑与修法**
+
+1. **首次建库被 cgroup 打死**：`memory.conf` 的旧值 `MemoryMax=1200M` 不够 —— 从 `staticdata/`
+   建 `eve.db` 的峰值超过 1.2 GB，于是 `Restart=always` 把服务拖进「建库 → OOM KILL → 重启」死循环
+   （实测连挂 21 次，`eve.db` 永远停在 164 KB）。已把 drop-in 提到 1.5 G 软线 / 2.6 G 硬线；
+   另外可先手工把库建好再起服务（`python -m web` 跑一次到 `/api/meta` 200 即可）。
+2. **uv 的 Python 不能放进 `/root`**：默认装到 `/root/.local/share/uv/python`，`pyfaweb` 读不到，
+   影子解释器一执行就 `Permission denied`。改用 `UV_PYTHON_INSTALL_DIR=/opt/uv-python`。
+3. **workflow 静默失败**：`ssh-keyscan` 在主机不回 banner 时只是超时退出，配上 `2>/dev/null` 与
+   `bash -e`，整步无任何输出地失败。现在直接交给 `ssh -o StrictHostKeyChecking=accept-new`，并补了
+   "secret 缺失就报错"的前置检查与 `LogLevel=VERBOSE`。
+4. **nginx reload 后旧 worker 仍在服务**：改完立即测可能看到旧行为（`/AssemblyPlanning/` 仍 404），
+   等几秒或 `systemctl restart nginx` 再验。
+
+**待补：EVE SSO**。旧机器的 `/opt/pyfa-web/web.env`（生产 `client_id`/`client_secret`）随机器一起丢了，
+本地 `web.yml` 里那份登记的回调是 `http://localhost:8100/api/auth/callback`，不是生产 URL。现在
+`/api/meta` 的 `sso.configured=false`，登录按钮不可用；游客模式（装配、查看、保存到共享游客库）一切正常。
+恢复登录只需把 CCP 应用（回调登记为 `https://eve-tools.xyz/AssemblyPlanning/api/auth/callback`）的凭据写进
+`/opt/pyfa-web/web.env`：
+
+```bash
+cat >> /opt/pyfa-web/web.env <<'EOF'
+PYFA_WEB_SSO_CLIENT_ID=...
+PYFA_WEB_SSO_CLIENT_SECRET=...
+EOF
+systemctl restart pyfa-web
+curl -s https://eve-tools.xyz/AssemblyPlanning/api/meta | grep -o '"configured":[a-z]*'
+```

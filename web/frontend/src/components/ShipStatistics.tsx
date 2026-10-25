@@ -4,6 +4,8 @@ import { Attr } from "./ShipAttribute"
 import { useFittingStore } from "../store/fitting"
 import { t } from "../i18n"
 import { FitPricePanel } from "./FitPrice"
+import { ShipBonusesPanel } from "./ShipBonuses"
+import { InsurancePanel } from "./Insurance"
 
 /** Collapsible statistics panel (eveship.fit's Category). */
 const Category = ({
@@ -334,7 +336,11 @@ export const ShipStatistics = () => {
         <div className="banner-error">{Object.values(stats.errors).join("; ")}</div>
       )}
 
+      <ShipBonusesPanel />
+
       <FitPricePanel />
+
+      <InsurancePanel />
     </div>
   )
 }

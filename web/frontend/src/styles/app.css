@@ -1445,6 +1445,44 @@ body {
 .hwfilter > span.selected {
   background-color: #7a7a7a;
 }
+/* The Charges tab swaps the slot icons for the fit's own weapons: one chip per
+   charge-holding weapon, click to narrow the ammunition list to what it loads. */
+.hwWeapons {
+  display: flex;
+  flex: 1;
+  gap: 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.hwWeapons::-webkit-scrollbar {
+  height: 0;
+}
+.hwWeapons > span {
+  border-radius: 5px;
+  cursor: pointer;
+  display: inline-block;
+  flex: 0 0 32px;
+  height: 32px;
+  text-align: center;
+  user-select: none;
+  width: 32px;
+}
+.hwWeapons > span:hover {
+  background-color: #4f4f4f;
+}
+.hwWeapons > span.selected {
+  background-color: #7a7a7a;
+}
+.hwWeapons > span.loaded {
+  box-shadow: inset 0 -2px 0 #c8a24a;
+}
+.hwWeaponsEmpty {
+  align-items: center;
+  display: flex;
+  font-size: 13px;
+  padding-left: 4px;
+}
 .hwSelectionHeader {
   display: flex;
   margin-bottom: 5px;
@@ -2213,6 +2251,69 @@ body {
 }
 .statDefense {
   margin: 20px 0px;
+}
+
+/* Ship bonuses: the hull's own traits block, straight from the game data */
+.statBonuses .statBonusesHull {
+  color: #8a8a8a;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.statBonuses .statBonusesExpanded {
+  max-height: 260px;
+  overflow-y: auto;
+}
+.statBonusesBody {
+  font-size: 13px;
+  line-height: 18px;
+  padding: 8px 10px 10px;
+}
+.statBonusesBody b {
+  color: #d8d8d8;
+  font-weight: bold;
+}
+
+/* Insurance: CCP's own ladder, applied to a value the panel may be handed */
+.statInsurance .statInsuranceExpanded {
+  max-height: 380px;
+}
+.statInsurance .statLine {
+  margin: 6px 10px;
+}
+.statInsurance .statLine > span {
+  flex: 1;
+  margin: 0;
+  white-space: nowrap;
+}
+.statInsurance .statLine > span:nth-child(2),
+.statInsurance .statLine > span:nth-child(3) {
+  text-align: right;
+}
+.statInsuranceValue {
+  align-items: center;
+  border-bottom: 1px solid #2a2a2a;
+  padding-bottom: 6px;
+}
+.statInsuranceValue > input {
+  background-color: #1d1d1d;
+  color: #c5c5c5;
+  flex: 0 0 150px;
+  font-size: 13px;
+  height: 20px;
+  padding-left: 4px;
+  text-align: right;
+}
+.statInsuranceHead {
+  color: #8a8a8a;
+  font-size: 12px;
+}
+.statInsuranceNote {
+  color: #8a8a8a;
+  font-size: 11px;
+  line-height: 15px;
+  margin: 8px 10px 10px;
 }
 .statDefense:last-child {
   margin-bottom: 10px;

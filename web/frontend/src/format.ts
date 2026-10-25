@@ -1,27 +1,23 @@
 /**
- * Number formatting, ported from the desktop application.
- *
- * `gui/utils/numberFormatter.formatAmount` is what turns 1234567 into "1.23M" in
- * the fitting window. The server sends raw numbers plus the rounding hints, so
- * this has to match the Python version exactly or the browser would show
- * different figures than the desktop for the same fit. Kept in sync with
- * `gui/utils/numberFormatter.py` and `eos/utils/round.py`.
+ * Number formatting, ported from the desktop application (gui/utils/numberFormatter).
+ * The server sends raw numbers; this has to match the Python version exactly so the
+ * browser shows the same figures the desktop does.
  */
 
 const POS_ORDERS = [9, 6, 3]
 const NEG_ORDERS = [-6, -3]
 
 function posSuffix(key: number, currency: boolean): string {
-  if (key === 3) return 'k'
-  if (key === 6) return 'M'
-  if (key === 9) return currency ? 'B' : 'G'
-  return ''
+  if (key === 3) return "k"
+  if (key === 6) return "M"
+  if (key === 9) return currency ? "B" : "G"
+  return ""
 }
 
 function negSuffix(key: number): string {
-  if (key === -6) return '\u03bc'
-  if (key === -3) return 'm'
-  return ''
+  if (key === -6) return "\u03bc"
+  if (key === -3) return "m"
+  return ""
 }
 
 export function roundToPrec(value: number, prec: number, nsValue?: number): number {
@@ -45,14 +41,14 @@ export interface AmountOptions {
 export function formatAmount(value: number | null | undefined, options: AmountOptions = {}): string {
   const { prec = 3, lowest = 0, highest = 0, currency = false, forceSign = false, unitName = null } = options
 
-  if (value === null || value === undefined) return ''
-  if (value === Number.POSITIVE_INFINITY) return unitName === null ? '\u221e' : `\u221e ${unitName}`
+  if (value === null || value === undefined) return ""
+  if (value === Number.POSITIVE_INFINITY) return unitName === null ? "\u221e" : `\u221e ${unitName}`
 
   const posLowest = Math.min(...POS_ORDERS)
   const negHighest = Math.max(...NEG_ORDERS)
 
   let mantissa = value
-  let suffix = ''
+  let suffix = ""
 
   if (Math.abs(value) > 1 && highest >= posLowest) {
     for (const key of POS_ORDERS) {
@@ -82,7 +78,7 @@ export function formatAmount(value: number | null | undefined, options: AmountOp
         const orderDiff = 10 ** (nextKey - key)
         if (roundToPrec(mantissa, prec) >= orderDiff) {
           mantissa = mantissa / orderDiff
-          suffix = nextKey !== 0 ? posSuffix(nextKey, currency) : ''
+          suffix = nextKey !== 0 ? posSuffix(nextKey, currency) : ""
         }
         break
       }
@@ -90,7 +86,7 @@ export function formatAmount(value: number | null | undefined, options: AmountOp
   }
 
   mantissa = roundToPrec(mantissa, prec)
-  const sign = forceSign === true && mantissa > 0 ? '+' : ''
+  const sign = forceSign === true && mantissa > 0 ? "+" : ""
   if (unitName === null) return `${sign}${mantissa}${suffix}`
   return `${sign}${mantissa} ${suffix}${unitName}`
 }
@@ -101,13 +97,13 @@ export function formatValue(
   unit?: string | null,
   options: AmountOptions = {},
 ): string {
-  if (value === null || value === undefined) return '\u2013'
+  if (value === null || value === undefined) return "\u2013"
   const text = formatAmount(value, options)
-  return unit ? `${text}${unit.startsWith('%') ? '' : ' '}${unit}` : text
+  return unit ? `${text}${unit.startsWith("%") ? "" : " "}${unit}` : text
 }
 
 export function formatIsk(value: number | null | undefined): string {
-  if (value === null || value === undefined) return '\u2013'
+  if (value === null || value === undefined) return "\u2013"
   return `${formatAmount(value, { prec: 3, lowest: 3, highest: 9, currency: true })} ISK`
 }
 
@@ -115,8 +111,8 @@ export function formatIsk(value: number | null | undefined): string {
 export function formatDamageTypes(
   damage: { em: number; thermal: number; kinetic: number; explosive: number; pure?: number } | null | undefined,
 ): string {
-  if (!damage) return '\u2013'
+  if (!damage) return "\u2013"
   const parts = [damage.em, damage.thermal, damage.kinetic, damage.explosive]
   if (damage.pure) parts.push(damage.pure)
-  return parts.map((part) => formatAmount(part, { prec: 3, lowest: 0, highest: 0 })).join(' + ')
+  return parts.map((part) => formatAmount(part, { prec: 3, lowest: 0, highest: 0 })).join(" + ")
 }

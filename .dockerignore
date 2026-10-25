@@ -1,0 +1,48 @@
+# Build context for `docker compose build` / `docker build`.
+#
+# The image is built from the tracked tree only: no local virtualenv, no host
+# node_modules (a host copy shadows the one npm installs and breaks the build),
+# no runtime data and no deployment secrets.
+
+# ---- VCS / editors ----
+.git
+.gitignore
+.gitattributes
+.github
+.idea
+.vscode
+
+# ---- Python ----
+.venv
+**/__pycache__
+**/*.py[cod]
+.pytest_cache
+.ruff_cache
+
+# ---- Node ----
+**/node_modules
+web/frontend/dist
+
+# ---- 运行期数据与密钥（绝不进镜像）----
+webdata
+saveddata
+web.yml
+web.env
+.env
+.env.*
+session.key
+**/*.db
+**/*.db-wal
+**/*.db-shm
+**/*.log
+
+# ---- 可由构建重建的产物 ----
+# eve.db is rebuilt from staticdata/ on first start; web/static is rebuilt by the
+# frontend stage below (and a stale host copy would survive the --from COPY).
+eve.db
+eve.db-*
+imgs.zip
+web/static
+
+# ---- 已废弃的旧前端（仅作参考，不参与构建）----
+legacy

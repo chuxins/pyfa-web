@@ -8,8 +8,7 @@ putting it together.
 
 ## What you get
 
-A FastAPI server that reuses pyfa's own engine and editing commands, and a Vue 3
-single-page app in the browser:
+A FastAPI server that reuses pyfa's own engine and editing commands, and a React single-page app in the browser:
 
 * ship browser (class tree, search, fits per ship -- each ship showing how many fits it
   has, listed under it, and one button that imports the pilot's in-game fittings from EVE).
@@ -36,6 +35,21 @@ single-page app in the browser:
   while it is on a state click or a loaded charge reaches every weapon in the
   group. Nothing about it is saved -- the engine has no weapon groups, so it lives
   in the browser and lasts as long as the fit stays open
+* the hardware browser has two tabs, equipment and charges. The equipment tab filters
+  the market tree by slot; the charges tab has no slots to filter by, so it shows the
+  fit's own charge-holding weapons instead -- one icon per weapon type, the ones that
+  already carry ammunition marked along their bottom edge, and a click narrows the
+  ammunition list to what that weapon can load, one weapon at a time (click it again
+  for the whole list)
+* the hull's own bonuses, printed from the game data's `invtraits` row the way the
+  desktop's ship info shows them (a bold section header, then one line per bonus),
+  in a panel that scrolls instead of growing without end
+* insurance, next to the valuation: the published payout ladder (uninsured 40% up to
+  platinum 100%) with what each level's premium costs. Both are percentages of CCP's
+  own valuation of the hull, which it keeps private and which is lower than the market
+  price, so the panel starts from the hull's market price and takes a typed value --
+  paste the 100% payout the in-game insurance window offers for the hull and every
+  row becomes exact
 * the item panel opened from a row of a fit shows what the fit makes of that item:
   post-fit values for a module, drone, fighter, cargo stack, implant, booster or the
   charge loaded in a module, each modified attribute with its base value beside it,
@@ -67,7 +81,7 @@ single-page app in the browser:
 # 1. dependencies (Python 3.12+; wxPython is *not* needed for the server)
 uv sync --group web --no-group wx-source --no-group wx-binary   # or: pip install -e .[web]
 
-# 2. build the frontend once (needs Node 20+; vue 3 + vite 6, versions pinned by
+# 2. build the frontend once (needs Node 20+; react 18 + vite 5, versions pinned by
 #    package-lock.json -- `npm ci` installs exactly those)
 cd web/frontend && npm ci && npm run build && cd ../..
 
@@ -155,7 +169,7 @@ until someone signs in. Those two ask for the login up front, in a dialog whose 
 comes back to the same page (`?next=`), rather than failing with an error the click
 cannot act on. Every `401` is reported to the shell (`onUnauthorized` in
 `web/frontend/src/api.ts`) and raises the same dialog
-(`web/frontend/src/components/LoginPrompt.vue`), so no write has to recognise it on its
+(`web/frontend/src/components/LoginPrompt.tsx`), so no write has to recognise it on its
 own. The top bar keeps a plain sign-in link while nobody is signed in and a sign-out
 button with the character name while somebody is. Guests all share one database (and one
 live-update channel), so a signed-in pilot's fits are their own while anonymous visitors
@@ -437,7 +451,7 @@ against the domain root, so on a sub-path prefer `/api/openapi.json` or `curl`.
 ## How it is put together
 
 ```
-browser (Vue 3 SPA)
+browser (React SPA)
    │  JSON + SSE
    ▼
 FastAPI  ── web/api/*      endpoints
@@ -478,7 +492,7 @@ Python class.
 Taking several modules at once works the same way: those commands have always taken
 a list of positions, because the desktop needs one for a multi-selection. The high
 rack's **group weapons** button is a second user of that form. It is the browser's
-own idea (`web/frontend/src/stores/fitting.ts`, `highWeaponGroups`): the engine never
+own idea (`web/frontend/src/store/fitting.ts`, `highWeaponGroups`): the engine never
 hears about a weapon group, it is only ever asked to change a main module and the
 positions that should follow it, so grouping costs no engine change, no database
 column, and no export. What decides which modules a group can hold is the
@@ -608,7 +622,7 @@ arguments `canvasPanel.py` builds, calls `getPlotPoints` / `getPlotSegments` /
 Nothing is cached across requests (each user has a private database), and
 `graphs.data` is imported lazily on the first request because it needs the
 headless wx shim the engine installs at startup. The browser renders the series
-with ECharts in `GraphsPanel.vue`, re-reading the theme's CSS variables so dark
+with ECharts (Vue-era `GraphsPanel.vue`, now under `legacy/vue-frontend/`), re-reading the theme's CSS variables so dark
 and light mode both work.
 
 Built-in target profiles are generated once with English names (eos' `_t` in
