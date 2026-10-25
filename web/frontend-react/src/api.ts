@@ -117,8 +117,9 @@ export interface CharacterImplants {
   id: number
   name: string
   implants: CharacterImplant[]
-  /** True for the built-in All 5 / All 0 presets, whose lists cannot be edited. */
-  readOnly: boolean
+  /** True for the built-in All 5 / All 0 presets (their skill sheet is read-only;
+   *  their implant list is still editable and applies to fits using the preset). */
+  preset: boolean
   /** Whether this character has a stored EVE login to pull implants with. */
   hasSso: boolean
 }

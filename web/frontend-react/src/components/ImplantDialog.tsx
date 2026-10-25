@@ -29,11 +29,13 @@ export const ImplantDialog = ({ visible, onClose }: { visible: boolean; onClose:
   const [data, setData] = React.useState<CharacterImplants | null>(null)
   const [loading, setLoading] = React.useState(false)
   const [syncing, setSyncing] = React.useState(false)
+  const [syncNote, setSyncNote] = React.useState("")
 
   // Default the picker to the fit's current pilot whenever the dialog opens.
   React.useEffect(() => {
     if (!visible) return
     setData(null)
+    setSyncNote("")
     setCharacterId(
       fit?.character?.id ??
         characters.find((entry) => entry.kind === "preset" && entry.default)?.id ??
@@ -49,6 +51,7 @@ export const ImplantDialog = ({ visible, onClose }: { visible: boolean; onClose:
     }
     let cancelled = false
     setLoading(true)
+    setSyncNote("")
     api
       .characterImplants(characterId)
       .then((payload) => {
@@ -100,8 +103,18 @@ export const ImplantDialog = ({ visible, onClose }: { visible: boolean; onClose:
   async function syncFromEsi() {
     if (characterId === null) return
     setSyncing(true)
+    setSyncNote("")
     try {
-      acceptAnswer(await api.syncCharacterImplants(characterId, fit?.id))
+      const answer = await api.syncCharacterImplants(characterId, fit?.id)
+      acceptAnswer(answer)
+      // ESI reports the implants of the clone the pilot is currently in; an empty
+      // list is a real answer, not a failed pull, so say which one it was.
+      const count = answer.implants.filter((implant) => implant.source === "esi").length
+      setSyncNote(
+        count === 0
+          ? t("EVE reports no implants on this pilot's current clone")
+          : t("EVE reports {count} implant(s) on this pilot's current clone", { count }),
+      )
     } catch (error) {
       showError(error)
     } finally {
@@ -137,6 +150,7 @@ export const ImplantDialog = ({ visible, onClose }: { visible: boolean; onClose:
       data={data}
       loading={loading}
       syncing={syncing}
+      syncNote={syncNote}
       onChoose={(id) => void chooseCharacter(id)}
       onSync={() => void syncFromEsi()}
       onAdd={(item) => void addImplant(item)}
@@ -154,6 +168,7 @@ const ImplantDialogView = ({
   data,
   loading,
   syncing,
+  syncNote,
   onChoose,
   onSync,
   onAdd,
@@ -167,12 +182,13 @@ const ImplantDialogView = ({
   data: CharacterImplants | null
   loading: boolean
   syncing: boolean
+  syncNote: string
   onChoose: (id: number) => void
   onSync: () => void
   onAdd: (item: Item) => void
   onRemove: (itemId: number) => void
 }) => {
-  const readOnly = data?.readOnly ?? false
+  const preset = data?.preset ?? false
 
   return (
     <ModalDialog visible={visible} onClose={onClose} title={t("Implant Simulation")} width={560}>
@@ -208,16 +224,15 @@ const ImplantDialogView = ({
             </button>
           )}
         </div>
+        {syncNote && <div className="dim implantSyncNote">{syncNote}</div>}
 
         <div className="scroll implantList">
           {loading && <div className="dim">{t("working…")}</div>}
           {!loading && data && data.implants.length === 0 && (
             <div className="dim implantEmpty">
-              {readOnly
-                ? t("This preset carries no implants of its own")
-                : data.hasSso
-                  ? t("No implants yet — pull from EVE or add one below")
-                  : t("No implants yet — add one below")}
+              {data.hasSso
+                ? t("No implants yet — pull from EVE or add one below")
+                : t("No implants yet — add one below")}
             </div>
           )}
           {!loading &&
@@ -231,30 +246,28 @@ const ImplantDialogView = ({
                 <span className={"tag implantSource " + implant.source}>
                   {implant.source === "esi" ? t("In game") : t("Custom")}
                 </span>
-                {!readOnly && (
-                  <button
-                    type="button"
-                    className="implantRemove"
-                    title={t("Remove")}
-                    onClick={() => onRemove(implant.itemId)}
-                  >
-                    &times;
-                  </button>
-                )}
+                <button
+                  type="button"
+                  className="implantRemove"
+                  title={t("Remove")}
+                  onClick={() => onRemove(implant.itemId)}
+                >
+                  &times;
+                </button>
               </div>
             ))}
         </div>
 
-        {!readOnly && data && (
+        {data && (
           <ImplantAdder
             excludeIds={data.implants.map((implant) => implant.itemId)}
             onPick={onAdd}
           />
         )}
 
-        {readOnly && (
+        {preset && (
           <p className="dim implantHint">
-            {t("Preset characters cannot carry implants; pick a pilot to simulate")}
+            {t("Preset implants are simulation-only and stay with this account")}
           </p>
         )}
 

@@ -68,12 +68,12 @@ def implants_of(client, character_id):
     return response.json()
 
 
-def test_preset_reports_empty_read_only_list(client):
-    """All 5/All 0 never carry implants and cannot be edited."""
-    all5 = preset_id(client, "All 5")
-    payload = implants_of(client, all5)
+def test_preset_reports_an_empty_editable_list(user_client):
+    """All 5/All 0 start empty but are editable for implants (skills stay read-only)."""
+    all5 = preset_id(user_client, "All 5")
+    payload = implants_of(user_client, all5)
     assert payload["implants"] == []
-    assert payload["readOnly"] is True
+    assert payload["preset"] is True
     assert payload["hasSso"] is False
 
 
@@ -87,7 +87,7 @@ def test_add_implant_to_editable_character(user_client, app_state):
     assert response.status_code == 201, response.text
     payload = response.json()
     assert payload["added"] is True
-    assert payload["readOnly"] is False
+    assert payload["preset"] is False
     assert [row["itemId"] for row in payload["implants"]] == [CA1_ID]
     row = payload["implants"][0]
     assert row["slot"] == 1
@@ -124,11 +124,41 @@ def test_adding_an_implant_twice_is_reported(user_client, app_state):
     assert len(response.json()["implants"]) == 1
 
 
-def test_preset_cannot_take_an_implant(client):
-    all5 = preset_id(client, "All 5")
-    response = client.post("/api/characters/{}/implants".format(all5), json={"itemId": CA1_ID})
-    assert response.status_code == 403
-    assert implants_of(client, all5)["implants"] == []
+def test_preset_takes_implants_and_its_fits_apply_them(user_client, app_state):
+    """Presets carry simulation implants like any pilot, and their fits use them."""
+    all5 = preset_id(user_client, "All 5")
+    response = user_client.post("/api/characters/{}/implants".format(all5), json={"itemId": CA1_ID})
+    assert response.status_code == 201, response.text
+    payload = response.json()
+    assert payload["preset"] is True
+    assert payload["added"] is True
+    assert [row["itemId"] for row in payload["implants"]] == [CA1_ID]
+
+    # Same-slot replacement behaves as it does on a real pilot.
+    response = user_client.post("/api/characters/{}/implants".format(all5),
+                                json={"itemId": AMULET_A_ID})
+    assert [row["itemId"] for row in response.json()["implants"]] == [AMULET_A_ID]
+
+    # A fit sitting on the preset applies the preset's implant list.
+    import eos.db
+    from eos.db import sessionctx as _s
+    from service.fit import Fit
+
+    with _s.bind_context(app_state.registry.get(user_client.pyfaUser.id).context):
+        fit_id = Fit.getInstance().newFit(RIFTER_ID, name="Preset implant sim")
+        Fit.getInstance().changeChar(fit_id, all5)
+        fit = eos.db.getFit(fit_id)
+        fit.implantLocation = 1
+        Fit.getInstance().recalc(fit)
+        eos.db.commit()
+
+    fit_payload = user_client.get("/api/fits/{}".format(fit_id)).json()
+    assert [row["itemId"] for row in fit_payload["appliedImplants"]] == [AMULET_A_ID]
+
+    removed = user_client.delete("/api/characters/{}/implants/{}".format(all5, AMULET_A_ID))
+    assert removed.status_code == 200, removed.text
+    assert removed.json()["removed"] is True
+    assert removed.json()["implants"] == []
 
 
 def test_non_implant_item_is_refused(user_client, app_state):

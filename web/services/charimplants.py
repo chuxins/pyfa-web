@@ -127,13 +127,13 @@ def add_implant(character, item_id):
     """Add one implant type to the character.
 
     Mirrors ``Character.addImplant`` (the desktop character editor's own path):
-    same-slot implants make room for the newcomer. Refuses read-only presets
-    and items that are not implants. Returns False when the implant was already
-    present, True when it was added.
+    same-slot implants make room for the newcomer. Refuses items that are not
+    implants; presets (All 5 / All 0) accept implants too -- their skill sheet is
+    read-only, but the implant list is simulation data like any other pilot's and
+    lives in the caller's own database. Returns False when the implant was
+    already present, True when it was added.
     """
     ensure_table()
-    if character.ro:
-        raise PermissionError("This character is read-only")
 
     item = eos.db.getItem(item_id)
     if item is None or not getattr(item, "isImplant", False):
@@ -157,11 +157,10 @@ def remove_implant(character, item_id):
     The implant's ESI source row is deleted as well, so a later sync does not
     re-add an implant the pilot removed on purpose: the local edit is a
     simulation decision until the game itself reports the implant again.
-    Returns False when the character did not carry that implant.
+    Presets can be edited here just like any other character: only their skill
+    sheet is read-only. Returns False when the character did not carry it.
     """
     ensure_table()
-    if character.ro:
-        raise PermissionError("This character is read-only")
 
     target = next((implant for implant in character.implants if implant.itemID == item_id), None)
     if target is None:

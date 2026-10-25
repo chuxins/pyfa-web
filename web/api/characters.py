@@ -83,12 +83,13 @@ def get_character_implants(character_id: int):
     """The character's own implants: item, slot and whether ESI or locally added.
 
     These are the implants a fit applies when its implant location is
-    ``character`` (``implantLocation == 1``). The two built-in presets report an
-    empty list: they are read-only and never carry implants.
+    ``character`` (``implantLocation == 1``). The two built-in presets keep an
+    implant list of their own as well: their skill sheet is read-only, but their
+    implants are ordinary simulation data (``preset`` says which is which).
     """
     char = _get_character_or_404(character_id)
     payload = charimplants.list_implants(char)
-    payload["readOnly"] = bool(char.ro)
+    payload["preset"] = bool(char.ro)
     payload["hasSso"] = Character.getSsoCharacter(char.ID) is not None
     return payload
 
@@ -130,18 +131,17 @@ def add_character_implant(
     """Add one implant to the character's own list (a simulation edit).
 
     Same-slot implants make room for the newcomer, as in the desktop character
-    editor. Refuses the read-only presets and items that are not implants.
+    editor. Works for presets too (their skills, not their implants, are the
+    read-only part); refuses items that are not implants.
     """
     char = _get_character_or_404(character_id)
     try:
         added = charimplants.add_implant(char, payload.itemId)
-    except PermissionError as ex:
-        raise HTTPException(status_code=403, detail=str(ex)) from ex
     except ValueError as ex:
         raise HTTPException(status_code=400, detail=str(ex)) from ex
 
     out = charimplants.list_implants(char)
-    out["readOnly"] = bool(char.ro)
+    out["preset"] = bool(char.ro)
     out["hasSso"] = Character.getSsoCharacter(char.ID) is not None
     out["added"] = added
     fit_payload = _recalc_open_fit(fitId)
@@ -160,16 +160,14 @@ def remove_character_implant(
     """Remove one implant from the character's own list.
 
     An implant that came from ESI is also unmarked so a later refresh does not
-    silently re-add an implant the pilot removed on purpose.
+    silently re-add an implant the pilot removed on purpose. Presets are edited
+    the same way.
     """
     char = _get_character_or_404(character_id)
-    try:
-        removed = charimplants.remove_implant(char, item_id)
-    except PermissionError as ex:
-        raise HTTPException(status_code=403, detail=str(ex)) from ex
+    removed = charimplants.remove_implant(char, item_id)
 
     out = charimplants.list_implants(char)
-    out["readOnly"] = bool(char.ro)
+    out["preset"] = bool(char.ro)
     out["hasSso"] = Character.getSsoCharacter(char.ID) is not None
     out["removed"] = removed
     fit_payload = _recalc_open_fit(fitId)
@@ -212,7 +210,7 @@ def sync_character_implants(
             detail={"message": str(ex), "code": ex.code, "params": ex.params},
         ) from ex
 
-    out["readOnly"] = bool(char.ro)
+    out["preset"] = bool(char.ro)
     out["hasSso"] = True
     fit_payload = _recalc_open_fit(fitId)
     if fit_payload is not None:

@@ -85,13 +85,15 @@ const ZH_CN: Record<string, string> = {
   "Pull from EVE": "从 EVE 拉取",
   "Re-pull the implants this pilot's clone carries in game": "重新拉取该角色克隆体当前携带的植入体",
   "Implant slot": "植入体槽位",
-  "This preset carries no implants of its own": "该预设角色没有自带植入体",
+  "EVE reports no implants on this pilot's current clone": "EVE 显示该角色的当前克隆体没有植入体",
+  "EVE reports {count} implant(s) on this pilot's current clone":
+    "EVE 显示该角色的当前克隆体携带 {count} 个植入体",
   "No implants yet — pull from EVE or add one below": "暂无植入体 — 可从 EVE 拉取，或在下方添加",
   "No implants yet — add one below": "暂无植入体 — 在下方添加",
   "Search implants to add…": "搜索要添加的植入体…",
   "No matching implants": "没有匹配的植入体",
-  "Preset characters cannot carry implants; pick a pilot to simulate":
-    "预设角色无法携带植入体，请选择真实角色进行模拟",
+  "Preset implants are simulation-only and stay with this account":
+    "预设角色的植入体仅用于模拟，保存在本账号中",
   "the login does not include permission to read implants; sign out and sign in with EVE again to approve it":
     "当前登录未授权读取植入体；请退出后重新用 EVE 登录并同意该权限",
   "This character has no stored EVE login to read implants with.":
