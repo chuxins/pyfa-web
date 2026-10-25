@@ -19,8 +19,21 @@ import { t } from "../i18n"
  * slot in a rotated container.
  */
 
-/** Effects are cached per fit revision: any edit anywhere can change any of them. */
-const cache = new Map<string, ModuleEffect>()
+/**
+ * Effects are cached per fit object. The store replaces that object for every update
+ * (a command's answer, an SSE event), so a WeakMap keyed on it drops the cache exactly
+ * when the numbers may have changed -- and never leaks an entry for an unloaded fit.
+ */
+const cache = new WeakMap<object, Map<number, ModuleEffect>>()
+
+function cacheFor(fit: object): Map<number, ModuleEffect> {
+  let entries = cache.get(fit)
+  if (!entries) {
+    entries = new Map()
+    cache.set(fit, entries)
+  }
+  return entries
+}
 
 const DAMAGE_TYPES = [
   { key: "em", label: "EM", color: "#4f8fd6" },
@@ -186,25 +199,28 @@ export const ModuleCard = () => {
   const [failed, setFailed] = React.useState(false)
 
   const fitId = fit?.id
-  const revision = fit?.timestamp
   const position = hover?.position
   const itemId = hover?.itemId
 
   React.useEffect(() => {
     setEffect(null)
     setFailed(false)
-    if (position === undefined || itemId === undefined || fitId === undefined) return
-    const key = `${fitId}:${position}:${revision}`
-    const cached = cache.get(key)
+    if (!fit || position === undefined || itemId === undefined) return
+    // Keyed on the fit *object*: the store hands out a fresh one for every update (an
+    // edit, an SSE event), so loading or unloading a charge invalidates the card by
+    // itself. `fit.timestamp` is stamped once at construction and would have cached the
+    // pre-edit numbers forever.
+    const entries = cacheFor(fit)
+    const cached = entries.get(position)
     if (cached) {
       setEffect(cached)
       return
     }
     let alive = true
     void api
-      .moduleEffect(fitId, position)
+      .moduleEffect(fit.id, position)
       .then((data) => {
-        cache.set(key, data)
+        entries.set(position, data)
         if (alive) setEffect(data)
       })
       .catch(() => {
@@ -213,7 +229,7 @@ export const ModuleCard = () => {
     return () => {
       alive = false
     }
-  }, [fitId, position, itemId, revision])
+  }, [fit, position, itemId])
 
   if (!hover || fitId === undefined || failed) return null
 
