@@ -236,8 +236,10 @@ def module_effect(module):
         optimal, falloff = _optimal(module), _falloff(module)
         if optimal or falloff:
             rows.insert(1, {"kind": "range", "optimal": round(optimal), "falloff": round(falloff)})
-    elif _attr(module, "damageMultiplier") > 0:
-        # An unloaded turret has no damage to show but still has a range
+    elif not rows and _attr(module, "damageMultiplier") > 0:
+        # An unloaded turret has no damage to show but still has a range. Modules that
+        # report other rows carry their own range inside them, so this must not fire
+        # for them (a neutralizer has a damageMultiplier attribute too).
         optimal, falloff = _optimal(module), _falloff(module)
         if optimal or falloff:
             rows.append({"kind": "range", "optimal": round(optimal), "falloff": round(falloff)})
