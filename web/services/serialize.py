@@ -279,6 +279,13 @@ def serialize_module(module, position=None):
     return data
 
 
+def _drone_bandwidth(drone):
+    """The bandwidth one drone of this stack occupies, as the fit modifies it."""
+    try:
+        return float(drone.getModifiedItemAttr("droneBandwidthUsed", 0) or 0)
+    except Exception:
+        return 0.0
+
 def serialize_drone(drone, position=None):
     data = {
         "position": position,
@@ -289,6 +296,9 @@ def serialize_drone(drone, position=None):
         # A drone stack is either flying (all of it) or sitting in the bay; the browser
         # reads `state` the same way it reads a module's.
         "state": "active" if (drone.amountActive or 0) > 0 else "offline",
+        # What one drone of this stack costs in bandwidth, so the bay can grey out the
+        # boxes the hull cannot fly before it bothers the server.
+        "bandwidthUsed": _drone_bandwidth(drone),
     }
     if getattr(drone, "isMutated", False):
         data["isMutated"] = True

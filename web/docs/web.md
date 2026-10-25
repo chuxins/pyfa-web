@@ -31,6 +31,12 @@ A FastAPI server that reuses pyfa's own engine and editing commands, and a React
   the fit never offers to load a charge into one. Clicking the charge that is in a
   slot opens that module's charge list with the round in there marked, which is how
   a different ammunition is picked
+* the drone bay launches drones one at a time: each box is one drone of the stack, and
+  clicking it sends that one out (clicking a box that is already flying brings it back).
+  The boxes a hull cannot fly are drawn dim and do not click -- its drone bandwidth
+  (`droneBandwidth`, Mbit/s per drone) or its five-drone control limit is used up -- and
+  the server refuses the same thing with `droneBandwidthExceeded` /
+  `droneControlLimitExceeded` should a client ask anyway. Recalling is never refused
 * weapon grouping in the high rack: one button links the same weapon there, and
   while it is on a state click or a loaded charge reaches every weapon in the
   group. Nothing about it is saved -- the engine has no weapon groups, so it lives

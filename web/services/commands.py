@@ -428,13 +428,127 @@ def mergeLocalDroneStacks(ctx):
 
 
 @command("toggleLocalDroneStates", requires=("main",),
-         args={"main": "reference to the clicked drone stack", "positions": "additional stacks"})
+         args={"main": "reference to the clicked drone stack",
+               "positions": "additional stacks",
+               "amount": "put exactly this many drones of that stack in the air"})
 def toggleLocalDroneStates(ctx):
-    """Activate or deactivate drone stacks."""
+    """Activate or deactivate drone stacks, or set one stack's active count.
+
+    Without ``amount`` this is pyfa's own toggle: an active stack goes into the bay and
+    an idle one launches whole. With ``amount`` the stack is set to exactly that many
+    drones, which is what the per-drone boxes in the bay send -- and then the ship's
+    bandwidth and drone-control limit are checked first, because pyfa's own toggle
+    happily launches a stack the ship cannot fly.
+    """
     main = ctx.resolve(ctx.payload["main"])
     positions = ctx.positions(ctx.payload.get("positions") or [], "drone")
-    return ctx.cmd.GuiToggleLocalDroneStatesCommand(
-        fitID=ctx.fitID, mainPosition=ctx.container("drone").index(main), positions=positions)
+    mainPosition = ctx.container("drone").index(main)
+
+    amount = ctx.get("amount")
+    if amount is None:
+        return ctx.cmd.GuiToggleLocalDroneStatesCommand(
+            fitID=ctx.fitID, mainPosition=mainPosition, positions=positions)
+
+    if not isinstance(amount, int) or isinstance(amount, bool):
+        raise CommandError("amount must be an integer")
+    stack = ctx.container("drone")[mainPosition]
+    if amount < 0 or amount > stack.amount:
+        raise CommandError("amount must be between 0 and {} for this stack".format(stack.amount))
+    _check_drone_limits(ctx.fit, stack, amount)
+    return _forceActiveDroneCommand(ctx.fitID, mainPosition, positions, amount)
+
+
+#: Slack when comparing bandwidth, which is summed from floats
+_BANDWIDTH_EPSILON = 1e-6
+
+
+def _check_drone_limits(fit, stack, amount):
+    """Refuse to put ``amount`` of one drone stack in the air past the ship's limits.
+
+    Two of them matter and both are the game's own: the hull's drone **bandwidth**
+    (Mbit/s, ``droneBandwidth``) and how many drones it can keep in space at once
+    (``maxActiveDrones``). Launching is the only direction that can break them, so
+    putting drones away is never refused.
+    """
+    delta = amount - (stack.amountActive or 0)
+    if delta <= 0:
+        return
+    name = getattr(getattr(stack, "item", None), "name", None) or "that drone"
+
+    perDrone = stack.getModifiedItemAttr("droneBandwidthUsed", 0) or 0
+    used = fit.droneBandwidthUsed or 0
+    total = fit.ship.getModifiedItemAttr("droneBandwidth", 0) or 0
+    needed = perDrone * delta
+    if perDrone and total and used + needed > total + _BANDWIDTH_EPSILON:
+        raise CommandFailed(
+            "'{}' needs {} Mbit/s of drone bandwidth, the fit has {} of {} left".format(
+                name, round(needed, 1), round(max(total - used, 0), 1), round(total, 1)),
+            code="droneBandwidthExceeded",
+            params={"name": name, "needed": round(needed, 1),
+                    "available": round(max(total - used, 0), 1), "total": round(total, 1)})
+
+    limit = getattr(fit, "extraAttributes", {}).get("maxActiveDrones") or 0
+    active = sum(drone.amountActive or 0 for drone in fit.drones)
+    if limit and active + delta > limit:
+        raise CommandFailed(
+            "the ship can keep {} drones in space at once and {} already are".format(limit, active),
+            code="droneControlLimitExceeded",
+            params={"name": name, "limit": limit, "active": active})
+
+
+def _forceActiveDroneCommand(fitID, mainPosition, positions, amount):
+    """A command that sets one stack's active count, undone like any other edit.
+
+    pyfa's GUI command only knows "toggle the stack"; its calc layer accepts
+    ``forceActiveAmounts``, so this wraps that and repeats the follow-up the GUI layer
+    does (recalculate, fill, commit, post the change event) -- which is what makes the
+    browser see the new numbers and the undo stack keep working.
+    """
+    import pyfa_compat
+
+    # The engine installs the shim at startup, but importing `wx` here keeps this
+    # module importable from tests and from any tool that has not booted the engine.
+    pyfa_compat.install()
+    import wx
+
+    from gui.fitCommands.calc.drone.localToggleStates import CalcToggleLocalDroneStatesCommand
+
+    class ForceActiveDrone(wx.Command):
+        def __init__(self):
+            wx.Command.__init__(self, True, "Set Local Drone Active Amount")
+            self.calc = None
+
+        def _calc(self):
+            if self.calc is None:
+                self.calc = CalcToggleLocalDroneStatesCommand(
+                    fitID=fitID, mainPosition=mainPosition, positions=list(positions) + [mainPosition],
+                    forceActiveAmounts={mainPosition: amount})
+            return self.calc
+
+        def Do(self):
+            success = self._calc().Do()
+            self._recalc()
+            return success
+
+        def Undo(self):
+            success = self._calc().Undo()
+            self._recalc()
+            return success
+
+        def _recalc(self):
+            import eos.db
+            import gui.globalEvents as GE
+            import gui.mainFrame
+            from service.fit import Fit
+
+            eos.db.flush()
+            sFit = Fit.getInstance()
+            sFit.recalc(fitID)
+            sFit.fill(fitID)
+            eos.db.commit()
+            wx.PostEvent(gui.mainFrame.MainFrame.getInstance(), GE.FitChanged(fitIDs=(fitID,)))
+
+    return ForceActiveDrone()
 
 
 @command("convertMutatedLocalDrone", requires=("position", "mutaplasmidId"),

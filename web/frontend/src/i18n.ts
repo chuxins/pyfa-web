@@ -337,6 +337,13 @@ const ZH_CN: Record<string, string> = {
   "'{name}' is already {state}": "'{name}' 已经是{state}状态。",
   "undo failed; the fit may have changed underneath": "撤销失败；装配可能已被其他操作改变。",
   "redo failed; the fit may have changed underneath": "恢复失败；装配可能已被其他操作改变。",
+  "'{name}' needs {needed} Mbit/s of drone bandwidth; this fit has {available} of {total} left":
+    "'{name}' 需要 {needed} Mbit/s 无人机带宽，本装配只剩 {available}/{total}。",
+  "the ship can keep {limit} drones in space at once and {active} already are":
+    "该舰最多同时放出 {limit} 架无人机，当前已有 {active} 架。",
+  Bandwidth: "带宽",
+  "No drone bandwidth left": "无人机带宽不足",
+  "The ship cannot keep more drones in space": "该舰无法同时控制更多无人机",
   "this account has no {server} EVE login stored on the server; sign in with EVE again":
     "服务器上没有该账号的 {server} EVE 登录信息；请重新使用 EVE 登录。",
   "EVE no longer accepts the stored login; sign in with EVE again": "EVE 不再接受已保存的登录；请重新登录。",

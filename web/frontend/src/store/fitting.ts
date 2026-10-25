@@ -107,6 +107,7 @@ export interface FittingState {
   addDroneStack: (itemId: number, amount?: number) => Promise<Fit | null>
   setDroneAmount: (position: number, amount: number) => Promise<Fit | null>
   toggleDrone: (position: number) => Promise<Fit | null>
+  setDroneActive: (position: number, amount: number) => Promise<Fit | null>
   removeDrone: (position: number) => Promise<Fit | null>
   removeCargo: (itemId: number) => Promise<Fit | null>
   setCargoAmount: (itemId: number, amount: number) => Promise<Fit | null>
@@ -572,6 +573,11 @@ export const useFittingStore = create<FittingState>((set, get) => ({
 
   async toggleDrone(position) {
     return get().send("toggleLocalDroneStates", { main: { kind: "drone", position } })
+  },
+
+  /** Put exactly `amount` drones of one stack in the air, one box at a time. */
+  async setDroneActive(position, amount) {
+    return get().send("toggleLocalDroneStates", { main: { kind: "drone", position }, amount })
   },
 
   async removeDrone(position) {

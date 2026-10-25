@@ -2103,6 +2103,28 @@ body {
   border: 1px solid #a54b32;
   color: white;
 }
+/* A box the hull cannot fly: bandwidth or drone-control limit is used up */
+.droneBayBlocked {
+  background-color: #1a1a1a;
+  border: 1px dashed #4f4f4f;
+  color: #6a6a6a;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.droneBayBlocked:hover {
+  background-color: #1a1a1a;
+  border-color: #5c5c5c;
+}
+.droneBayHeader {
+  color: #c5c5c5;
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 4px 6px;
+}
+.droneBayBandwidth {
+  color: #9a9a9a;
+  font-size: 13px;
+}
 
 /* ---- FitHistory ------------------------------------------------------------------ */
 

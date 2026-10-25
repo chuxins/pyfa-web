@@ -79,7 +79,11 @@ export interface Drone {
   itemId: number | null
   item: Item | null
   amount: number
+  /** How many of the stack are flying; the rest sit in the bay. */
+  amountActive?: number
   state: ModuleState
+  /** Mbit/s one drone of this stack costs the hull, so the bay can grey out boxes. */
+  bandwidthUsed?: number
   isMutated?: boolean
 }
 

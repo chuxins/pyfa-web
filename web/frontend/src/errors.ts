@@ -23,6 +23,9 @@ const TEMPLATES: Record<string, string> = {
   stateUnchanged: "'{name}' is already {state}",
   undoFailed: "undo failed; the fit may have changed underneath",
   redoFailed: "redo failed; the fit may have changed underneath",
+  droneBandwidthExceeded:
+    "'{name}' needs {needed} Mbit/s of drone bandwidth; this fit has {available} of {total} left",
+  droneControlLimitExceeded: "the ship can keep {limit} drones in space at once and {active} already are",
   noCharacter: "this account has no {server} EVE login stored on the server; sign in with EVE again",
   missingScope:
     "the login does not include permission to read implants; sign out and sign in with EVE again to approve it",
