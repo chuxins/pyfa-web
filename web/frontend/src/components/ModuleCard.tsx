@@ -187,9 +187,53 @@ function EffectRow({ row }: { row: ModuleEffectRow }) {
     case "active":
       // Takes charges but holds none: its numbers come from what gets loaded
       return <div className="mcActive">{t("Active module")}</div>
+    case "resistances": {
+      const keys = ["em", "thermal", "kinetic", "explosive"] as const
+      const names = { em: "EM", thermal: "Thermal", kinetic: "Kinetic", explosive: "Explosive" } as const
+      const values = keys.map((key) => row.values[key] ?? 0)
+      const same = values.every((value) => value === values[0] && value !== 0)
+      return (
+        <div className="mcLine">
+          <span>{t(layerLabel(row.layer))}</span>
+          <span>
+            {same
+              ? `${amount(values[0], 3)}%`
+              : keys
+                  .filter((key, index) => values[index] !== 0)
+                  .map((key) => `${t(names[key])} ${amount(row.values[key], 3)}%`)
+                  .join("  ")}
+          </span>
+        </div>
+      )
+    }
     default:
       return null
   }
+}
+
+/** "Armor resistance" and friends, from the layer the server named. */
+function layerLabel(layer: "armor" | "shield" | "hull"): string {
+  return layer === "armor" ? "Armor resistance" : layer === "shield" ? "Shield resistance" : "Hull resistance"
+}
+
+/**
+ * The one-line state label: white for a passive module that is running, green for an
+ * active one that is running, grey for either when it is switched off, red when an
+ * active module is overheated.
+ */
+function stateOf(effect: ModuleEffect): { text: string; className: string } {
+  if (effect.state === "overheated") return { text: t("Overheated active module"), className: "mcStateOverheated" }
+  if (effect.state === "active") return { text: t("Enabled active module"), className: "mcStateOn" }
+  if (effect.state === "offline") {
+    return {
+      text: effect.canActivate ? t("Disabled active module") : t("Disabled passive module"),
+      className: "mcStateOff",
+    }
+  }
+  // "online": a passive module runs from the moment it is fitted, an active one does not
+  return effect.canActivate
+    ? { text: t("Disabled active module"), className: "mcStateOff" }
+    : { text: t("Enabled passive module"), className: "mcStatePassive" }
 }
 
 export const ModuleCard = () => {
@@ -260,10 +304,15 @@ export const ModuleCard = () => {
       </div>
       {effect === null ? (
         <div className="mcPending dim">{t("working…")}</div>
-      ) : effect.rows.length === 0 ? (
-        <div className="mcNone dim">{t("No direct effect")}</div>
       ) : (
-        effect.rows.map((row, index) => <EffectRow key={`${row.kind}${index}`} row={row} />)
+        <>
+          <div className={"mcState " + stateOf(effect).className}>{stateOf(effect).text}</div>
+          {effect.rows.length === 0 ? (
+            <div className="mcNone dim">{t("No direct effect")}</div>
+          ) : (
+            effect.rows.map((row, index) => <EffectRow key={`${row.kind}${index}`} row={row} />)
+          )}
+        </>
       )}
     </div>,
     document.body,

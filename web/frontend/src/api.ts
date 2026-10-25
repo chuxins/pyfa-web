@@ -493,6 +493,12 @@ export type ModuleEffectRow =
       /** Takes charges but holds none: its numbers depend on what gets loaded. */
       kind: "active"
     }
+  | {
+      /** One layer's resistance bonuses, as percentages (a positive number is better). */
+      kind: "resistances"
+      layer: "armor" | "shield" | "hull"
+      values: { em: number; thermal: number; kinetic: number; explosive: number }
+    }
 
 /** What one fitted module does, as the hover card shows it. */
 export interface ModuleEffect {
@@ -502,6 +508,8 @@ export interface ModuleEffect {
   group: string | null
   slot: string
   state: string
+  /** Whether the module can be switched on at all (a passive module cannot). */
+  canActivate: boolean
   charge: { itemId: number; name: string; amount: number | null } | null
   rows: ModuleEffectRow[]
 }

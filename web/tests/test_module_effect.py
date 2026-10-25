@@ -220,10 +220,11 @@ def test_a_warp_scrambler_reports_its_strength(user_client):
     assert scrambler["optimal"] > 0
 
 
-def test_a_module_without_a_modelled_effect_says_nothing(user_client):
-    """A damage control is not a weapon, a neutralizer or a repairer: no invented rows."""
-    fit_id = make_fit(user_client)
-    position = fit_module(user_client, fit_id, DAMAGE_CONTROL_ID)
+def test_a_module_with_nothing_to_report_stays_empty(user_client):
+    """A cap recharger's whole effect is a recharge multiplier this card does not model,
+    so it reports no rows at all instead of inventing any."""
+    fit_id = cruiser_fit(user_client)
+    position = fit_module(user_client, fit_id, CAP_RECHARGER)
 
     effect = effect_of(user_client, fit_id, position)
     assert effect["rows"] == []
@@ -285,7 +286,12 @@ def test_a_script_leaves_the_module_giving_what_the_script_says(user_client):
     range bonuses take its place."""
     fit_id = big_fit(user_client)
     position = fit_module(user_client, fit_id, TRACKING_COMPUTER_ID)
-    assert effect_of(user_client, fit_id, position)["rows"] == [{"kind": "active"}]
+
+    # with no script the module already gives its own bonuses, so it is not "just active"
+    plain = effect_of(user_client, fit_id, position)
+    plain_bonuses = {row["label"]: row["value"] for row in plain["rows"] if row["kind"] == "bonus"}
+    assert plain_bonuses.get("Tracking speed") == 15
+    assert row_of(plain, "active") is None
 
     load_charge(user_client, fit_id, position, OPTIMAL_RANGE_SCRIPT_ID)
     effect = effect_of(user_client, fit_id, position)
@@ -298,7 +304,10 @@ def test_a_script_leaves_the_module_giving_what_the_script_says(user_client):
 def test_a_scan_resolution_script_doubles_the_sensor_boosters_scan_bonus(user_client):
     fit_id = big_fit(user_client)
     position = fit_module(user_client, fit_id, SENSOR_BOOSTER_ID)
-    assert effect_of(user_client, fit_id, position)["rows"] == [{"kind": "active"}]
+
+    plain = {row["label"]: row["value"] for row in effect_of(user_client, fit_id, position)["rows"]
+             if row["kind"] == "bonus"}
+    assert plain.get("Scan resolution") == 30
 
     load_charge(user_client, fit_id, position, SCAN_RESOLUTION_SCRIPT_ID)
     effect = effect_of(user_client, fit_id, position)
@@ -312,5 +321,117 @@ def test_a_module_that_takes_no_charge_never_says_active(user_client):
     position = fit_module(user_client, fit_id, DAMAGE_CONTROL_ID)
 
     effect = effect_of(user_client, fit_id, position)
-    assert effect["rows"] == []
+    assert effect["charge"] is None
     assert row_of(effect, "active") is None
+
+
+# -- passive modules: their bonuses, and whether they are even switchable ----------------
+
+#: Armour modules a cruiser can carry, and what the card must say about them
+MEMBRANE = 11269        # Multispectrum Energized Membrane II: -20% to all four resistances
+PLATE = 20353           # 1600mm Steel Plates II: +4800 armour hit points
+TRACKING_ENHANCER = 1999  # Tracking Enhancer II: +9.5% tracking, +10% optimal, +20% falloff
+MAGSTAB = 10190         # Magnetic Field Stabilizer II: x1.1 damage
+HARDENER = 2281         # Multispectrum Shield Hardener II: an *active* module
+CRUISER = 626           # Vexor: enough slots for all of them
+CAP_RECHARGER = 2032    # Cap Recharger II: only a recharge multiplier, which this card omits
+
+
+def cruiser_fit(client, name="Passive Test"):
+    response = client.post("/api/fits", json={"shipId": CRUISER, "name": name})
+    assert response.status_code == 201, response.text
+    return response.json()["id"]
+
+
+def rows_of(effect, kind):
+    return [row for row in effect["rows"] if row["kind"] == kind]
+
+
+def bonus_map(effect):
+    return {row["label"]: row["value"] for row in rows_of(effect, "bonus")}
+
+
+def test_a_resistance_membrane_reports_its_resistances(user_client):
+    fit_id = cruiser_fit(user_client)
+    position = fit_module(user_client, fit_id, MEMBRANE)
+
+    effect = effect_of(user_client, fit_id, position)
+    assert effect["state"] == "online"
+    assert effect["canActivate"] is False  # a membrane has no on switch
+
+    layer = rows_of(effect, "resistances")[0]
+    assert layer["layer"] == "armor"
+    assert set(layer["values"].values()) == {25.0}
+
+
+def test_a_damage_control_reports_every_layer_it_hardens(user_client):
+    fit_id = cruiser_fit(user_client)
+    position = fit_module(user_client, fit_id, DAMAGE_CONTROL_ID)
+
+    layers = {row["layer"]: row["values"] for row in rows_of(effect_of(user_client, fit_id, position), "resistances")}
+    assert set(layers) == {"armor", "shield", "hull"}
+    assert layers["armor"]["em"] == 15.0
+    assert layers["shield"]["em"] == 12.5
+    assert layers["hull"]["em"] == 40.0
+
+
+def test_a_plate_reports_the_hit_points_it_adds(user_client):
+    fit_id = cruiser_fit(user_client)
+    position = fit_module(user_client, fit_id, PLATE)
+
+    bonuses = bonus_map(effect_of(user_client, fit_id, position))
+    assert bonuses.get("Armor hit points") == 4800
+
+
+def test_a_tracking_enhancer_reports_its_percentages(user_client):
+    fit_id = cruiser_fit(user_client)
+    position = fit_module(user_client, fit_id, TRACKING_ENHANCER)
+
+    bonuses = bonus_map(effect_of(user_client, fit_id, position))
+    assert bonuses.get("Tracking speed") == 9.5
+    assert bonuses.get("Optimal range") == 10
+    assert bonuses.get("Falloff range") == 20
+
+
+def test_a_damage_mod_reports_its_damage_bonus_but_a_turret_does_not(user_client):
+    """``damageMultiplier`` is the module's bonus on a gyro and the ammunition's on a gun."""
+    fit_id = cruiser_fit(user_client)
+    position = fit_module(user_client, fit_id, MAGSTAB)
+    assert bonus_map(effect_of(user_client, fit_id, position)).get("Damage") == 10
+
+    turret_fit = make_fit(user_client)
+    turret = fit_module(user_client, turret_fit, AUTOCANNON_ID)
+    load_charge(user_client, turret_fit, turret, EMP_S_ID)
+    assert "Damage" not in bonus_map(effect_of(user_client, turret_fit, turret))
+
+
+def test_an_active_module_says_it_can_be_switched_on(user_client):
+    fit_id = cruiser_fit(user_client)
+    position = fit_module(user_client, fit_id, HARDENER)
+
+    effect = effect_of(user_client, fit_id, position)
+    assert effect["canActivate"] is True
+    assert effect["state"] == "active"
+    assert rows_of(effect, "resistances")[0]["layer"] == "shield"
+
+
+def test_switching_a_module_off_and_overheating_it_shows_in_its_state(user_client):
+    fit_id = cruiser_fit(user_client)
+    passive = fit_module(user_client, fit_id, MEMBRANE)
+    active = fit_module(user_client, fit_id, HARDENER)
+
+    def set_state(position, click):
+        response = user_client.post(
+            "/api/fits/{}/commands".format(fit_id),
+            json={"command": "changeLocalModuleStates",
+                  "args": {"main": {"kind": "module", "position": position}, "click": click}})
+        assert response.status_code == 200, response.text
+        return response.json()
+
+    set_state(passive, "ctrl")   # a passive module can be switched off
+    set_state(active, "right")   # an active one can be overheated
+
+    assert effect_of(user_client, fit_id, passive)["state"] == "offline"
+    overheated = effect_of(user_client, fit_id, active)
+    assert overheated["state"] == "overheated"
+    assert overheated["canActivate"] is True

@@ -2440,6 +2440,27 @@ body {
   letter-spacing: 0.04em;
 }
 
+/* The state line of the hover card: passive running is white, active running green,
+   anything switched off grey, an overheated active module red */
+.mcState {
+  font-size: 11px;
+  line-height: 14px;
+  margin: 2px 0 4px;
+}
+.mcStatePassive {
+  color: #e6e6e6;
+}
+.mcStateOn {
+  color: var(--ok);
+}
+.mcStateOff {
+  color: #8a8a8a;
+}
+.mcStateOverheated {
+  color: var(--danger);
+  font-weight: 700;
+}
+
 /* Ship bonuses: the hull's own traits block, straight from the game data */
 .statBonuses .statBonusesHull {
   color: #8a8a8a;
