@@ -1,12 +1,13 @@
 name: Deploy to server
 
-# push 到 master 后，经 SSH 到服务器以 deploy 用户执行自动更新（即时更新）；
+# push 到 master 后，经 SSH 到服务器执行 deploy/auto-update.sh（即时更新）；
 # 服务器上的 pyfa-web-update.timer 作为兜底轮询（每 2 分钟）。
 #
-# 需要的仓库 Secrets：
-#   SSH_HOST  服务器公网地址（如 8.156.88.102）
-#   SSH_USER  deploy
-#   SSH_KEY   deploy 私钥（其公钥在 /home/deploy/.ssh/authorized_keys）
+# 需要的仓库 Secrets（Settings → Secrets and variables → Actions）：
+#   SSH_HOST  服务器地址（当前：103.210.237.192）
+#   SSH_USER  root
+#   SSH_KEY   登录私钥全文（当前对应 ~/.ssh/eve-test.pem，公钥在服务器
+#             /root/.ssh/authorized_keys；脚本以 root 运行时自己降权到 pyfaweb）
 on:
   push:
     branches: [master]
@@ -26,9 +27,33 @@ jobs:
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_KEY: ${{ secrets.SSH_KEY }}
         run: |
-          mkdir -p ~/.ssh
-          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          set -euo pipefail
+
+          # 三个 secret 缺一个都要当场说清楚：缺了的情形里 ssh 会秒失败，
+          # 日志里只剩一句 "Process completed with exit code 1"。
+          missing=""
+          [ -n "${SSH_HOST}" ] || missing="${missing} SSH_HOST"
+          [ -n "${SSH_USER}" ] || missing="${missing} SSH_USER"
+          [ -n "${SSH_KEY}" ] || missing="${missing} SSH_KEY"
+          if [ -n "${missing}" ]; then
+            echo "::error::缺少 secrets:${missing}（Settings → Secrets and variables → Actions）"
+            exit 1
+          fi
+
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "${SSH_KEY}" > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
-          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          ssh -i ~/.ssh/id_deploy -o IdentitiesOnly=yes \
-            "$SSH_USER@$SSH_HOST" 'bash /opt/pyfa-web/deploy/auto-update.sh'
+
+          # 主机密钥交给 ssh 自己接收并记住（accept-new）。这里**不再**用
+          # ssh-keyscan：服务器不回 banner 时它只是超时退出，配上它那句
+          # 2>/dev/null 与 bash 的 -e，整步会一声不响地失败 —— 2026-10-25
+          # 起的连续 7 次部署失败就是这样被吞掉的，日志里没有任何原因。
+          ssh -i ~/.ssh/id_deploy \
+              -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new \
+              -o UserKnownHostsFile="${HOME}/.ssh/known_hosts" \
+              -o ConnectTimeout=20 \
+              -o ServerAliveInterval=15 \
+              -o ServerAliveCountMax=4 \
+              -o LogLevel=VERBOSE \
+              "${SSH_USER}@${SSH_HOST}" 'bash /opt/pyfa-web/deploy/auto-update.sh'
