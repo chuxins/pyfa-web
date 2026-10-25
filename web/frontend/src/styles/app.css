@@ -1927,6 +1927,45 @@ body {
   font-weight: bold;
   margin-top: 15px;
 }
+/* High rack tools: the weapon-grouping toggle, above the ring's high slots */
+.sfxHighTools {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 6px;
+  position: relative;
+  z-index: 100;
+}
+.sfxGroupToggle {
+  align-items: center;
+  background: #1d1d1d;
+  border: 1px solid #4f4f4f;
+  border-radius: 12px;
+  color: #c5c5c5;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 12px;
+  gap: 6px;
+  line-height: 22px;
+  padding: 0 10px;
+  user-select: none;
+}
+.sfxGroupToggle:hover {
+  background: #2e2e2e;
+  border-color: #6c6c6c;
+}
+.sfxGroupToggleOn {
+  background: #7a3925;
+  border-color: #a54b32;
+  color: #fff;
+}
+.sfxGroupToggleOn:hover {
+  background: #8b4429;
+}
+.sfxGroupCount {
+  color: inherit;
+  font-size: 11px;
+  opacity: 0.75;
+}
 .sfxCargoHold {
   bottom: 0px;
   left: 0px;

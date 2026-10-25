@@ -6,6 +6,7 @@ import { DroneBay } from "./DroneBay"
 import { FitHistory } from "./FitHistory"
 import { ModuleCard } from "./ModuleCard"
 import { FighterBay } from "./FighterBay"
+import { HighRackTools } from "./HighRackTools"
 import { useFittingStore } from "../store/fitting"
 import { t } from "../i18n"
 import { handleRingDrop } from "../dragdrop"
@@ -27,6 +28,8 @@ export const ShipFitExtended = () => {
     <div className="sfxFit">
       {/* Hovering a slot opens this: what the module does in the fit's own numbers */}
       <ModuleCard />
+      {/* Weapon grouping for the high rack, right above the ring's high slots */}
+      <HighRackTools />
       <ShipFit withStats />
 
       <div className="sfxFitName">

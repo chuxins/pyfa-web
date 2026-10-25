@@ -177,6 +177,8 @@ const ZH_CN: Record<string, string> = {
   "Switch tactical mode": "切换战术模式",
   System: "系统",
   "group weapons": "武器编组",
+  "{count} grouped": "已编组 {count} 门",
+  "{count} weapons": "{count} 门同型武器",
   "ungroup weapons": "取消编组",
   "Ungroup: every weapon goes back to being on its own": "取消编组：每个武器恢复独立操作",
   "Group the same weapons in this rack so one click or charge reaches them all":
