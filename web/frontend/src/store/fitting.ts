@@ -6,7 +6,7 @@
  * of a fit that could drift from the engine's.
  */
 import { create } from "zustand"
-import { api, type Fit, type FitSummary, type History, type Module } from "../api"
+import { api, apiUrl, type Fit, type FitSummary, type History, type Module } from "../api"
 import { errorText } from "../errors"
 import { t } from "../i18n"
 import { useBrowserStore } from "./browser"
@@ -605,7 +605,7 @@ export const useFittingStore = create<FittingState>((set, get) => ({
   /** Live updates: another tab editing the same fit refreshes this one. */
   connect() {
     if (get().stream) return
-    const stream = new EventSource("/api/events")
+    const stream = new EventSource(apiUrl("/api/events"))
     stream.addEventListener("fit.changed", (event) => {
       const payload = JSON.parse((event as MessageEvent).data)
       const fit = get().fit

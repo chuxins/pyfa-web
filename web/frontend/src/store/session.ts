@@ -62,6 +62,7 @@ export const useSessionStore = create<SessionState>((set) => ({
 
   async logout() {
     await api.logout()
-    window.location.href = "/"
+    // 子路径部署下回落到 <base>/，而不是域名根（那是别的应用）
+    window.location.href = import.meta.env.BASE_URL
   },
 }))

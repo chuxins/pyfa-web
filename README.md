@@ -529,7 +529,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8091/api/meta   # 期�
 | 服务 | `pyfa-web.service`（`User=pyfaweb`，`127.0.0.1:8091`，`Restart=always`），`enabled` |
 | 内存上限 | drop-in 提到 `MemoryHigh=1500M` / `MemoryMax=2600M`（见下"踩到的坑①"） |
 | 配置 | `web.yml`：`data_dir=/var/lib/pyfa-web`、`port=8091`、`public_url=https://eve-tools.xyz/AssemblyPlanning`、`root_path=/AssemblyPlanning`、`language=zh_CN`；`web.env` 目前只有注释（SSO 见"待补"） |
-| nginx | `/etc/nginx/sites-available/pyfa-web`：`/AssemblyPlanning/api/`（strip 前缀、关缓冲、SSE 3600s）+ `/AssemblyPlanning/`（strip 前缀 + `sub_filter` 改写 `/assets/`、`/api/`、`/img/` 与登出的 `location.href="/"`），幂等 `proxy_redirect` 两条；`/` 302 到 `/AssemblyPlanning/` |
+| nginx | `/etc/nginx/sites-available/pyfa-web`：两段都只 strip 前缀（`/AssemblyPlanning/api/` 关缓冲、SSE 3600s；`/AssemblyPlanning/` 走 SPA fallback），**不再做任何 `sub_filter` 改写** —— 前缀已在构建期由 Vite `base` 补齐（见下"子路径"一条）；幂等 `proxy_redirect` 两条；`/` 302 到 `/AssemblyPlanning/` |
 | 证书 | certbot（`--nginx --redirect`），`eve-tools.xyz`，到期 2027-01-23，系统自带 `certbot.timer` 自动续期 |
 | 兜底轮询 | `pyfa-web-update.timer`（2 分钟，`User=root`） |
 | pypi | `/etc/pip.conf` 与 `/etc/uv/uv.toml` 指向清华源 —— 这台机器到 pypi.org 只有 **27 KB/s**，换源后约 1.1 MB/s |
@@ -574,3 +574,24 @@ PYFA_WEB_SSO_CLIENT_SECRET=...
 
 未覆盖：真人登录那一步（authorize → code → token → JWKS 验签 → 建会话）需要浏览器里输 EVE 账号，
 无法在服务器侧代做；失败时看 `journalctl -u pyfa-web -f`（日志不打印 token），页面会带 `?sso_error=<code>`。
+### 10.1 子路径部署改为构建期补齐（2026-10-25）
+
+换机后浏览器控制台暴露了老做法的破绽：`sub_filter` 只认得 `"/assets/`、`"/api/`、`"/img/` 三种
+**双引号**形态，而 React 版里有几处它够不着 —— API 基址是运行期拼的、图标走
+`import.meta.env.BASE_URL`、字体在 CSS 里是 `url(/fonts/…)`、`/img/icons/0@1x.png` 写在
+`index.html`。结果这些请求全落到域名根（`/api/fits` 404、`/fonts/*.woff2` 404、
+`/images/ui/*.png` 404）。改写 JS 字符串本身也是坏做法：既脆，又会让 `ETag`/304 与改写后的内容失配。
+
+现在改成**构建期**解决，反代只负责 strip 前缀：
+
+- `web/frontend/vite.config.ts`：`base = process.env.PYFA_BASE ?? "/AssemblyPlanning/"`，与
+  `PYFA_WEB_ROOT_PATH` 一致；开发服务器把 `<base>/api`、`<base>/img` 前缀去掉再转给 `:8100`。
+- `web/frontend/src/api.ts`：新增 `apiUrl()`，`request()`、`requestFile()`、`imageUrl()` 全部经过它；
+  `TopBar`/`LoginPrompt` 的登录链接、`EventSource` 的 `/api/events`、登出后的
+  `window.location.href` 也都用它 / 用 `import.meta.env.BASE_URL`。
+- `web/frontend/index.html`：favicon 用 `%BASE_URL%img/icons/0@1x.png`，由 Vite 展开。
+- `web/static` 重新构建：产物里的 `/assets/`、`/api/`、`/img/`、`/images/`、`/fonts/` 都已带前缀。
+- nginx 相应去掉全部 `sub_filter` 与 `If-None-Match`/`If-Modified-Since` 的置空（不再需要），
+  只保留 strip 前缀、SSE 参数与两条幂等 `proxy_redirect`。
+
+部署在域名根时用 `PYFA_BASE=/ npm run build` 重建即可，反代不需要改动。

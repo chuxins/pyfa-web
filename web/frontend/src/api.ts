@@ -569,8 +569,23 @@ function throwFor(response: Response, body: unknown): never {
   throw new ApiError(response.status, response.statusText)
 }
 
+/**
+ * The path this build is served from ("/" or, as deployed, "/AssemblyPlanning/").
+ *
+ * nginx strips that prefix before the request reaches FastAPI, and the app itself
+ * runs with ``PYFA_WEB_ROOT_PATH`` -- so every address the *browser* builds has to
+ * carry it as well, or the request leaves the application and lands on the domain
+ * root (`/api/fits` 404). Vite bakes this in at build time (see vite.config.ts).
+ */
+export const basePath = import.meta.env.BASE_URL;
+
+/** An application path ("/api/...", "/img/...") as the browser must ask for it. */
+export function apiUrl(path: string): string {
+  return basePath.replace(/\/$/, "") + path;
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(path, {
+  const response = await fetch(apiUrl(path), {
     credentials: "same-origin",
     headers: init.body ? { "Content-Type": "application/json" } : undefined,
     ...init,
@@ -584,7 +599,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 /** A file the server answered with: the text plus its filename in Content-Disposition. */
 async function requestFile(path: string, init: RequestInit = {}): Promise<ExportedFile> {
-  const response = await fetch(path, {
+  const response = await fetch(apiUrl(path), {
     credentials: "same-origin",
     headers: init.body ? { "Content-Type": "application/json" } : undefined,
     ...init,
@@ -609,7 +624,8 @@ function fitQuery(fitId?: number, position?: number, kind?: FittedKind): string 
 
 export function imageUrl(image: ImageRef | null | undefined, size: 1 | 2): string | null {
   if (!image) return null
-  return `/img/${image.kind}/${image.id}@${size}x`
+  // 子路径部署下 /img/... 也必须带上 base，否则会打到域名根
+  return apiUrl(`/img/${image.kind}/${image.id}@${size}x`)
 }
 
 export const api = {

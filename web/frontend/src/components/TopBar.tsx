@@ -1,4 +1,5 @@
 import React from "react"
+import { apiUrl } from "../api"
 import { useFittingStore } from "../store/fitting"
 import { useSessionStore } from "../store/session"
 import { LOCALES, locale, setLocale, t, type LocaleCode } from "../i18n"
@@ -100,7 +101,7 @@ export const TopBar = () => {
           <button onClick={() => void logout()}>{t("Sign out")}</button>
         </span>
       ) : (
-        <a className="signin" href="/api/auth/login">
+        <a className="signin" href={apiUrl("/api/auth/login")}>
           {t("Sign in with EVE")}
         </a>
       )}

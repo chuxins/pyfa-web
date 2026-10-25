@@ -1,4 +1,5 @@
 import React from "react"
+import { apiUrl } from "../api"
 import { ModalDialog } from "./ModalDialog"
 import { useSessionStore } from "../store/session"
 import { t } from "../i18n"
@@ -22,7 +23,7 @@ export const LoginPrompt = () => {
       <p>{t(REASONS[loginPrompt] ?? REASONS.any)}</p>
       {sso.configured ? (
         <div className="loginActions">
-          <a className="btn primary" href="/api/auth/login">
+          <a className="btn primary" href={apiUrl("/api/auth/login")}>
             {t("Sign in with EVE")}
           </a>
           <button onClick={dismiss}>{t("Cancel")}</button>
