@@ -109,6 +109,11 @@ export interface FittingState {
   toggleDrone: (position: number) => Promise<Fit | null>
   setDroneActive: (position: number, amount: number) => Promise<Fit | null>
   removeDrone: (position: number) => Promise<Fit | null>
+  /** Launch or recall a whole fighter squadron. */
+  toggleFighter: (position: number) => Promise<Fit | null>
+  /** Switch one of a squadron's abilities on or off. */
+  toggleFighterAbility: (position: number, effectId: number) => Promise<Fit | null>
+  removeFighter: (position: number) => Promise<Fit | null>
   removeCargo: (itemId: number) => Promise<Fit | null>
   setCargoAmount: (itemId: number, amount: number) => Promise<Fit | null>
   toggleImplant: (position: number) => Promise<Fit | null>
@@ -582,6 +587,21 @@ export const useFittingStore = create<FittingState>((set, get) => ({
 
   async removeDrone(position) {
     return get().send("removeLocalDrones", { positions: [position] })
+  },
+
+  async toggleFighter(position) {
+    return get().send("toggleLocalFighterStates", { main: { kind: "fighter", position } })
+  },
+
+  async toggleFighterAbility(position, effectId) {
+    return get().send("toggleLocalFighterAbilityState", {
+      main: { kind: "fighter", position },
+      effectId,
+    })
+  },
+
+  async removeFighter(position) {
+    return get().send("removeLocalFighters", { positions: [position] })
   },
 
   async removeCargo(itemId) {

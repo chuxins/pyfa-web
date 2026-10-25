@@ -87,13 +87,21 @@ export interface Drone {
   isMutated?: boolean
 }
 
+export interface FighterAbility {
+  effectId: number
+  name: string | null
+  active: boolean
+}
+
 export interface Fighter {
   position: number
   itemId: number | null
   item: Item | null
   amount: number
+  /** True while the squadron is in space; a recalled one sits in the hangar. */
+  active?: boolean
   state: ModuleState
-  abilities?: unknown[]
+  abilities?: FighterAbility[]
 }
 
 export interface CargoItem {

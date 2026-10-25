@@ -1973,6 +1973,79 @@ body {
 .sfxCargoBayOverlay {
   bottom: 80px;
 }
+
+/* Fighter bay: the carrier's squadrons, on the same chip/overlay pattern as the drone bay */
+.sfxFighterBay {
+  position: relative;
+  user-select: none;
+  z-index: 100;
+}
+.sfxFighterBayReady {
+  cursor: pointer;
+}
+.sfxFighterBayOverlay {
+  display: none;
+  position: absolute;
+  bottom: 40px;
+  left: 10px;
+  width: 480px;
+  z-index: 101;
+}
+.sfxFighterBayVisible {
+  display: block;
+}
+/* One squadron per row: name, its ability chips, the launch toggle and remove */
+.fighterInHangar {
+  opacity: 0.55;
+}
+.fighterAbilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.fighterAbility {
+  background: #1d1d1d;
+  border: 1px solid #3a3a3a;
+  border-radius: 9px;
+  color: #8a8a8a;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 16px;
+  padding: 0 7px;
+  user-select: none;
+}
+.fighterAbility:hover {
+  border-color: #6c6c6c;
+  color: #c5c5c5;
+}
+.fighterAbilityOn {
+  background: #2a504f;
+  border-color: #4c8f8c;
+  color: #d8f0ef;
+}
+.fighterLaunch {
+  align-self: center;
+  background: #1d1d1d;
+  border: 1px solid #4f4f4f;
+  border-radius: 4px;
+  color: #c5c5c5;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 22px;
+  margin-right: 8px;
+  padding: 0 8px;
+  user-select: none;
+  white-space: nowrap;
+}
+.fighterLaunch:hover {
+  background: #2e2e2e;
+}
+.fighterLaunchOn {
+  background: #7a3925;
+  border-color: #a54b32;
+  color: #fff;
+}
 .sfxEmpty {
   align-items: center;
   display: flex;
