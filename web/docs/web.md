@@ -43,10 +43,12 @@ A FastAPI server that reuses pyfa's own engine and editing commands, and a React
   Everywhere else the drop behaves as it always did: onto the ring, a charge goes into the
   selected module or into every module that takes it, a module is fitted into a free slot,
   a ship makes a new fit
-* weapon grouping in the high rack: one button links the same weapon there, and
-  while it is on a state click or a loaded charge reaches every weapon in the
-  group. Nothing about it is saved -- the engine has no weapon groups, so it lives
-  in the browser and lasts as long as the fit stays open
+* weapon grouping in the high rack: the toggle above the ring (武器编组 / 取消编组, shown
+  once the rack holds a weapon twice) links the identical weapons there, and while it is
+  on a state click or a loaded charge reaches every weapon in the group. Nothing about it
+  is saved -- the engine has no weapon groups, so it lives in the browser and lasts as
+  long as the fit stays open. A charge dropped straight onto one module's slot still
+  loads only that module (see the ammunition bullet above)
 * the hardware browser has two tabs, equipment and charges. The equipment tab filters
   the market tree by slot; the charges tab has no slots to filter by, so it shows the
   fit's own charge-holding weapons instead -- one icon per weapon type, the ones that
