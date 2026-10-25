@@ -279,12 +279,16 @@ def serialize_module(module, position=None):
     return data
 
 
-def serialize_drone(drone):
+def serialize_drone(drone, position=None):
     data = {
+        "position": position,
         "itemId": drone.itemID,
         "item": serialize_item(drone.item),
         "amount": drone.amount,
         "amountActive": drone.amountActive,
+        # A drone stack is either flying (all of it) or sitting in the bay; the browser
+        # reads `state` the same way it reads a module's.
+        "state": "active" if (drone.amountActive or 0) > 0 else "offline",
     }
     if getattr(drone, "isMutated", False):
         data["isMutated"] = True
@@ -299,12 +303,14 @@ def serialize_drone(drone):
     return data
 
 
-def serialize_fighter(fighter):
+def serialize_fighter(fighter, position=None):
     return {
+        "position": position,
         "itemId": fighter.itemID,
         "item": serialize_item(fighter.item),
         "amount": fighter.amount,
         "active": bool(fighter.active),
+        "state": "active" if fighter.active else "offline",
         "abilities": [
             {"effectId": ability.effectID, "name": getattr(ability, "name", None), "active": bool(ability.active)}
             for ability in getattr(fighter, "abilities", [])
@@ -320,19 +326,23 @@ def serialize_cargo(cargo):
     }
 
 
-def serialize_implant(implant):
+def serialize_implant(implant, position=None):
     return {
+        "position": position,
         "itemId": implant.itemID,
         "item": serialize_item(implant.item),
         "active": bool(implant.active),
+        "state": "active" if implant.active else "offline",
     }
 
 
-def serialize_booster(booster):
+def serialize_booster(booster, position=None):
     return {
+        "position": position,
         "itemId": booster.itemID,
         "item": serialize_item(booster.item),
         "active": bool(booster.active),
+        "state": "active" if booster.active else "offline",
         "sideEffects": [
             {"effectId": effect.effectID, "active": bool(effect.active)}
             for effect in getattr(booster, "sideEffects", [])
@@ -486,16 +496,18 @@ def serialize_fit(fit, includeStats=True, statsSections=None):
         "damagePattern": serialize_damage_pattern(fit.damagePattern),
         "targetProfile": serialize_target_profile(fit.targetProfile),
         "racks": fit_racks(fit),
-        "drones": [serialize_drone(drone) for drone in fit.drones],
-        "fighters": [serialize_fighter(fighter) for fighter in fit.fighters],
+        "drones": [serialize_drone(drone, position) for position, drone in enumerate(fit.drones)],
+        "fighters": [serialize_fighter(fighter, position) for position, fighter in enumerate(fit.fighters)],
         "cargo": [serialize_cargo(cargo) for cargo in fit.cargo],
-        "implants": [serialize_implant(implant) for implant in fit.implants],
-        "appliedImplants": [serialize_implant(implant) for implant in fit.appliedImplants],
-        "boosters": [serialize_booster(booster) for booster in fit.boosters],
+        "implants": [serialize_implant(implant, position) for position, implant in enumerate(fit.implants)],
+        "appliedImplants": [serialize_implant(implant, position)
+                             for position, implant in enumerate(fit.appliedImplants)],
+        "boosters": [serialize_booster(booster, position) for position, booster in enumerate(fit.boosters)],
         "projected": {
-            "modules": [serialize_module(module) for module in fit.projectedModules],
-            "drones": [serialize_drone(drone) for drone in fit.projectedDrones],
-            "fighters": [serialize_fighter(fighter) for fighter in fit.projectedFighters],
+            "modules": [serialize_module(module, position) for position, module in enumerate(fit.projectedModules)],
+            "drones": [serialize_drone(drone, position) for position, drone in enumerate(fit.projectedDrones)],
+            "fighters": [serialize_fighter(fighter, position)
+                         for position, fighter in enumerate(fit.projectedFighters)],
             "fits": [serialize_projection(fit, other, "projected") for other in fit.projectedFits],
             "commandFits": [serialize_projection(fit, other, "command") for other in fit.commandFits],
         },
