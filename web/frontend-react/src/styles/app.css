@@ -1286,71 +1286,61 @@ body {
 }
 
 /* ---- tactical destroyer / Anhinga mode switch ----------------------------- */
-/* The badge sits on the lower part of the hull render, inside the ring. It is
+/* The switch sits on the lower part of the hull render, inside the ring. It is
    an overlay like sfFitLink: it does not block drags over the ring interior
-   except on the badge itself. */
-.sfModeBadge {
+   except on the pills themselves. Every mode stays on one row, so switching is a
+   single click; the active pill is highlighted, a pending one is amber italic. */
+.sfModes {
   align-items: center;
   background-color: rgba(20, 20, 20, 0.72);
   border: 1px solid #4a4a4a;
-  border-radius: 11px;
+  border-radius: 12px;
   bottom: 16%;
-  cursor: pointer;
-  display: inline-flex;
-  font-size: 13px;
-  gap: 6px;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 2px;
   left: 50%;
-  line-height: 18px;
-  padding: 1px 12px;
+  max-width: calc(100% - 24px);
+  overflow-x: auto;
+  padding: 2px;
   pointer-events: auto;
   position: absolute;
+  scrollbar-width: none;
   transform: translateX(-50%);
-  user-select: none;
   z-index: 5;
 }
-.sfModeBadge:hover {
-  border-color: #c87d5e;
-  color: #f0dccf;
+.sfModes::-webkit-scrollbar {
+  display: none;
 }
-.sfModeBadgeLabel {
-  color: #8f8f8f;
-  font-size: 11px;
-}
-.sfModeBadgeName {
-  color: #d8c9bf;
-}
-.sfModeBadgePending .sfModeBadgeName,
-.sfModeBadgeName.sfModeBadgePending {
-  color: #e0a070;
-  font-style: italic;
-}
-.sfModeList {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 12px;
-}
-.sfModeOption {
-  align-items: center;
-  border: 1px solid #2c2c2c;
-  border-radius: 4px;
+.sfModes .sfMode {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: #9a9a9a;
   cursor: pointer;
-  display: flex;
-  gap: 8px;
-  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 16px;
+  padding: 1px 10px;
+  user-select: none;
+  white-space: nowrap;
 }
-.sfModeOption:hover {
+.sfModes .sfMode:hover:not(:disabled) {
   background-color: #1d1d1d;
   border-color: #4a4a4a;
+  color: #f0dccf;
 }
-.sfModeOptionActive {
+.sfModes .sfMode:disabled {
+  cursor: default;
+  opacity: 1;
+}
+.sfModes .sfModeActive {
+  background-color: #3a1e17;
   border-color: #9f462f;
   color: #f0dccf;
 }
-.sfModeOption input {
-  accent-color: #9f462f;
-  cursor: pointer;
-  margin: 0;
+.sfModes .sfModePending {
+  color: #e0a070;
+  font-style: italic;
 }
 
 /* ---- HullListing ----------------------------------------------------------- */
