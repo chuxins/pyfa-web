@@ -24,10 +24,24 @@ Two of those attributes need care, both verified against real modules:
 
 from logbook import Logger
 
+from web.services.serialize import module_accepts_charges
+
 pyfalog = Logger(__name__)
 
 #: Below this the value is the attribute's "no range" default rather than a range.
 RANGE_FLOOR = 1000.0
+
+#: Bonus attributes a charged module (a script in a tracking computer or a sensor
+#: booster, say) ends up applying, with the label the card shows. All of them are
+#: percentages, which is how the game data writes them.
+CHARGE_BONUSES = (
+    ("trackingSpeedBonus", "Tracking speed"),
+    ("maxRangeBonus", "Optimal range"),
+    ("falloffBonus", "Falloff range"),
+    ("scanResolutionBonus", "Scan resolution"),
+    ("maxTargetRangeBonus", "Lock range"),
+    ("signatureRadiusBonus", "Signature radius"),
+)
 
 
 def _attr(module, name, default=0):
@@ -209,6 +223,52 @@ def _propulsion_row(module):
     return {"kind": "propulsion", "speedFactor": round(factor, 1)}
 
 
+def _cap_boost_row(module):
+    """A capacitor booster: the charge holds the capacitor, the module the cycle.
+
+    The 3200 GJ of a Cap Booster 3200 lives on the *charge* (``capacitorBonus``); the
+    booster itself only contributes its activation cycle. That cycle is the module's
+    own ``duration`` (12.75 s for a Heavy F-RX) rather than
+    ``getCycleParameters().averageTime``, which amortises the 10 s reload over the one
+    charge the booster can hold and would report 22.75 s -- the pilot reads the number
+    the module shows next to "activate", not the sustained figure.
+    """
+    if getattr(module, "charge", None) is None:
+        return None
+    try:
+        amount = float(module.getModifiedChargeAttr("capacitorBonus", 0) or 0)
+    except Exception:
+        pyfalog.debug("no charge capacitor for {}", getattr(module, "itemID", "?"))
+        return None
+    if amount <= 0:
+        return None
+    cycle = _attr(module, "duration") / 1000.0 or _cycle_seconds(module)
+    return {
+        "kind": "capBoost",
+        "amount": round(amount, 1),
+        "cycle": round(cycle, 2),
+        "perSecond": round(amount / cycle, 1) if cycle else 0.0,
+    }
+
+
+def _charge_bonus_rows(module):
+    """What a loaded script turns the module into, as the percentages it ends up giving.
+
+    A Tracking Computer II applies +15% tracking on its own; loading an Optimal Range
+    Script takes that away and leaves +15% optimal range and +30% falloff instead. The
+    rows below therefore describe the module *as it now stands*, which is only worth
+    printing once a charge is in (an empty one is reported as an active module).
+    """
+    if getattr(module, "charge", None) is None:
+        return []
+    rows = []
+    for attribute, label in CHARGE_BONUSES:
+        value = _attr(module, attribute)
+        if value:
+            rows.append({"kind": "bonus", "label": label, "value": round(value, 1), "percent": True})
+    return rows
+
+
 def module_effect(module):
     """The rows the hover card draws for one fitted module.
 
@@ -223,6 +283,7 @@ def module_effect(module):
     charge = getattr(module, "charge", None)
 
     rows = [row for row in (
+        _cap_boost_row(module),
         _damage_row(module),
         _cap_drain_row(module),
         _cap_transfer_row(module),
@@ -243,6 +304,16 @@ def module_effect(module):
         optimal, falloff = _optimal(module), _falloff(module)
         if optimal or falloff:
             rows.append({"kind": "range", "optimal": round(optimal), "falloff": round(falloff)})
+
+    # What a loaded script turns the module into
+    rows.extend(_charge_bonus_rows(module))
+
+    # A module that takes charges but holds none is simply active: its numbers depend on
+    # what is loaded (a cap booster without a charge restores nothing, a tracking
+    # computer without a script is just the gun it boosts). The card says so in green
+    # rather than pretending the module does nothing.
+    if not rows and charge is None and module_accepts_charges(module):
+        rows.append({"kind": "active"})
 
     return {
         "itemId": getattr(module, "itemID", None),

@@ -463,6 +463,24 @@ export type ModuleEffectRow =
   | { kind: "warpScrambler"; strength: number; optimal?: number; falloff?: number }
   | { kind: "web"; speedFactor: number; optimal?: number; falloff?: number }
   | { kind: "propulsion"; speedFactor: number }
+  | {
+      /** A capacitor booster: the charge brings the capacitor, the module the cycle. */
+      kind: "capBoost"
+      amount: number
+      cycle: number
+      perSecond: number
+    }
+  | {
+      /** A percentage a loaded script leaves the module giving (tracking, range, scan...). */
+      kind: "bonus"
+      label: string
+      value: number
+      percent: boolean
+    }
+  | {
+      /** Takes charges but holds none: its numbers depend on what gets loaded. */
+      kind: "active"
+    }
 
 /** What one fitted module does, as the hover card shows it. */
 export interface ModuleEffect {

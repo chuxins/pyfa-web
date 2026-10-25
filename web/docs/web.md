@@ -54,6 +54,11 @@ A FastAPI server that reuses pyfa's own engine and editing commands, and a React
   with its type split, volley and cycle and the range it works at for a weapon, the
   capacitor a neutralizer burns (or a nos moves), hit points a repairer restores, warp
   disruption strength, the speed a web takes away and the multiplier a prop mod adds.
+  A module that only acts through what is loaded into it says so: with no charge it reads
+  **主动装备** in green, and once a charge is in it reports the real thing -- a Heavy F-RX
+  Capacitor Booster with a Cap Booster 3200 reads "3200 GJ every 12.75 s", a Tracking
+  Computer II with an Optimal Range Script reads +15% optimal range and +30% falloff
+  (the script takes the module's own +15% tracking away, so it is not shown).
   The rows come from the engine (`GET /api/fits/{id}/modules/{pos}/effect`), so skills,
   implants, rigs, the module's state and the loaded ammunition are all in the answer --
   the same numbers the statistics column works from, and a slot that holds nothing or a

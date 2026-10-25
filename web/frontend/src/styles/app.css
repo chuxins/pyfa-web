@@ -2329,6 +2329,13 @@ body {
 .mcNone {
   color: #8a8a8a;
 }
+/* A charge-capable module holding nothing: green, because it is ready to be used once
+   something is loaded (a cap booster, a scripted tracking computer). */
+.mcActive {
+  color: var(--ok);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
 
 /* Ship bonuses: the hull's own traits block, straight from the game data */
 .statBonuses .statBonusesHull {

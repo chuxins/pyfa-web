@@ -153,6 +153,27 @@ function EffectRow({ row }: { row: ModuleEffectRow }) {
           </span>
         </div>
       )
+    case "capBoost":
+      return (
+        <div className="mcLine">
+          <span>{t("Capacitor restored")}</span>
+          <span>{t("Every {cycle} s · {amount} GJ", { cycle: amount(row.cycle, 3), amount: amount(row.amount, 4) })}</span>
+        </div>
+      )
+    case "bonus":
+      return (
+        <div className="mcLine">
+          <span>{t(row.label)}</span>
+          <span>
+            {row.value > 0 ? "+" : ""}
+            {amount(row.value, 3)}
+            {row.percent ? "%" : ""}
+          </span>
+        </div>
+      )
+    case "active":
+      // Takes charges but holds none: its numbers come from what gets loaded
+      return <div className="mcActive">{t("Active module")}</div>
     default:
       return null
   }

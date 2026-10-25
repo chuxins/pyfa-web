@@ -29,9 +29,32 @@ SCRAM_ID = 448
 #: Damage Control II: a module whose effect this card does not model.
 DAMAGE_CONTROL_ID = 2048
 
+#: Heavy F-RX Compact Capacitor Booster and the Cap Booster 3200 it swallows: the
+#: charge carries the capacitor (``capacitorBonus``), the module the 12.75 s cycle.
+CAP_BOOSTER_ID = 5051
+CAP_BOOSTER_CHARGE_ID = 41489
+
+#: Tracking Computer II (+ its Optimal Range Script) and Sensor Booster II (+ its Scan
+#: Resolution Script): charge-capable modules whose numbers only exist once a script is
+#: in, which is the "active module" case.
+TRACKING_COMPUTER_ID = 1978
+OPTIMAL_RANGE_SCRIPT_ID = 28999
+SENSOR_BOOSTER_ID = 1952
+SCAN_RESOLUTION_SCRIPT_ID = 29011
+
+#: A battleship, for the modules a frigate cannot carry
+DOMINIX_ID = 644
+
 
 def make_fit(client, name="Effect Test"):
     response = client.post("/api/fits", json={"shipId": RIFTER_ID, "name": name})
+    assert response.status_code == 201, response.text
+    return response.json()["id"]
+
+
+def big_fit(client, name="Effect Big"):
+    """A battleship fit, so the bigger charge-holding modules fit."""
+    response = client.post("/api/fits", json={"shipId": DOMINIX_ID, "name": name})
     assert response.status_code == 201, response.text
     return response.json()["id"]
 
@@ -227,3 +250,67 @@ def test_the_card_is_per_fit(user_client, second_user_client):
 
     assert effect_of(user_client, fit_id, position)["itemId"] == AUTOCANNON_ID
     assert second_user_client.get("/api/fits/{}/modules/{}/effect".format(fit_id, position)).status_code == 404
+
+
+def test_a_charge_capable_module_without_a_charge_is_just_active(user_client):
+    """A cap booster holding nothing restores nothing: the card calls it an active module."""
+    fit_id = big_fit(user_client)
+    position = fit_module(user_client, fit_id, CAP_BOOSTER_ID)
+
+    effect = effect_of(user_client, fit_id, position)
+    assert effect["charge"] is None
+    assert effect["rows"] == [{"kind": "active"}]
+
+
+def test_a_loaded_cap_booster_reports_capacitor_and_cycle(user_client):
+    """Heavy F-RX + Cap Booster 3200: 3200 GJ every 12.75 s."""
+    fit_id = big_fit(user_client)
+    position = fit_module(user_client, fit_id, CAP_BOOSTER_ID)
+    load_charge(user_client, fit_id, position, CAP_BOOSTER_CHARGE_ID)
+
+    effect = effect_of(user_client, fit_id, position)
+    assert effect["charge"]["itemId"] == CAP_BOOSTER_CHARGE_ID
+
+    boost = row_of(effect, "capBoost")
+    assert boost is not None, effect["rows"]
+    assert boost["amount"] == 3200
+    assert boost["cycle"] == 12.75
+    assert boost["perSecond"] > 0
+    # the "active" marker is gone now that the module has real numbers
+    assert row_of(effect, "active") is None
+
+
+def test_a_script_leaves_the_module_giving_what_the_script_says(user_client):
+    """Tracking Computer II + Optimal Range Script: the tracking goes away and the
+    range bonuses take its place."""
+    fit_id = big_fit(user_client)
+    position = fit_module(user_client, fit_id, TRACKING_COMPUTER_ID)
+    assert effect_of(user_client, fit_id, position)["rows"] == [{"kind": "active"}]
+
+    load_charge(user_client, fit_id, position, OPTIMAL_RANGE_SCRIPT_ID)
+    effect = effect_of(user_client, fit_id, position)
+    bonuses = {row["label"]: row["value"] for row in effect["rows"] if row["kind"] == "bonus"}
+    assert bonuses.get("Optimal range") == 15
+    assert bonuses.get("Falloff range") == 30
+    assert "Tracking speed" not in bonuses
+
+
+def test_a_scan_resolution_script_doubles_the_sensor_boosters_scan_bonus(user_client):
+    fit_id = big_fit(user_client)
+    position = fit_module(user_client, fit_id, SENSOR_BOOSTER_ID)
+    assert effect_of(user_client, fit_id, position)["rows"] == [{"kind": "active"}]
+
+    load_charge(user_client, fit_id, position, SCAN_RESOLUTION_SCRIPT_ID)
+    effect = effect_of(user_client, fit_id, position)
+    bonuses = {row["label"]: row["value"] for row in effect["rows"] if row["kind"] == "bonus"}
+    assert bonuses.get("Scan resolution") == 60
+
+
+def test_a_module_that_takes_no_charge_never_says_active(user_client):
+    """The green "active module" line is for charge-capable modules only."""
+    fit_id = make_fit(user_client)
+    position = fit_module(user_client, fit_id, DAMAGE_CONTROL_ID)
+
+    effect = effect_of(user_client, fit_id, position)
+    assert effect["rows"] == []
+    assert row_of(effect, "active") is None
