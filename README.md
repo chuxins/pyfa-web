@@ -549,17 +549,28 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8091/api/meta   # 期�
 4. **nginx reload 后旧 worker 仍在服务**：改完立即测可能看到旧行为（`/AssemblyPlanning/` 仍 404），
    等几秒或 `systemctl restart nginx` 再验。
 
-**待补：EVE SSO**。旧机器的 `/opt/pyfa-web/web.env`（生产 `client_id`/`client_secret`）随机器一起丢了，
-本地 `web.yml` 里那份登记的回调是 `http://localhost:8100/api/auth/callback`，不是生产 URL。现在
-`/api/meta` 的 `sso.configured=false`，登录按钮不可用；游客模式（装配、查看、保存到共享游客库）一切正常。
-恢复登录只需把 CCP 应用（回调登记为 `https://eve-tools.xyz/AssemblyPlanning/api/auth/callback`）的凭据写进
-`/opt/pyfa-web/web.env`：
+**EVE SSO（2026-10-25 已恢复）**。旧机器的 `/opt/pyfa-web/web.env` 随机器丢了，换机后重新填好了同一套
+CCP 应用凭据（回调登记 `https://eve-tools.xyz/AssemblyPlanning/api/auth/callback`）。密钥只在服务器上，
+不进版本库：
 
 ```bash
-cat >> /opt/pyfa-web/web.env <<'EOF'
+# /opt/pyfa-web/web.env（640 root:pyfaweb），环境变量优先于 web.yml，所以 web.yml 里那两行留空
 PYFA_WEB_SSO_CLIENT_ID=...
 PYFA_WEB_SSO_CLIENT_SECRET=...
-EOF
-systemctl restart pyfa-web
-curl -s https://eve-tools.xyz/AssemblyPlanning/api/meta | grep -o '"configured":[a-z]*'
+# 改完：systemctl restart pyfa-web
 ```
+
+核验（2026-10-25，服务器侧实测）：
+
+| 检查 | 结果 |
+| --- | --- |
+| `/api/meta` | `sso.configured=true`、`server=Tranquility`、`devBypass=false` |
+| 算出的回调 | `https://eve-tools.xyz/AssemblyPlanning/api/auth/callback`，与登记值逐字符一致 |
+| `GET /api/auth/login` | 303 → `login.eveonline.com/v2/oauth/authorize`，含 `response_type=code`、`client_id`、该回调、四个 scope（含 `esi-clones.read_implants.v1`）、32 字节 `state`、PKCE `S256`（43 字符 challenge） |
+| CCP authorize 端点 | 302 → 账号登录页（`/account/logon?ReturnUrl=…`），未被拒（无 `invalid_client` / `invalid_redirect_uri`） |
+| 凭据有效性 | 用假 `refresh_token` 打 token 端点 → `HTTP 400 {"error":"invalid_grant"}`（若是错 secret 会是 `invalid_client`），说明 client 已被 CCP 承认 |
+| 回调分支（经 nginx） | 无 code → 303 `…/AssemblyPlanning/?sso_error=loginExpired`；`error=access_denied` → `?sso_error=loginCancelled`；错 state → `loginExpired` —— 都回到**单层**子路径，`proxy_redirect` 没有滚雪球 |
+| 未登录 | `/api/auth/me` → `{"authenticated":false}`；游客可正常浏览/装配 |
+
+未覆盖：真人登录那一步（authorize → code → token → JWKS 验签 → 建会话）需要浏览器里输 EVE 账号，
+无法在服务器侧代做；失败时看 `journalctl -u pyfa-web -f`（日志不打印 token），页面会带 `?sso_error=<code>`。
