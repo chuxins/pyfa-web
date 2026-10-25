@@ -26,6 +26,7 @@ const TEMPLATES: Record<string, string> = {
   droneBandwidthExceeded:
     "'{name}' needs {needed} Mbit/s of drone bandwidth; this fit has {available} of {total} left",
   droneControlLimitExceeded: "the ship can keep {limit} drones in space at once and {active} already are",
+  chargeNotAccepted: "'{charge}' cannot be loaded into '{module}'",
   noCharacter: "this account has no {server} EVE login stored on the server; sign in with EVE again",
   missingScope:
     "the login does not include permission to read implants; sign out and sign in with EVE again to approve it",

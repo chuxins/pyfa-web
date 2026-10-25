@@ -341,6 +341,7 @@ const ZH_CN: Record<string, string> = {
     "'{name}' 需要 {needed} Mbit/s 无人机带宽，本装配只剩 {available}/{total}。",
   "the ship can keep {limit} drones in space at once and {active} already are":
     "该舰最多同时放出 {limit} 架无人机，当前已有 {active} 架。",
+  "'{charge}' cannot be loaded into '{module}'": "'{charge}' 无法装填到 '{module}'。",
   Bandwidth: "带宽",
   "No drone bandwidth left": "无人机带宽不足",
   "The ship cannot keep more drones in space": "该舰无法同时控制更多无人机",

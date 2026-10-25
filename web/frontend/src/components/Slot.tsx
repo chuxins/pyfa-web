@@ -3,6 +3,7 @@ import { Icon } from "./Icon"
 import { useFittingStore } from "../store/fitting"
 import { useUiStore } from "../store/ui"
 import type { Module } from "../api"
+import { handleModuleDrop, isItemDrag } from "../dragdrop"
 import { t } from "../i18n"
 
 export type SlotType = "High" | "Medium" | "Low" | "Rig" | "SubSystem"
@@ -94,6 +95,30 @@ export const Slot = (props: { type: SlotType; index: number; fittable: boolean; 
   const onLeave = React.useCallback(() => {
     setModuleHover(null)
   }, [setModuleHover])
+
+  /* A fitted module is a drop target of its own: dropping ammunition on it loads that
+   * one module (see handleModuleDrop). Any other drag falls through to the ring's own
+   * behaviour, and the slot only lights up while a drag of ours is over it. */
+  const [dropTarget, setDropTarget] = React.useState(false)
+
+  const onDragOverSlot = React.useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      if (!isItemDrag(e)) return
+      e.preventDefault()
+      if (hasItem) setDropTarget(true)
+    },
+    [hasItem],
+  )
+
+  const onDragLeaveSlot = React.useCallback(() => setDropTarget(false), [])
+
+  const onDropSlot = React.useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      setDropTarget(false)
+      handleModuleDrop(e, hasItem && slotModule !== null ? slotModule.position : -1)
+    },
+    [hasItem, slotModule],
+  )
 
   const onOffline = React.useCallback(
     (e: React.MouseEvent<SVGSVGElement, MouseEvent>) => {
@@ -192,7 +217,15 @@ export const Slot = (props: { type: SlotType; index: number; fittable: boolean; 
   }
 
   return (
-    <div className="sfSlotOuter" data-hasitem={hasItem} onMouseEnter={onEnter} onMouseLeave={onLeave}>
+    <div
+      className={"sfSlotOuter" + (dropTarget ? " sfSlotDropTarget" : "")}
+      data-hasitem={hasItem}
+      onMouseEnter={onEnter}
+      onMouseLeave={onLeave}
+      onDragOver={onDragOverSlot}
+      onDragLeave={onDragLeaveSlot}
+      onDrop={onDropSlot}
+    >
       <div
         className="sfSlot"
         onClick={props.readOnly !== true ? onCycle : undefined}

@@ -1974,6 +1974,14 @@ body {
   bottom: 80px;
 }
 
+/* The slot under a dragged item: dropping ammunition here loads just this module */
+.sfSlotDropTarget .sfSlot {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: 4px;
+  background-color: rgba(74, 158, 255, 0.25);
+}
+
 /* Fighter bay: the carrier's squadrons, on the same chip/overlay pattern as the drone bay */
 .sfxFighterBay {
   position: relative;

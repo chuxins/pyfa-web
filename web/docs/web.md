@@ -37,6 +37,12 @@ A FastAPI server that reuses pyfa's own engine and editing commands, and a React
   (`droneBandwidth`, Mbit/s per drone) or its five-drone control limit is used up -- and
   the server refuses the same thing with `droneBandwidthExceeded` /
   `droneControlLimitExceeded` should a client ask anyway. Recalling is never refused
+* dropping ammunition: onto a fitted module it goes into **that module only** (the slot
+  lights up while the drag is over it), and a module that cannot take that charge says so
+  -- "'{charge}' cannot be loaded into '{module}'" in the red banner, nothing is loaded.
+  Everywhere else the drop behaves as it always did: onto the ring, a charge goes into the
+  selected module or into every module that takes it, a module is fitted into a free slot,
+  a ship makes a new fit
 * weapon grouping in the high rack: one button links the same weapon there, and
   while it is on a state click or a loaded charge reaches every weapon in the
   group. Nothing about it is saved -- the engine has no weapon groups, so it lives

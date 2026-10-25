@@ -14,6 +14,9 @@ from web.tests.conftest import AUTOCANNON_ID, EMP_S_ID, RIFTER_ID
 #: hardpoints, so the third one is refused for the hardpoints and not for the slots.
 LAUNCHER_ID = 2404
 
+#: A missile charge, which no projectile turret can take
+MISSILE_ID = 2454
+
 #: Damage Control II. ``maxGroupFitted`` is 1, a reason the refusal does not spell out.
 DAMAGE_CONTROL_ID = 2048
 
@@ -734,3 +737,46 @@ def test_change_ship_mode_switches_the_active_mode_and_undoes(user_client):
     undone = user_client.get("/api/fits/{}".format(fit_id)).json()
     active_undone = next(mode["itemId"] for mode in undone["ship"]["modes"] if mode["active"])
     assert active_undone == active_before
+
+
+def test_a_charge_dropped_on_a_module_loads_only_that_module(user_client):
+    """The slot's own drop path asks for one position, and only that row changes."""
+    fit_id = make_fit(user_client, "Charge Drop")
+    run_command(user_client, fit_id, "addLocalModule", itemId=AUTOCANNON_ID)
+    run_command(user_client, fit_id, "addLocalModule", itemId=AUTOCANNON_ID)
+    detail = user_client.get("/api/fits/{}".format(fit_id)).json()
+    high = [row for row in detail["racks"]["high"] if not row["isEmpty"]]
+    assert len(high) == 2
+    first, second = high[0]["position"], high[1]["position"]
+
+    loaded = run_command(user_client, fit_id, "changeLocalModuleCharges",
+                         positions=[first], chargeItemId=EMP_S_ID)
+    assert loaded.status_code == 200, loaded.text
+    after = loaded.json()["racks"]["high"]
+    at = {row["position"]: row for row in after}
+    assert at[first]["charge"]["item"]["id"] == EMP_S_ID
+    # the other turret is untouched -- that is the whole point of dropping it on one slot
+    assert at[second]["charge"] is None
+
+
+def test_a_charge_a_module_cannot_take_is_refused_with_a_reason(user_client):
+    """A charge dropped on the wrong module says which pair failed, so the UI can print it."""
+    fit_id = make_fit(user_client, "Charge Refusal")
+    run_command(user_client, fit_id, "addLocalModule", itemId=AUTOCANNON_ID)
+    run_command(user_client, fit_id, "addLocalModule", itemId=LAUNCHER_ID)
+    detail = user_client.get("/api/fits/{}".format(fit_id)).json()
+    high = [row for row in detail["racks"]["high"] if not row["isEmpty"]]
+    turret = next(row for row in high if row["itemId"] == AUTOCANNON_ID)
+
+    # a missile into a projectile turret
+    refused = run_command(user_client, fit_id, "changeLocalModuleCharges",
+                          positions=[turret["position"]], chargeItemId=MISSILE_ID)
+    assert refused.status_code == 409, refused.text
+    detail_body = refused.json()["detail"]
+    assert detail_body["code"] == "chargeNotAccepted"
+    assert detail_body["params"]["charge"]
+    assert detail_body["params"]["module"]
+
+    after = user_client.get("/api/fits/{}".format(fit_id)).json()
+    row = next(row for row in after["racks"]["high"] if row["position"] == turret["position"])
+    assert row["charge"] is None

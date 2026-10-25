@@ -260,10 +260,43 @@ def changeLocalModuleStates(ctx):
 @command("changeLocalModuleCharges", requires=("positions", "chargeItemId"),
          args={"positions": "module positions", "chargeItemId": "type id of the charge, or null to unload"})
 def changeLocalModuleCharges(ctx):
-    """Load a charge into the given modules."""
+    """Load a charge into the given modules.
+
+    Loading into several modules at once is what "load into all that fit" does, and it
+    asks ``charge-targets`` first. A single module is what dragging ammunition onto a
+    fitted module does -- and there the charge may well be wrong for that module, so each
+    target is checked here: pyfa's own calc command *skips* a row it cannot load, which
+    would leave the drop silently doing nothing instead of saying why.
+    """
     positions = ctx.positions(ctx.payload["positions"], "module")
+    chargeItemID = ctx.payload["chargeItemId"]
+    if chargeItemID is not None:
+        _require_charge_fits(ctx.fit, positions, chargeItemID)
     return ctx.cmd.GuiChangeLocalModuleChargesCommand(
-        fitID=ctx.fitID, positions=positions, chargeItemID=ctx.payload["chargeItemId"])
+        fitID=ctx.fitID, positions=positions, chargeItemID=chargeItemID)
+
+
+def _require_charge_fits(fit, positions, chargeItemID):
+    """Refuse a charge that one of the target modules cannot take."""
+    from service.market import Market
+
+    charge = Market.getInstance().getItem(chargeItemID)
+    if charge is None:
+        raise CommandFailed(
+            "there is no charge with id {}".format(chargeItemID),
+            code="unknownItem", params={"itemId": chargeItemID})
+    for position in positions:
+        if position < 0 or position >= len(fit.modules):
+            continue
+        module = fit.modules[position]
+        if module is None or module.isEmpty:
+            continue
+        if not module.isValidCharge(charge):
+            name = getattr(getattr(module, "item", None), "name", None) or "that module"
+            raise CommandFailed(
+                "{} cannot be loaded into {}".format(getattr(charge, "name", chargeItemID), name),
+                code="chargeNotAccepted",
+                params={"charge": getattr(charge, "name", ""), "module": name})
 
 
 @command("changeLocalModuleMetas", requires=("positions", "newItemId"),

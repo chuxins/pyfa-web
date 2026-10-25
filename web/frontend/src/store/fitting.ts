@@ -110,6 +110,8 @@ export interface FittingState {
   setDroneAmount: (position: number, amount: number) => Promise<Fit | null>
   toggleDrone: (position: number) => Promise<Fit | null>
   setDroneActive: (position: number, amount: number) => Promise<Fit | null>
+  /** Load a charge into one module, the way dropping ammunition on its slot does. */
+  loadChargeInto: (position: number, chargeItemId: number) => Promise<Fit | null>
   removeDrone: (position: number) => Promise<Fit | null>
   /** Launch or recall a whole fighter squadron. */
   toggleFighter: (position: number) => Promise<Fit | null>
@@ -595,6 +597,11 @@ export const useFittingStore = create<FittingState>((set, get) => ({
 
   async toggleDrone(position) {
     return get().send("toggleLocalDroneStates", { main: { kind: "drone", position } })
+  },
+
+  /** Load a charge into this one module (a drop on its slot); refuses politely. */
+  async loadChargeInto(position, chargeItemId) {
+    return get().send("changeLocalModuleCharges", { positions: [position], chargeItemId })
   },
 
   /** Put exactly `amount` drones of one stack in the air, one box at a time. */
