@@ -186,6 +186,27 @@ def test_implant_search_only_returns_implants(client):
     assert CA1_ID in {row["id"] for row in results}
     assert RIFTER_ID not in {row["id"] for row in results}
     assert all(row["category"] == "Implant" for row in results)
+    assert all(row["group"] != "Booster" for row in results)
+    assert all(isinstance(row["slot"], int) for row in results)
+
+
+def test_empty_implant_search_browses_the_whole_catalogue_by_slot(client):
+    """The add-implant picker lists every implant before anything is typed."""
+    response = client.get("/api/implants/search?limit=1000")
+    assert response.status_code == 200, response.text
+    results = response.json()["results"]
+    assert len(results) > 500
+    assert all(row["category"] == "Implant" for row in results)
+    assert all(row["group"] != "Booster" for row in results)
+    assert all(row["nameEn"] for row in results)
+
+    by_id = {row["id"]: row for row in results}
+    assert by_id[CA1_ID]["slot"] == 1
+    assert by_id[CA4_ID]["slot"] == 2
+
+    # The browse list is grouped by slot in the picker, so the server orders it.
+    slots = [row["slot"] for row in results]
+    assert slots == sorted(slots)
 
 
 def test_implant_search_excludes_items_already_on_character(user_client, app_state):

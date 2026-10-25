@@ -62,20 +62,40 @@ def _get_character_or_404(character_id):
 @router.get("/implants/search")
 def search_implants(
     q: str = Query("", description="Name text; empty lists the whole catalogue"),
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(50, ge=1, le=2000),
     exclude: str = Query("", description="Comma-separated item ids already on the character"),
 ):
-    """Search the implant catalogue for the add-implant picker.
+    """Browse or search the implant catalogue for the add-implant picker.
 
-    Open to guests like every game-data read. ``exclude`` keeps the picker from
-    suggesting implants already on the character being edited.
+    With no ``q`` the whole catalogue comes back in slot order, which is what the
+    picker lists before the pilot types anything (pyfa's implant editor shows the
+    same full list). A search is a plain, case-insensitive match over both the
+    displayed name and the English type name, so either language finds the same
+    implant. Boosters are left out because they are consumed, not implanted. Each
+    row carries its ``implantness`` slot so the picker can group the catalogue
+    without a second request. Open to guests like every game-data read.
+    ``exclude`` keeps the picker from suggesting implants already on the
+    character being edited.
     """
-    from web.services.search import search_items
+    from web.services.search import implant_catalog, implant_slot
 
     exclude_ids = {int(part) for part in exclude.split(",") if part.strip().isdigit()}
-    items = [item for item in search_items(q, scope="implants", limit=limit * 2)
-             if item.ID not in exclude_ids][:limit]
-    return {"query": q, "results": [serialize_item(item) for item in items]}
+    needle = q.strip().casefold()
+    items = [
+        item for item, _slot in implant_catalog()
+        if not needle
+        or needle in (item.name or "").casefold()
+        or needle in (item.typeName or "").casefold()
+    ]
+    items = [item for item in items if item.ID not in exclude_ids][:limit]
+
+    results = []
+    for item in items:
+        payload = serialize_item(item)
+        payload["slot"] = implant_slot(item)
+        payload["nameEn"] = item.typeName
+        results.append(payload)
+    return {"query": q, "results": results}
 
 
 @router.get("/characters/{character_id}/implants")

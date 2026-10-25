@@ -28,6 +28,10 @@ export interface Item {
   published?: boolean
   /** Slot-scope searches carry a size class (1 small .. 4 extra large, null: none) */
   size?: number | null
+  /** Implant catalogue rows carry the implantness slot they occupy. */
+  slot?: number
+  /** English name, so search matches in either chrome language. */
+  nameEn?: string
 }
 
 export type ModuleState = "offline" | "online" | "active" | "overheated"
@@ -660,10 +664,10 @@ export const api = {
 
   // -- character implants (implant simulator) ---------------------------------
 
-  /** Search the implant catalogue for the add-implant picker. */
-  searchImplants: (q: string, excludeIds: number[] = []) =>
+  /** Browse the implant catalogue (empty ``q``) or search it by name. */
+  searchImplants: (q: string, excludeIds: number[] = [], limit = 50) =>
     request<{ query: string; results: Item[] }>(
-      `/api/implants/search?q=${encodeURIComponent(q)}&limit=50&exclude=${excludeIds.join(",")}`,
+      `/api/implants/search?q=${encodeURIComponent(q)}&limit=${limit}&exclude=${excludeIds.join(",")}`,
     ),
   /** The implants stored on one character (the list a fit applies when its
    *  implant location is "character"). */

@@ -186,6 +186,46 @@ def search_items(text, scope="market", limit=50):
     return published[:limit]
 
 
+#: Published implants the simulator can plug in, as ``(item, slot)`` pairs,
+#: built once per process from the static data. Boosters share the Implant
+#: category but are consumed rather than implanted, so they are left out --
+#: exactly what :attr:`eos.gamedata.Item.isImplant` says and what the desktop
+#: implant picker lists.
+_IMPLANT_CATALOG = None
+
+
+def implant_slot(item):
+    """The ``implantness`` slot an implant occupies (0 when it carries none)."""
+    slot = item.getAttribute("implantness")
+    return int(slot) if slot else 0
+
+
+def implant_catalog():
+    """Every published implant, ordered by implant slot and then by name.
+
+    This is the browse view of the add-implant picker: unlike
+    :func:`search_items`, it answers before anything is typed, so the picker can
+    show the whole catalogue the way pyfa's implant editor does. The list is
+    read from the static data once and kept for the process.
+    """
+    global _IMPLANT_CATALOG
+    if _IMPLANT_CATALOG is not None:
+        return _IMPLANT_CATALOG
+
+    market = Market.getInstance()
+    items = eos.db.getItemsByCategory("Implant", eager=("group.category", "metaGroup"))
+    rows = []
+    for item in items:
+        if not getattr(item, "isImplant", False):
+            continue
+        if not market.getPublicityByItem(item):
+            continue
+        rows.append((item, implant_slot(item)))
+    rows.sort(key=lambda row: (row[1], (row[0].name or "").lower()))
+    _IMPLANT_CATALOG = rows
+    return rows
+
+
 def _relevance(text):
     """Exact name first, then prefix matches, then the rest alphabetically."""
     lowered = text.strip().lower()

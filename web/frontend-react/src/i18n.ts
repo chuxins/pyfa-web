@@ -88,9 +88,17 @@ const ZH_CN: Record<string, string> = {
   "EVE reports no implants on this pilot's current clone": "EVE 显示该角色的当前克隆体没有植入体",
   "EVE reports {count} implant(s) on this pilot's current clone":
     "EVE 显示该角色的当前克隆体携带 {count} 个植入体",
-  "No implants yet — pull from EVE or add one below": "暂无植入体 — 可从 EVE 拉取，或在下方添加",
-  "No implants yet — add one below": "暂无植入体 — 在下方添加",
-  "Search implants to add…": "搜索要添加的植入体…",
+  "No implants yet — pull from EVE or pick one on the left":
+    "暂无植入体 — 可从 EVE 拉取，或从左侧选择",
+  "No implants yet — pick one on the left": "暂无植入体 — 从左侧选择",
+  "Available implants": "可用植入体",
+  "Implanted": "已植入",
+  "All slots": "全部槽位",
+  "Slot {slot}": "槽位 {slot}",
+  "Already implanted": "已植入",
+  "Add this implant": "添加该植入体",
+  "No implants available": "没有可用的植入体",
+  "Search implants…": "搜索植入体…",
   "No matching implants": "没有匹配的植入体",
   "Preset implants are simulation-only and stay with this account":
     "预设角色的植入体仅用于模拟，保存在本账号中",

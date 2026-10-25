@@ -4,7 +4,7 @@ import { useFittingStore } from "../store/fitting"
 import { useSessionStore } from "../store/session"
 import { t } from "../i18n"
 import { ModalDialog } from "./ModalDialog"
-import { ImplantAdder } from "./ImplantAdder"
+import { ImplantBrowser } from "./ImplantBrowser"
 import { TypeIcon } from "../images"
 
 /**
@@ -191,7 +191,7 @@ const ImplantDialogView = ({
   const preset = data?.preset ?? false
 
   return (
-    <ModalDialog visible={visible} onClose={onClose} title={t("Implant Simulation")} width={560}>
+    <ModalDialog visible={visible} onClose={onClose} title={t("Implant Simulation")} width={900}>
       <div className="implantDialog">
         <div className="implantCharRow">
           <label>{t("Character")}:</label>
@@ -226,44 +226,61 @@ const ImplantDialogView = ({
         </div>
         {syncNote && <div className="dim implantSyncNote">{syncNote}</div>}
 
-        <div className="scroll implantList">
-          {loading && <div className="dim">{t("working…")}</div>}
-          {!loading && data && data.implants.length === 0 && (
-            <div className="dim implantEmpty">
-              {data.hasSso
-                ? t("No implants yet — pull from EVE or add one below")
-                : t("No implants yet — add one below")}
+        <div className="implantColumns">
+          <section className="implantColumn">
+            <div className="implantColumnTitle">
+              <span>{t("Available implants")}</span>
             </div>
-          )}
-          {!loading &&
-            data?.implants.map((implant) => (
-              <div key={implant.itemId} className="implantRow">
-                <TypeIcon typeId={implant.itemId} size={28} />
-                <span className="implantSlot" title={t("Implant slot")}>
-                  {implant.slot === 0 ? "00" : implant.slot}
-                </span>
-                <span className="implantName">{implant.item?.name ?? implant.itemId}</span>
-                <span className={"tag implantSource " + implant.source}>
-                  {implant.source === "esi" ? t("In game") : t("Custom")}
-                </span>
-                <button
-                  type="button"
-                  className="implantRemove"
-                  title={t("Remove")}
-                  onClick={() => onRemove(implant.itemId)}
-                >
-                  &times;
-                </button>
+            {data ? (
+              <ImplantBrowser
+                implantedIds={data.implants.map((implant) => implant.itemId)}
+                onPick={onAdd}
+              />
+            ) : (
+              <div className="dim implantEmpty">
+                {loading ? t("working…") : t("No implants available")}
               </div>
-            ))}
-        </div>
+            )}
+          </section>
 
-        {data && (
-          <ImplantAdder
-            excludeIds={data.implants.map((implant) => implant.itemId)}
-            onPick={onAdd}
-          />
-        )}
+          <section className="implantColumn">
+            <div className="implantColumnTitle">
+              <span>{t("Implanted")}</span>
+              <span className="dim">{data?.implants.length ?? 0}</span>
+            </div>
+            <div className="scroll implantList">
+              {loading && <div className="dim implantEmpty">{t("working…")}</div>}
+              {!loading && data && data.implants.length === 0 && (
+                <div className="dim implantEmpty">
+                  {data.hasSso
+                    ? t("No implants yet — pull from EVE or pick one on the left")
+                    : t("No implants yet — pick one on the left")}
+                </div>
+              )}
+              {!loading &&
+                data?.implants.map((implant) => (
+                  <div key={implant.itemId} className="implantRow">
+                    <TypeIcon typeId={implant.itemId} size={28} />
+                    <span className="implantSlot" title={t("Implant slot")}>
+                      {implant.slot === 0 ? "00" : implant.slot}
+                    </span>
+                    <span className="implantName">{implant.item?.name ?? implant.itemId}</span>
+                    <span className={"tag implantSource " + implant.source}>
+                      {implant.source === "esi" ? t("In game") : t("Custom")}
+                    </span>
+                    <button
+                      type="button"
+                      className="implantRemove"
+                      title={t("Remove")}
+                      onClick={() => onRemove(implant.itemId)}
+                    >
+                      &times;
+                    </button>
+                  </div>
+                ))}
+            </div>
+          </section>
+        </div>
 
         {preset && (
           <p className="dim implantHint">

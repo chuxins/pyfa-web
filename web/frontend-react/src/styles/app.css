@@ -2915,9 +2915,72 @@ button.skillPip:disabled {
   font-size: 12px;
 }
 
-.implantList {
-  max-height: 280px;
-  min-height: 60px;
+.implantColumns {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.implantColumn {
+  flex: 1 1 0;
+  min-width: 0;
+  height: min(430px, 52vh);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.implantColumnTitle {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 2px;
+  font-size: 12px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.implantBrowser {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.implantSearch {
+  width: 100%;
+}
+
+.implantSlotFilter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.implantSlotChip {
+  min-width: 26px;
+  padding: 1px 6px;
+  font-size: 11px;
+  line-height: 1.5;
+  border-radius: 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+}
+
+.implantSlotChip.selected {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.implantList,
+.implantBrowserList {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -2927,14 +2990,75 @@ button.skillPip:disabled {
   background: var(--panel);
 }
 
+.implantBrowserNote {
+  flex: none;
+  padding: 8px 6px;
+  font-size: 12px;
+}
+
+.implantGroupHeader {
+  flex: none;
+  position: sticky;
+  top: -4px;
+  z-index: 1;
+  padding: 2px 5px;
+  margin-top: 2px;
+  background: var(--panel);
+  color: var(--text-dim);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.15);
+}
+
+.implantPickRow {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 2px 5px;
+  background: none;
+  border: none;
+  border-radius: 3px;
+  text-align: left;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 26px;
+}
+
+.implantPickRow:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.implantPickRow.plugged {
+  opacity: 0.5;
+}
+
+.implantPickName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .implantEmpty,
 .implantHint {
   padding: 8px 6px;
   font-size: 12px;
 }
 
+.implantEmpty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
 .implantRow {
   display: flex;
+  flex: none;
   align-items: center;
   gap: 8px;
   padding: 2px 6px;
@@ -2992,24 +3116,24 @@ button.skillPip:disabled {
   color: #fff;
 }
 
-.implantAdder {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.implantPickerList {
-  max-height: 180px;
-  display: grid;
-  gap: 2px;
-}
-
-.pickerrow.picked {
-  background: rgba(90, 150, 90, 0.25);
-}
-
 .implantFooter {
   display: flex;
   justify-content: flex-end;
   margin-top: 4px;
+}
+
+@media (max-width: 720px) {
+  .implantColumns {
+    flex-direction: column;
+  }
+
+  .implantColumn {
+    height: auto;
+  }
+
+  .implantList,
+  .implantBrowserList {
+    flex: none;
+    height: 240px;
+  }
 }
