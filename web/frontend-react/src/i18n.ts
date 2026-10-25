@@ -100,6 +100,13 @@ const ZH_CN: Record<string, string> = {
   "No implants available": "没有可用的植入体",
   "Search implants…": "搜索植入体…",
   "No matching implants": "没有匹配的植入体",
+  "Other implants": "其他植入体",
+  "Ocular Filter": "视觉滤镜",
+  "Memory Augmentation": "记忆增强体",
+  "Neural Boost": "神经增效体",
+  "Cybernetic Subprocessor": "脑控次处理器",
+  "Social Adaptation Chip": "社交适应芯片",
+  "{count} implants": "{count} 个植入体",
   "Preset implants are simulation-only and stay with this account":
     "预设角色的植入体仅用于模拟，保存在本账号中",
   "the login does not include permission to read implants; sign out and sign in with EVE again to approve it":
