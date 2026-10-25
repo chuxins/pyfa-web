@@ -435,3 +435,39 @@ def test_switching_a_module_off_and_overheating_it_shows_in_its_state(user_clien
     overheated = effect_of(user_client, fit_id, active)
     assert overheated["state"] == "overheated"
     assert overheated["canActivate"] is True
+
+
+#: Jammers: a multispectral one is equally strong against every sensor, a race-specific
+#: one is strong against its own and weak elsewhere. A signal amplifier boosts both.
+MULTISPECTRAL_ECM = 2567
+GRAVIMETRIC_ECM = 2571
+SIGNAL_AMPLIFIER = 25563
+
+
+def test_a_multispectral_jammer_reports_one_strength_for_every_sensor(user_client):
+    fit_id = cruiser_fit(user_client)
+    position = fit_module(user_client, fit_id, MULTISPECTRAL_ECM)
+
+    rows = rows_of(effect_of(user_client, fit_id, position), "ecm")
+    assert rows, effect_of(user_client, fit_id, position)["rows"]
+    values = set(rows[0]["values"].values())
+    assert len(values) == 1  # the same number four times
+    assert 1.0 < values.pop() < 10.0
+
+
+def test_a_race_specific_jammer_is_strong_only_against_its_own_sensor(user_client):
+    fit_id = cruiser_fit(user_client)
+    position = fit_module(user_client, fit_id, GRAVIMETRIC_ECM)
+
+    values = rows_of(effect_of(user_client, fit_id, position), "ecm")[0]["values"]
+    assert values["gravimetric"] > values["ladar"]
+    assert values["ladar"] == values["magnetometric"] == values["radar"]
+
+
+def test_a_signal_amplifier_reports_the_percentages_it_adds(user_client):
+    fit_id = cruiser_fit(user_client)
+    position = fit_module(user_client, fit_id, SIGNAL_AMPLIFIER)
+
+    bonuses = bonus_map(effect_of(user_client, fit_id, position))
+    assert bonuses.get("ECM strength") == 10
+    assert bonuses.get("ECM range") == 10

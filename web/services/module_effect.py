@@ -56,10 +56,15 @@ BONUS_ATTRIBUTES = (
     ("shieldBoostMultiplier", "Shield boost", "percent"),
     ("damageMultiplier", "Damage", "multiplier"),
     ("armorHPBonusAdd", "Armor hit points", "flat"),
+    ("ecmStrengthBonusPercent", "ECM strength", "percent"),
+    ("ecmRangeBonus", "ECM range", "percent"),
 )
 
 #: The four damage types, in the order the game data writes them
 RESIST_TYPES = ("em", "thermal", "kinetic", "explosive")
+
+#: The four sensor types an ECM jammer works on (the attribute suffix each uses)
+SENSOR_TYPES = ("gravimetric", "ladar", "magnetometric", "radar")
 
 #: Resistance layers, in the order they are worth printing
 RESIST_LAYERS = ("armor", "shield", "hull")
@@ -220,6 +225,22 @@ def _repair_row(module):
     return _with_range(row, module)
 
 
+def _ecm_row(module):
+    """Jam strength per sensor type: ``scanGravimetricStrengthBonus`` and its three siblings.
+
+    A multispectral jammer carries the same number four times; a race-specific one (a
+    ``Gravimetric ECM II``) is strong against its own race and weak against the rest, so
+    the row keeps all four values and the card collapses them only when they agree.
+    """
+    values = {
+        sensor: _attr(module, "scan{}StrengthBonus".format(sensor.capitalize()))
+        for sensor in SENSOR_TYPES
+    }
+    if not any(values.values()):
+        return None
+    return {"kind": "ecm", "values": {sensor: round(value, 2) for sensor, value in values.items()}}
+
+
 def _scrambler_row(module):
     """Warp disruption strength: what a warp scrambler or a point brings."""
     strength = _attr(module, "warpScrambleStrength")
@@ -356,6 +377,7 @@ def module_effect(module):
         _cap_drain_row(module),
         _cap_transfer_row(module),
         _repair_row(module),
+        _ecm_row(module),
         _scrambler_row(module),
         _web_row(module),
         _propulsion_row(module),

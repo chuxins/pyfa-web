@@ -499,6 +499,11 @@ export type ModuleEffectRow =
       layer: "armor" | "shield" | "hull"
       values: { em: number; thermal: number; kinetic: number; explosive: number }
     }
+  | {
+      /** Jam strength per sensor type (a multispectral ECM carries the same four times). */
+      kind: "ecm"
+      values: { gravimetric: number; ladar: number; magnetometric: number; radar: number }
+    }
 
 /** What one fitted module does, as the hover card shows it. */
 export interface ModuleEffect {

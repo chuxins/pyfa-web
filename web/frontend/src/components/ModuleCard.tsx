@@ -206,6 +206,29 @@ function EffectRow({ row }: { row: ModuleEffectRow }) {
         </div>
       )
     }
+    case "ecm": {
+      const sensors = ["gravimetric", "ladar", "magnetometric", "radar"] as const
+      const names = {
+        gravimetric: "Gravimetric",
+        ladar: "Ladar",
+        magnetometric: "Magnetometric",
+        radar: "Radar",
+      } as const
+      const values = sensors.map((sensor) => row.values[sensor] ?? 0)
+      const same = values.every((value) => value === values[0])
+      return (
+        <div className="mcLine">
+          <span>{t("ECM strength")}</span>
+          <span>
+            {same
+              ? amount(values[0], 3)
+              : sensors
+                  .map((sensor) => `${t(names[sensor])} ${amount(row.values[sensor], 3)}`)
+                  .join("  ")}
+          </span>
+        </div>
+      )
+    }
     default:
       return null
   }

@@ -75,7 +75,9 @@ A FastAPI server that reuses pyfa's own engine and editing commands, and a React
 * hovering a fitted module shows what it does, in the fit's own numbers: damage per second
   with its type split, volley and cycle and the range it works at for a weapon, the
   capacitor a neutralizer burns (or a nos moves), hit points a repairer restores, warp
-  disruption strength, the speed a web takes away and the multiplier a prop mod adds.
+  ECM strength (one number for a multispectral jammer, all four sensor types for a
+  race-specific one), warp disruption strength, the speed a web takes away and the
+  multiplier a prop mod adds.
   A module that only acts through what is loaded into it says so: with no charge it reads
   **主动装备** in green, and once a charge is in it reports the real thing -- a Heavy F-RX
   Capacitor Booster with a Cap Booster 3200 reads "3200 GJ every 12.75 s", a Tracking
