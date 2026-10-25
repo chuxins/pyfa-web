@@ -3011,28 +3011,35 @@ button.skillPip:disabled {
 }
 
 /* The slim edge tab that re-opens the drawer; sits flush on the container's
-   right edge, vertically centred, and never overlaps the footer. */
+   right edge, vertically centred, and never overlaps the footer.
+
+   2026-10-25: 放大并改成强调色 —— 原来 12px 灰底灰字，跟在深色界面里几乎看不见；
+   现在用主题的强调蓝 + 深色粗体字（对比度约 7.6:1），尺寸也放大了约 1.4 倍。 */
 .skillsTab {
   position: absolute;
   top: 50%;
   right: 0;
   transform: translateY(-50%);
-  background: #2a2a2a;
-  border: 1px solid #4f4f4f;
+  background: var(--accent);
+  border: 1px solid #7cc0ff;
   border-right: none;
-  border-radius: 10px 0 0 10px;
-  color: #c5c5c5;
+  border-radius: 12px 0 0 12px;
+  box-shadow: -3px 0 12px rgba(74, 158, 255, 0.45);
+  color: #0a1420;
   cursor: pointer;
-  padding: 14px 6px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  padding: 22px 8px;
   z-index: 41;
   writing-mode: vertical-rl;
-  letter-spacing: 0.1em;
-  font-size: 12px;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, box-shadow 0.15s ease, padding 0.15s ease;
 }
 
 .skillsTab:hover {
-  background: #3a3a3a;
+  background: #7cc0ff;
+  box-shadow: -4px 0 16px rgba(74, 158, 255, 0.65);
+  padding-left: 12px;
 }
 
 .skillsTab.open {
@@ -3047,13 +3054,14 @@ button.skillPip:disabled {
 }
 
 .skillsTabBadge {
-  background: #a12d32;
+  background: #3a1008;
   border-radius: 8px;
-  color: #fff;
-  font-size: 10px;
-  line-height: 16px;
-  min-width: 16px;
-  height: 16px;
+  color: #ffd7cd;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 17px;
+  min-width: 17px;
+  height: 17px;
   text-align: center;
   writing-mode: horizontal-tb;
 }
