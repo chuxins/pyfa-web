@@ -3014,7 +3014,9 @@ button.skillPip:disabled {
    right edge, vertically centred, and never overlaps the footer.
 
    2026-10-25: 放大并改成强调色 —— 原来 12px 灰底灰字，跟在深色界面里几乎看不见；
-   现在用主题的强调蓝 + 深色粗体字（对比度约 7.6:1），尺寸也放大了约 1.4 倍。 */
+   现在用主题的强调蓝 + 深色粗体字（对比度约 7.6:1），尺寸也放大了约 1.4 倍。
+   抽屉推出时标签不再淡出，而是跟着滑到抽屉左沿（right 与抽屉同一条 transition），
+   点它即可收起 —— 收起按钮始终在手边。 */
 .skillsTab {
   position: absolute;
   top: 50%;
@@ -3033,7 +3035,8 @@ button.skillPip:disabled {
   padding: 22px 8px;
   z-index: 41;
   writing-mode: vertical-rl;
-  transition: background 0.15s ease, box-shadow 0.15s ease, padding 0.15s ease;
+  /* right 与 .skillsPanel 的 transform 同长，抽屉推出时标签贴着它的左沿一起走 */
+  transition: background 0.15s ease, box-shadow 0.15s ease, padding 0.15s ease, right 0.18s ease;
 }
 
 .skillsTab:hover {
@@ -3042,9 +3045,10 @@ button.skillPip:disabled {
   padding-left: 12px;
 }
 
+/* 抽屉打开：标签停靠在抽屉左沿（right 10px + 宽 300px），仍然可点、可见 */
 .skillsTab.open {
-  pointer-events: none;
-  opacity: 0;
+  right: 310px;
+  border-radius: 12px 0 0 12px;
 }
 
 .skillsTabText {
