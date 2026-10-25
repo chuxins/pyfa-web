@@ -347,6 +347,7 @@ const ZH_CN: Record<string, string> = {
   "Enabled active module": "启用主动装备",
   "Disabled passive module": "停用被动装备",
   "Disabled active module": "停用主动装备",
+  "Activated active module": "激活主动装备",
   "Overheated active module": "超载主动装备",
   "Armor resistance": "装甲抗性",
   "Shield resistance": "护盾抗性",

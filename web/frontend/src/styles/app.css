@@ -2440,17 +2440,17 @@ body {
   letter-spacing: 0.04em;
 }
 
-/* The state line of the hover card: passive running is white, active running green,
-   anything switched off grey, an overheated active module red */
+/* The state line of the hover card: switched on but not activated is white, an activated
+   active module green, anything switched off grey, an overheated active module red */
 .mcState {
   font-size: 11px;
   line-height: 14px;
   margin: 2px 0 4px;
 }
-.mcStatePassive {
+.mcStateEnabled {
   color: #e6e6e6;
 }
-.mcStateOn {
+.mcStateActivated {
   color: var(--ok);
 }
 .mcStateOff {

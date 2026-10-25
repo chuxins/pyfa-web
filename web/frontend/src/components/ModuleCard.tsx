@@ -217,23 +217,27 @@ function layerLabel(layer: "armor" | "shield" | "hull"): string {
 }
 
 /**
- * The one-line state label: white for a passive module that is running, green for an
- * active one that is running, grey for either when it is switched off, red when an
- * active module is overheated.
+ * The one-line state label.
+ *
+ * White means "switched on but not running anything": a passive module is like that from
+ * the moment it is fitted, and so is an active module that has been switched on but not
+ * activated yet. Green is reserved for an active module that *is* activated, grey for
+ * either kind once it is switched off, and red for an overheated active module.
  */
 function stateOf(effect: ModuleEffect): { text: string; className: string } {
   if (effect.state === "overheated") return { text: t("Overheated active module"), className: "mcStateOverheated" }
-  if (effect.state === "active") return { text: t("Enabled active module"), className: "mcStateOn" }
+  if (effect.state === "active") return { text: t("Activated active module"), className: "mcStateActivated" }
   if (effect.state === "offline") {
     return {
       text: effect.canActivate ? t("Disabled active module") : t("Disabled passive module"),
       className: "mcStateOff",
     }
   }
-  // "online": a passive module runs from the moment it is fitted, an active one does not
-  return effect.canActivate
-    ? { text: t("Disabled active module"), className: "mcStateOff" }
-    : { text: t("Enabled passive module"), className: "mcStatePassive" }
+  // "online": fitted and switched on, but nothing is activated
+  return {
+    text: effect.canActivate ? t("Enabled active module") : t("Enabled passive module"),
+    className: "mcStateEnabled",
+  }
 }
 
 export const ModuleCard = () => {

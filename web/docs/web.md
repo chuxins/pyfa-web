@@ -63,7 +63,8 @@ A FastAPI server that reuses pyfa's own engine and editing commands, and a React
   paste the 100% payout the in-game insurance window offers for the hull and every
   row becomes exact
 * the card also says what state the module is in, coloured: **启用被动装备** in white for a
-  passive module that is running, **启用主动装备** in green for an active one, either
+  passive module that is running, **启用主动装备** in white for an active module that is
+  switched on but not activated yet (and **激活主动装备** in green once it is), either
   spelling of "switched off" in grey, and **超载主动装备** in red when an active module is
   overheated. Modules whose whole job is a bonus report it: a plate its armour hit points,
   a membrane or a hardener its resistances (one row per layer, collapsed to a single
