@@ -336,6 +336,9 @@ class EsiAccess:
     def getFittings(self, char):
         return self.get(char, EsiEndpoints.CHAR_FITTINGS.value, character_id=char.characterID)
 
+    def getImplants(self, char):
+        return self.get(char, EsiEndpoints.CHAR_IMPLANTS.value, character_id=char.characterID)
+
     def postFitting(self, char, json_str):
         # @todo: new fitting ID can be recovered from resp.data,
         return self.post(char, EsiEndpoints.CHAR_FITTINGS.value, json_str, character_id=char.characterID)

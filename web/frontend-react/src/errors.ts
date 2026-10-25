@@ -24,6 +24,8 @@ const TEMPLATES: Record<string, string> = {
   undoFailed: "undo failed; the fit may have changed underneath",
   redoFailed: "redo failed; the fit may have changed underneath",
   noCharacter: "this account has no {server} EVE login stored on the server; sign in with EVE again",
+  missingScope:
+    "the login does not include permission to read implants; sign out and sign in with EVE again to approve it",
   tokenRefused: "EVE no longer accepts the stored login; sign in with EVE again",
   esiUnreachable: "EVE's ESI could not be reached; try again in a moment",
   esiRefused: "EVE refused to hand over the fittings ({reason})",

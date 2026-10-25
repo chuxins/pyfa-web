@@ -132,6 +132,24 @@ def get_fit_stats(fit_id: int, sections: str | None = Query(None)):
     return {"id": fit.ID, "stats": build_stats(fit, sections=wanted)}
 
 
+@router.get("/{fit_id}/price")
+def get_fit_price(fit_id: int):
+    """Cached market valuation of the fit; answers from the user's price rows."""
+    from web.services.prices import fit_price
+
+    fit = _require_fit(fit_id)
+    return fit_price(fit)
+
+
+@router.post("/{fit_id}/price/refresh")
+def refresh_fit_price(fit_id: int):
+    """Re-fetch market prices for the fit's items from the configured source."""
+    from web.services.prices import refresh_prices
+
+    fit = _require_fit(fit_id)
+    return refresh_prices(fit)
+
+
 @router.get("/{fit_id}/skills")
 def get_fit_skills(fit_id: int):
     """Every skill that affects the fit: required level, the fit character's

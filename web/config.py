@@ -23,11 +23,14 @@ except ImportError:  # pragma: no cover - pyyaml is a hard dependency of pyfa it
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 # Scopes pyfa itself asks for. Fittings write access is what makes "export fit to
-# EVE" work; skills are needed to compute a character's fit accurately.
+# EVE" work; skills are needed to compute a character's fit accurately; the clones
+# scope lets the implant simulator prefill a pilot's list with the implants their
+# clone actually carries in game.
 DEFAULT_SCOPES = (
     "esi-skills.read_skills.v1",
     "esi-fittings.read_fittings.v1",
     "esi-fittings.write_fittings.v1",
+    "esi-clones.read_implants.v1",
 )
 
 #: ``web.yml`` keys that map onto :class:`WebConfig` fields, with the

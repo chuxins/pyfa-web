@@ -1,6 +1,7 @@
 import React from "react"
 import { api, imageUrl, type FitSkillRow, type FitSkills } from "../api"
 import { useFittingStore } from "../store/fitting"
+import { useSessionStore } from "../store/session"
 import { t } from "../i18n"
 
 const OPEN_KEY = "pyfa.skillsSidebar.open"
@@ -286,6 +287,14 @@ const CustomSkillPicker = ({
  */
 export const SkillsSidebar = () => {
   const fit = useFittingStore((state) => state.fit)
+  const changeCharacter = useFittingStore((state) => state.changeCharacter)
+  const commandBusy = useFittingStore((state) => state.busy)
+  const sessionUser = useSessionStore((state) => state.user)
+  const sessionCharacters = useSessionStore((state) => state.characters)
+  const promptLogin = useSessionStore((state) => state.promptLogin)
+  // The pilot's own (editable) character, as opposed to the All 0 / All 5 presets.
+  const pilotCharacter = sessionCharacters.find((character) => character.kind !== "preset")
+  const [switching, setSwitching] = React.useState(false)
   const [open, setOpen] = React.useState(rememberedOpen)
   const [showMet, setShowMet] = React.useState(() => {
     try {
@@ -459,6 +468,23 @@ export const SkillsSidebar = () => {
   const toggleEditing = () => setEditing((was) => !was)
   const editBusy = busyId !== null || resetting
 
+  // Read-only presets (All 0 / All 5) cannot have their levels edited. Offer the
+  // one action that fixes that: bind this fit to the signed-in pilot, whose sheet
+  // is fully editable. Guests are sent to the EVE login instead.
+  const switchToPilot = () => {
+    if (fitId === null || switching) return
+    if (!sessionUser) {
+      promptLogin("any")
+      return
+    }
+    if (!pilotCharacter) return
+    setSwitching(true)
+    changeCharacter(pilotCharacter.id)
+      .then(() => reloadSkills(fitId))
+      .catch(() => undefined)
+      .finally(() => setSwitching(false))
+  }
+
   // Ids that must not be suggested again: already pinned, or already required
   // by the fit (a required skill already shows in the main section).
   const pickerExclude = React.useMemo(() => {
@@ -497,6 +523,28 @@ export const SkillsSidebar = () => {
               {editing ? t("Done") : t("Edit")}
             </button>
           )}
+          {!editable && (
+            <button
+              className="skillsEdit skillsSwitchPilot"
+              onClick={switchToPilot}
+              disabled={switching || commandBusy || (!!sessionUser && !pilotCharacter)}
+              title={
+                sessionUser
+                  ? t("Bind this fit to {name} so skill levels can be edited", {
+                      name: pilotCharacter?.name ?? "",
+                    })
+                  : t("The All 0 / All 5 presets are read-only; sign in to edit skill levels")
+              }
+            >
+              {switching
+                ? t("Switching…")
+                : sessionUser
+                  ? pilotCharacter
+                    ? t("Switch to {name}", { name: pilotCharacter.name })
+                    : t("No pilot")
+                  : t("Sign in to edit")}
+            </button>
+          )}
           {editable && dirtyTotal > 0 && (
             <button
               className="skillsReset"
@@ -529,6 +577,11 @@ export const SkillsSidebar = () => {
             {t("Current level")}
           </span>
         </div>
+        {!editable && fitId !== null && !loading && (
+          <div className="skillsReadonlyHint">
+            {t("Read-only skill preset — switch to your pilot to edit levels")}
+          </div>
+        )}
         {editing && (
           <div className="skillsEditHint">
             {t("Click a level box to simulate the trained rank; Reset restores the saved sheet")}

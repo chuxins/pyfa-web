@@ -684,3 +684,53 @@ def test_unexplained_commands_keep_the_plain_refusal(user_client):
 
     assert detail["code"] == "engineRefused"
     assert detail["params"]["command"] == "addLocalFighter"
+
+
+#: Jackdaw, a tactical destroyer with three switchable modes.
+JACKDAW_ID = 34828
+#: The three Jackdaw mode items.
+JACKDAW_DEFENSE_MODE = 35676
+JACKDAW_PROPULSION_MODE = 35677
+JACKDAW_SHARPSHOOTER_MODE = 35678
+#: Rifter has no modes; the serializer must answer None for it.
+JACKDAW_MODE_TYPES = (JACKDAW_DEFENSE_MODE, JACKDAW_PROPULSION_MODE, JACKDAW_SHARPSHOOTER_MODE)
+
+
+def test_tactical_destroyer_lists_its_modes(user_client):
+    response = user_client.post("/api/fits", json={"shipId": JACKDAW_ID, "name": "Mode Test"})
+    assert response.status_code == 201, response.text
+    fit_id = response.json()["id"]
+
+    detail = user_client.get("/api/fits/{}".format(fit_id)).json()
+    modes = detail["ship"]["modes"]
+    assert modes is not None
+    assert {mode["itemId"] for mode in modes} == set(JACKDAW_MODE_TYPES)
+    assert sum(1 for mode in modes if mode["active"]) == 1
+    assert all(mode["item"]["name"] for mode in modes)
+
+
+def test_ordinary_ship_has_no_modes(user_client):
+    fit_id = make_fit(user_client)
+
+    detail = user_client.get("/api/fits/{}".format(fit_id)).json()
+
+    assert detail["ship"]["modes"] is None
+
+
+def test_change_ship_mode_switches_the_active_mode_and_undoes(user_client):
+    response = user_client.post("/api/fits", json={"shipId": JACKDAW_ID, "name": "Mode Edit"})
+    fit_id = response.json()["id"]
+    before = user_client.get("/api/fits/{}".format(fit_id)).json()
+    active_before = next(mode["itemId"] for mode in before["ship"]["modes"] if mode["active"])
+
+    changed = run_command(user_client, fit_id, "changeShipMode", itemId=JACKDAW_SHARPSHOOTER_MODE)
+    assert changed.status_code == 200, changed.text
+    active_after = next(mode["itemId"] for mode in changed.json()["ship"]["modes"] if mode["active"])
+    assert active_after == JACKDAW_SHARPSHOOTER_MODE
+    assert active_after != active_before
+
+    # The engine command is undoable like every other edit.
+    assert user_client.post("/api/fits/{}/undo".format(fit_id)).status_code == 200
+    undone = user_client.get("/api/fits/{}".format(fit_id)).json()
+    active_undone = next(mode["itemId"] for mode in undone["ship"]["modes"] if mode["active"])
+    assert active_undone == active_before

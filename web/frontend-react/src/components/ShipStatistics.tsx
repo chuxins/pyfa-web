@@ -3,6 +3,7 @@ import { Icon, type IconName } from "./Icon"
 import { Attr } from "./ShipAttribute"
 import { useFittingStore } from "../store/fitting"
 import { t } from "../i18n"
+import { FitPricePanel } from "./FitPrice"
 
 /** Collapsible statistics panel (eveship.fit's Category). */
 const Category = ({
@@ -332,6 +333,8 @@ export const ShipStatistics = () => {
       {stats.errors && Object.keys(stats.errors).length > 0 && (
         <div className="banner-error">{Object.values(stats.errors).join("; ")}</div>
       )}
+
+      <FitPricePanel />
     </div>
   )
 }

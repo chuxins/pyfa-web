@@ -1,16 +1,16 @@
 import React from "react"
 import { useFittingStore } from "../store/fitting"
 import { useSessionStore } from "../store/session"
-import { ModalDialog } from "./ModalDialog"
 import { LOCALES, locale, setLocale, t, type LocaleCode } from "../i18n"
+import { ImplantDialog } from "./ImplantDialog"
 
 /**
  * The top bar, mirroring pyfa-web's original three-column UI: the brand on the
  * left, then the open fit's controls (ship name, editable fit name, undo/redo
- * and the skill-simulation entry point), and on the right the language picker,
- * the sign-in/user block and the pyfa version. Clear / save-as / export live in
- * the fit button bar, so only undo/redo stay here beside the skill simulation
- * button (whose dialog is a stub for now).
+ * and the implant-simulation entry point), and on the right the language
+ * picker, the sign-in/user block and the pyfa version. Clear / save-as /
+ * export live in the fit button bar, so only undo/redo stay here beside the
+ * implant simulation button.
  */
 export const TopBar = () => {
   const fit = useFittingStore((state) => state.fit)
@@ -31,8 +31,8 @@ export const TopBar = () => {
     setFitName(fit?.name ?? "")
   }, [fit?.name])
 
-  // Skill-simulation dialog (placeholder for now; the actual simulation comes later).
-  const [skillSimOpen, setSkillSimOpen] = React.useState(false)
+  // The implant simulator: pick a pilot, see/pull their implants, edit them.
+  const [implantSimOpen, setImplantSimOpen] = React.useState(false)
 
   function commitRename() {
     if (!fit || fitName.trim() === "" || fitName === fit.name) return
@@ -74,7 +74,7 @@ export const TopBar = () => {
           >
             &#8631; {t("Redo")}
           </button>
-          <button onClick={() => setSkillSimOpen(true)}>{t("Skill Simulation")}</button>
+          <button onClick={() => setImplantSimOpen(true)}>{t("Implant Simulation")}</button>
           {busy && <span className="dim">{t("working…")}</span>}
         </div>
       )}
@@ -110,14 +110,7 @@ export const TopBar = () => {
       </span>
       </header>
 
-      <ModalDialog visible={skillSimOpen} onClose={() => setSkillSimOpen(false)} title={t("Skill Simulation")}>
-        <div className="skillSimPlaceholder">
-          <p>{t("Skill simulation is under construction")}</p>
-          <span className="fbutton fbuttonSmall" onClick={() => setSkillSimOpen(false)} style={{ display: "inline-block" }}>
-            {t("Close")}
-          </span>
-        </div>
-      </ModalDialog>
+      <ImplantDialog visible={implantSimOpen} onClose={() => setImplantSimOpen(false)} />
     </>
   )
 }

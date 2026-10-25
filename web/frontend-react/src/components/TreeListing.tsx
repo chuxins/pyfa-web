@@ -45,6 +45,8 @@ export const TreeLeaf = (props: {
   icon?: IconName
   iconTitle?: string
   content: string
+  /** A right-aligned action (e.g. the fit delete X); shown on row hover. */
+  action?: React.ReactNode
   onClick?: (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => void
   onDoubleClick?: (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => void
   onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void
@@ -77,6 +79,11 @@ export const TreeLeaf = (props: {
             </span>
           )}
           <span className="treeHeaderText">{props.content}</span>
+          {props.action !== undefined && (
+            <span className="treeLeafAction" onClick={(e) => e.stopPropagation()}>
+              {props.action}
+            </span>
+          )}
         </div>
       </TreeContext.Provider>
     </div>

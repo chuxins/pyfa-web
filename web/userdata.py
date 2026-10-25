@@ -101,6 +101,18 @@ class UserData:
                 )
                 """
             )
+            # The implant simulator's ESI-source markers: one row per implant the
+            # last ESI pull reported as in game for a character (see
+            # web.services.charimplants).
+            connection.exec_driver_sql(
+                """
+                CREATE TABLE IF NOT EXISTS charImplantSets (
+                    characterID INTEGER NOT NULL,
+                    itemID      INTEGER NOT NULL,
+                    PRIMARY KEY (characterID, itemID)
+                )
+                """
+            )
         if isNew:
             with self.engine.begin() as connection:
                 connection.exec_driver_sql("PRAGMA user_version = {}".format(migration.getAppVersion()))

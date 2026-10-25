@@ -1228,6 +1228,130 @@ body {
   pointer-events: none;
   position: absolute;
 }
+/* Right-aligned row action (the fit delete X); only while hovering the row. */
+.treeLeafAction {
+  flex: none;
+  margin-right: 4px;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.treeHeaderHover:hover .treeLeafAction,
+.treeLeafAction:focus-within {
+  opacity: 1;
+}
+.treeLeafDelete {
+  border: 1px solid #6f3a3a;
+  border-radius: 3px;
+  color: #d88;
+  cursor: pointer;
+  display: inline-block;
+  font-size: 14px;
+  font-weight: bold;
+  line-height: 16px;
+  height: 18px;
+  margin-top: 2px;
+  text-align: center;
+  user-select: none;
+  width: 18px;
+}
+.treeLeafDelete:hover {
+  background-color: #864735;
+  border-color: #c87d5e;
+  color: #fff;
+}
+
+/* ---- confirmation dialogs (delete fit, ship mode switch) -------------------- */
+.fconfirmText {
+  margin-bottom: 12px;
+  max-width: 380px;
+  overflow-wrap: anywhere;
+}
+.fconfirmButtons {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.fconfirmButtons .fbutton {
+  height: 28px;
+  line-height: 28px;
+  padding: 0 18px;
+}
+.fbuttonDanger {
+  background-color: #5a2420;
+  border-color: #c85a4a;
+}
+.fbuttonDanger:hover {
+  background-color: #8a352b;
+  border-color: #e0705a;
+}
+
+/* ---- tactical destroyer / Anhinga mode switch ----------------------------- */
+/* The badge sits on the lower part of the hull render, inside the ring. It is
+   an overlay like sfFitLink: it does not block drags over the ring interior
+   except on the badge itself. */
+.sfModeBadge {
+  align-items: center;
+  background-color: rgba(20, 20, 20, 0.72);
+  border: 1px solid #4a4a4a;
+  border-radius: 11px;
+  bottom: 16%;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 13px;
+  gap: 6px;
+  left: 50%;
+  line-height: 18px;
+  padding: 1px 12px;
+  pointer-events: auto;
+  position: absolute;
+  transform: translateX(-50%);
+  user-select: none;
+  z-index: 5;
+}
+.sfModeBadge:hover {
+  border-color: #c87d5e;
+  color: #f0dccf;
+}
+.sfModeBadgeLabel {
+  color: #8f8f8f;
+  font-size: 11px;
+}
+.sfModeBadgeName {
+  color: #d8c9bf;
+}
+.sfModeBadgePending .sfModeBadgeName,
+.sfModeBadgeName.sfModeBadgePending {
+  color: #e0a070;
+  font-style: italic;
+}
+.sfModeList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.sfModeOption {
+  align-items: center;
+  border: 1px solid #2c2c2c;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+  padding: 6px 10px;
+}
+.sfModeOption:hover {
+  background-color: #1d1d1d;
+  border-color: #4a4a4a;
+}
+.sfModeOptionActive {
+  border-color: #9f462f;
+  color: #f0dccf;
+}
+.sfModeOption input {
+  accent-color: #9f462f;
+  cursor: pointer;
+  margin: 0;
+}
 
 /* ---- HullListing ----------------------------------------------------------- */
 
@@ -1525,9 +1649,17 @@ body {
 .sfFit {
   border-radius: 50%;
   border: 1px solid black;
-  height: 100%;
+  /* ShipFitExtended reserves an 80px strip at the bottom (padding) for the
+     absolutely-positioned cargo/history/CPU-PG readouts, so the fill area is
+     wider than it is tall. The ring's SVG geometry assumes a square box
+     (usage arcs rotate about the parent's centre); keep this box square and
+     centre it horizontally inside that reduced-height area. */
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
   position: relative;
-  width: 100%;
+  /* Fill the reduced-height content box (80px shorter for the bottom strip):
+     size to the smaller axis; width-derived height then equals 100%. */
+  width: min(100%, calc(100cqh + 80px));
 }
 .sfRingOuter {
   filter: drop-shadow(0 0 6px #000000);
@@ -2047,6 +2179,47 @@ body {
 .statistic > span:last-child {
   line-height: 24px;
   margin-left: 4px;
+}
+/* Fit market valuation panel (bottom of the statistics column) */
+.statPrice .statPriceExpanded {
+  max-height: 320px;
+}
+.statPrice .statLine {
+  margin: 6px 10px;
+}
+.statPrice .statLine > span {
+  margin: 0;
+  white-space: nowrap;
+}
+.statPriceTotalLine {
+  border-top: 1px solid #2a2a2a;
+  font-weight: bold;
+  padding-top: 4px;
+}
+.statPriceStatus {
+  color: #8a8a8a;
+  font-weight: normal;
+}
+.statPriceFooter {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: space-between;
+  margin: 8px 10px 10px;
+}
+.statPriceRefresh {
+  font-size: 12px;
+  padding: 2px 8px;
+}
+.statPriceMeta {
+  color: #8a8a8a;
+  font-size: 11px;
+  text-align: right;
+}
+.statPriceError {
+  font-size: 12px;
+  margin: 0 10px 10px;
 }
 .statDefense {
   margin: 20px 0px;
@@ -2611,6 +2784,31 @@ button.skillPip:disabled {
   line-height: 1.4;
 }
 
+/* Read-only (All 0 / All 5) fit: hint that levels need the pilot's own sheet. */
+.skillsReadonlyHint {
+  padding: 5px 14px 7px;
+  border-bottom: 1px solid #333;
+  color: #7f9fc0;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+/* The header shortcut that binds the fit to the signed-in pilot in one click. */
+.skillsSwitchPilot {
+  color: #9db8d6;
+  border-color: #4a5f7a;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skillsSwitchPilot:hover:not(:disabled) {
+  color: #c2d6ee;
+  border-color: #6d87a8;
+  background: rgba(90, 120, 160, 0.15);
+}
+
 /* Legend bar under the header explaining the two pip colours. */
 .skillsLegend {
   display: flex;
@@ -2690,4 +2888,133 @@ button.skillPip:disabled {
   height: 16px;
   text-align: center;
   writing-mode: horizontal-tb;
+}
+
+/* ---- implant simulator dialog --------------------------------------------- */
+
+.implantDialog {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 2px;
+}
+
+.implantCharRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.implantCharRow label {
+  color: var(--text-dim);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.implantCharRow select {
+  flex: 1;
+  min-width: 0;
+}
+
+.implantSync {
+  white-space: nowrap;
+}
+
+.implantList {
+  max-height: 280px;
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px;
+  background: var(--panel);
+}
+
+.implantEmpty,
+.implantHint {
+  padding: 8px 6px;
+  font-size: 12px;
+}
+
+.implantRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.implantRow:hover {
+  background: var(--hover);
+}
+
+.implantSlot {
+  width: 24px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--panel-2);
+  flex: none;
+}
+
+.implantName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.implantSource.esi {
+  border-color: #3a6ea5;
+  color: #7fb2e0;
+}
+
+.implantSource.custom {
+  border-color: #8a6d3b;
+  color: #d8b26a;
+}
+
+.implantRemove {
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 3px;
+  background: none;
+  color: var(--text-dim);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  flex: none;
+}
+
+.implantRemove:hover {
+  background: #a12d32;
+  color: #fff;
+}
+
+.implantAdder {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.implantPickerList {
+  max-height: 180px;
+  display: grid;
+  gap: 2px;
+}
+
+.pickerrow.picked {
+  background: rgba(90, 150, 90, 0.25);
+}
+
+.implantFooter {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
 }

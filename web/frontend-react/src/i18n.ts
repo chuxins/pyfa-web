@@ -79,6 +79,23 @@ const ZH_CN: Record<string, string> = {
   "working…": "处理中…",
   "Skill Simulation": "技能模拟",
   "Skill simulation is under construction": "技能模拟功能开发中，敬请期待",
+  "Implant Simulation": "植入体模拟",
+  "Custom": "自定义",
+  "In game": "游戏内",
+  "Pull from EVE": "从 EVE 拉取",
+  "Re-pull the implants this pilot's clone carries in game": "重新拉取该角色克隆体当前携带的植入体",
+  "Implant slot": "植入体槽位",
+  "This preset carries no implants of its own": "该预设角色没有自带植入体",
+  "No implants yet — pull from EVE or add one below": "暂无植入体 — 可从 EVE 拉取，或在下方添加",
+  "No implants yet — add one below": "暂无植入体 — 在下方添加",
+  "Search implants to add…": "搜索要添加的植入体…",
+  "No matching implants": "没有匹配的植入体",
+  "Preset characters cannot carry implants; pick a pilot to simulate":
+    "预设角色无法携带植入体，请选择真实角色进行模拟",
+  "the login does not include permission to read implants; sign out and sign in with EVE again to approve it":
+    "当前登录未授权读取植入体；请退出后重新用 EVE 登录并同意该权限",
+  "This character has no stored EVE login to read implants with.":
+    "该角色没有可用于读取植入体的 EVE 登录信息。",
   "Sign out": "退出登录",
   "Sign in with EVE": "使用 EVE 登录",
   "Sign in to continue": "请先登录",
@@ -110,6 +127,10 @@ const ZH_CN: Record<string, string> = {
   "Results ({count})": "搜索结果（{count}）",
   "New fit": "新建装配",
   "Delete this fit?": "确定删除该装配？",
+  "Delete fitting": "删除装配方案",
+  "Delete '{name}'?": "确定删除装配方案「{name}」？",
+  "Delete '{name}' from the website and from EVE?":
+    "确定删除装配方案「{name}」吗？该方案将同时从网站和 EVE 游戏中删除。",
   "Delete from the website and from EVE": "从网站和 EVE 中删除",
   "Click again to confirm": "再次点击确认",
   "No saved fits yet": "暂无保存的装配",
@@ -135,6 +156,8 @@ const ZH_CN: Record<string, string> = {
   Subsystem: "子系统",
   Service: "服务槽",
   Mode: "模式",
+  "Tactical Mode": "战术模式",
+  "Switch tactical mode": "切换战术模式",
   System: "系统",
   "group weapons": "武器编组",
   "ungroup weapons": "取消编组",
@@ -199,7 +222,7 @@ const ZH_CN: Record<string, string> = {
   Delta: "变化率",
   Capacity: "容量",
   Used: "已用",
-  Total: "总量",
+  Total: "总计",
 
   // -- hardware browser ------------------------------------------------------
   "Search items…": "搜索物品…",
@@ -359,6 +382,16 @@ const ZH_CN: Record<string, string> = {
   "Tip: drag drones to the ship to add them": "提示：把无人机拖到舰船即可放入无人机舱",
 
   // -- statistics ----------------------------------------------------------------
+  "Estimated Price": "估价",
+  "Total estimated market value": "市场估价合计",
+  Ship: "船体",
+  Fittings: "装备",
+  "Cargo bay": "货舱",
+  "Refresh prices": "刷新价格",
+  "Updating prices...": "正在更新价格…",
+  "Fetch current market prices": "从市场数据源获取最新价格",
+  "Prices unavailable": "暂时无法获取市场价格",
+  " · {count} no price": " · {count} 项无价",
   "Depletes in": "耗尽于",
   "Damage Per Second": "每秒伤害",
   "Alpha Strike": "齐射伤害",
@@ -428,6 +461,16 @@ const ZH_CN: Record<string, string> = {
   "Simulated level, not saved": "模拟等级，未保存",
   "Click a level box to simulate the trained rank; Reset restores the saved sheet":
     "点击等级格子模拟学习等级；重置可恢复已保存的技能表",
+  "Switching…": "切换中…",
+  "Switch to {name}": "切换到 {name}",
+  "No pilot": "无可编辑角色",
+  "Sign in to edit": "登录后可编辑",
+  "Bind this fit to {name} so skill levels can be edited":
+    "将此装配绑定到 {name} 后即可编辑技能等级",
+  "The All 0 / All 5 presets are read-only; sign in to edit skill levels":
+    "All 0 / All 5 为只读预设；登录后即可编辑技能等级",
+  "Read-only skill preset — switch to your pilot to edit levels":
+    "当前为只读技能预设，切换到你的角色即可编辑等级",
 }
 
 const CATALOGUES: Partial<Record<LocaleCode, Record<string, string>>> = { zh_CN: ZH_CN }

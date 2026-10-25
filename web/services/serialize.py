@@ -377,6 +377,33 @@ def serialize_character(character):
     }
 
 
+def ship_modes(fit):
+    """The ship's switchable modes (tactical destroyers / Anhinga), or None.
+
+    Mirrors the desktop's right-click "Tactical Mode" menu: the active mode is
+    marked so the browser can radio-check it, and the item ids are what the
+    ``changeShipMode`` command expects.
+    """
+    ship = fit.ship
+    if ship is None:
+        return None
+    modes = getattr(ship, "modes", None)
+    if not modes:
+        return None
+    current_id = None
+    current = getattr(fit, "mode", None)
+    if current is not None and getattr(current, "item", None) is not None:
+        current_id = current.item.ID
+    return [
+        {
+            "itemId": mode.item.ID,
+            "item": serialize_item(mode.item),
+            "active": mode.item.ID == current_id,
+        }
+        for mode in modes
+    ]
+
+
 def ship_slots(fit):
     """Slot and hardpoint counts, so the UI can draw empty slots."""
     counts = {}
@@ -453,6 +480,7 @@ def serialize_fit(fit, includeStats=True, statsSections=None):
             "item": serialize_item(shipItem),
             "slots": ship_slots(fit) if fit.ship is not None else {},
             "traits": _traits_html(shipItem),
+            "modes": ship_modes(fit),
         },
         "character": serialize_character(fit.character),
         "damagePattern": serialize_damage_pattern(fit.damagePattern),

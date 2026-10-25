@@ -84,7 +84,7 @@ export interface FittingState {
   fitText: () => Promise<string | null>
   exportTxt: () => Promise<string | null>
   exportToGame: () => Promise<unknown>
-  removeFit: (fitId: number, fit: FitSummary) => Promise<boolean>
+  removeFit: (fitId: number, fit: FitSummary, opts?: { confirmed?: boolean }) => Promise<boolean>
   armDelete: (fitId: number) => void
   disarmDelete: () => void
   remove: () => Promise<number | null>
@@ -345,28 +345,37 @@ export const useFittingStore = create<FittingState>((set, get) => ({
     }
   },
 
-  /** Delete a fit the web owns; game-held fits need an armed second click. */
-  async removeFit(fitId: number, fit: FitSummary): Promise<boolean> {
+  /** Delete a fit the web owns; game-held fits need an armed second click.
+   *  Callers that already showed their own confirmation dialog pass {confirmed:true}
+   *  to skip the arm step and the built-in window.confirm. */
+  async removeFit(fitId: number, fit: FitSummary, opts?: { confirmed?: boolean }): Promise<boolean> {
     const inGame = fit.fromGame || fit.importedToGame
-    if (inGame && get().armedDeleteId !== fitId) {
-      get().armDelete(fitId)
-      get().showNotice(
-        t("This fit is also in EVE; deleting it removes it from the website and from the game. Click delete again to confirm."),
-        6000,
-      )
-      return false
-    }
-    get().disarmDelete()
-    if (inGame) {
-      if (!window.confirm(t("Delete this fit from the website and from EVE?"))) return false
-    } else if (!window.confirm(t("Delete this fit?"))) {
-      return false
+    const confirmed = opts?.confirmed === true
+    if (!confirmed) {
+      if (inGame && get().armedDeleteId !== fitId) {
+        get().armDelete(fitId)
+        get().showNotice(
+          t("This fit is also in EVE; deleting it removes it from the website and from the game. Click delete again to confirm."),
+          6000,
+        )
+        return false
+      }
+      get().disarmDelete()
+      if (inGame) {
+        if (!window.confirm(t("Delete this fit from the website and from EVE?"))) return false
+      } else if (!window.confirm(t("Delete this fit?"))) {
+        return false
+      }
+    } else {
+      get().disarmDelete()
     }
     try {
       await api.deleteFit(fitId)
       if (get().fit?.id === fitId) set({ fit: null })
       get().showNotice(inGame ? t("This fit was deleted from the website and from EVE") : t("This fit was deleted"), 4000)
-      void useBrowserStore.getState().refreshFits()
+      const browser = useBrowserStore.getState()
+      void browser.refreshFits()
+      void browser.loadAllFits()
       return true
     } catch (error) {
       get().setError(error)

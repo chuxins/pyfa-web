@@ -3,6 +3,7 @@ import { Icon } from "./Icon"
 import { RadialMenu } from "./RadialMenu"
 import { Slot, type SlotType } from "./Slot"
 import { Usage } from "./Usage"
+import { ShipModes } from "./ShipModes"
 import { useFittingStore } from "../store/fitting"
 import { useUiStore } from "../store/ui"
 import { t } from "../i18n"
@@ -100,6 +101,7 @@ export const ShipFit = (props: { withStats?: boolean; readOnly?: boolean }) => {
       <div className="sfHull">
         <img src={`https://images.evetech.net/types/${fit.ship.id}/render?size=1024`} alt={fit.ship.item.name} />
       </div>
+      <ShipModes />
       <FitLink />
 
       <div className="sfRingTop">

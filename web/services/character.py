@@ -77,7 +77,26 @@ def ensure_sso_character(userData, character_id, character_name, server_name):  
         eos.db.commit()
 
     _refresh_skills(char)
+    if sso is not None:
+        _refresh_implants(char, sso)
     return char.ID
+
+
+def _refresh_implants(char, sso):
+    """Best-effort pull of the pilot's in-game implants at sign-in.
+
+    Mirrors :func:`_refresh_skills`: the implants endpoint is part of what the
+    SSO login is for, but a login must succeed even when EVE is unreachable or
+    the approved token predates the clones scope (an existing login is renewed
+    with its old scopes). Any failure is logged and the pilot's local list is
+    left untouched; the implant simulator can pull again on demand.
+    """
+    from web.services import charimplants
+
+    try:
+        charimplants.sync_from_esi(char, sso)
+    except Exception as ex:
+        pyfalog.warning("Could not refresh implants for {}: {}", char.name, ex)
 
 
 def _sso_characters():

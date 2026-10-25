@@ -130,6 +130,11 @@ class Esi(EsiAccess):
         resp = super().getFittings(char)
         return resp.json()
 
+    def getImplants(self, id):
+        char = self.getSsoCharacter(id)
+        resp = super().getImplants(char)
+        return resp.json()
+
     def postFitting(self, id, json_str):
         # @todo: new fitting ID can be recovered from resp.data,
         char = self.getSsoCharacter(id)

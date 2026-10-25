@@ -101,12 +101,42 @@ export interface Implant {
   state: ModuleState
 }
 
+/** One implant on a character's own implant list (the implant simulator). */
+export interface CharacterImplant {
+  itemId: number
+  item: Item | null
+  /** implantness slot, 0 for cypher/booster-style slot-0 implants */
+  slot: number
+  active: boolean
+  /** "esi": the clone carries it in game; "custom": added locally as a simulation */
+  source: "esi" | "custom"
+}
+
+/** GET /api/characters/{id}/implants */
+export interface CharacterImplants {
+  id: number
+  name: string
+  implants: CharacterImplant[]
+  /** True for the built-in All 5 / All 0 presets, whose lists cannot be edited. */
+  readOnly: boolean
+  /** Whether this character has a stored EVE login to pull implants with. */
+  hasSso: boolean
+}
+
 export interface Booster {
   position: number
   itemId: number | null
   item: Item | null
   active: boolean
   sideEffects: { id: number; name: string; active: boolean }[]
+}
+
+/** One switchable ship mode (tactical destroyer Defense/Propulsion/Sharpshooter, ...). */
+export interface ShipMode {
+  itemId: number
+  item: Item
+  /** Whether this is the mode the fit currently runs. */
+  active: boolean
 }
 
 /** A fit summary row, as the fits list and the ship detail answer. */
@@ -158,6 +188,8 @@ export interface Fit {
     item: Item
     slots: Record<string, number>
     traits?: string | null
+    /** Switchable ship modes (tactical destroyers / Anhinga); null for other hulls. */
+    modes?: ShipMode[] | null
   }
   character: { id: number; name: string; isDefault: boolean } | null
   damagePattern: {
@@ -210,6 +242,36 @@ export interface TankRow {
   hullRepair: number
   armorRepairPreSpool: number
   armorRepairFullSpool: number
+}
+
+/** Market valuation of one fit (see GET /api/fits/{id}/price). */
+export interface FitPrice {
+  fitId: number
+  currency: string
+  totals: {
+    ship: number
+    fittings: number
+    drones: number
+    cargoBay: number
+    character: number
+    total: number
+  }
+  lines: {
+    itemId: number
+    name: string
+    qty: number
+    unitPrice: number | null
+    total: number | null
+    status: "ok" | "noData" | "notSupported" | "unavailable"
+  }[]
+  missingCount: number
+  missing: number[]
+  /** True when at least one cached row is stale/absent and a refresh helps. */
+  updating: boolean
+  staleCount: number
+  source: string
+  region: string
+  updated: number | null
 }
 
 export interface Stats {
@@ -570,6 +632,9 @@ export const api = {
   searchFits: (q: string) => request<{ fits: FitSummary[] }>(`/api/fits?q=${encodeURIComponent(q)}`),
   fit: (fitId: number, stats = true) => request<Fit>(`/api/fits/${fitId}?stats=${stats}`),
   stats: (fitId: number) => request<{ id: number; stats: Stats }>(`/api/fits/${fitId}/stats`),
+  fitPrice: (fitId: number) => request<FitPrice>(`/api/fits/${fitId}/price`),
+  refreshFitPrice: (fitId: number) =>
+    request<FitPrice>(`/api/fits/${fitId}/price/refresh`, { method: "POST" }),
   fitSkills: (fitId: number) => request<FitSkills>(`/api/fits/${fitId}/skills`),
   searchSkills: (q: string, limit = 20) =>
     request<{ query: string; results: Item[] }>(
@@ -591,6 +656,37 @@ export const api = {
   /** Restore the character's saved skill sheet, discarding simulated levels. */
   resetSkills: (fitId: number) =>
     request<FitSkills>(`/api/fits/${fitId}/skills/reset`, { method: "POST" }),
+
+  // -- character implants (implant simulator) ---------------------------------
+
+  /** Search the implant catalogue for the add-implant picker. */
+  searchImplants: (q: string, excludeIds: number[] = []) =>
+    request<{ query: string; results: Item[] }>(
+      `/api/implants/search?q=${encodeURIComponent(q)}&limit=50&exclude=${excludeIds.join(",")}`,
+    ),
+  /** The implants stored on one character (the list a fit applies when its
+   *  implant location is "character"). */
+  characterImplants: (characterId: number) =>
+    request<CharacterImplants>(`/api/characters/${characterId}/implants`),
+  /** Add one implant to a character's own list. Returns the updated list (and
+   *  the refreshed fit when fitId is given and it uses character implants). */
+  addCharacterImplant: (characterId: number, itemId: number, fitId?: number) =>
+    request<CharacterImplants & { added?: boolean; fit?: Fit }>(
+      `/api/characters/${characterId}/implants${fitId === undefined ? "" : `?fitId=${fitId}`}`,
+      { method: "POST", body: JSON.stringify({ itemId }) },
+    ),
+  /** Remove one implant from a character's own list. */
+  removeCharacterImplant: (characterId: number, itemId: number, fitId?: number) =>
+    request<CharacterImplants & { removed?: boolean; fit?: Fit }>(
+      `/api/characters/${characterId}/implants/${itemId}${fitId === undefined ? "" : `?fitId=${fitId}`}`,
+      { method: "DELETE" },
+    ),
+  /** Pull the implants the pilot's clone carries in game and reconcile. */
+  syncCharacterImplants: (characterId: number, fitId?: number) =>
+    request<CharacterImplants & { fit?: Fit }>(
+      `/api/characters/${characterId}/implants/sync-esi${fitId === undefined ? "" : `?fitId=${fitId}`}`,
+      { method: "POST" },
+    ),
   graphList: (fitId: number) => request<GraphList>(`/api/fits/${fitId}/graphs`),
   graphPlot: (fitId: number, graphId: string, params: Record<string, string>) =>
     request<GraphPlot>(`/api/fits/${fitId}/graphs/${graphId}/plot?${new URLSearchParams(params)}`),
