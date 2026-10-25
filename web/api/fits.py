@@ -14,7 +14,8 @@ from web.deps import event_channel, get_app_state, get_user_data, user_or_guest
 from web.events import publish
 from web.services import commands as commandService
 from web.services import esiFittings
-from web.services.serialize import serialize_fit, serialize_fit_summary
+from web.services.module_effect import module_effect
+from web.services.serialize import serialize_fit, serialize_fit_summary, slot_name, state_name
 from web.services.stats import SECTIONS, build_stats
 
 pyfalog = Logger(__name__)
@@ -121,6 +122,30 @@ def get_fit(
     if sections:
         wanted = [s.strip() for s in sections.split(",") if s.strip() in SECTION_NAMES]
     return serialize_fit(fit, includeStats=stats, statsSections=wanted)
+
+
+@router.get("/{fit_id}/modules/{position}/effect")
+def get_module_effect(fit_id: int, position: int):
+    """What one fitted module does, for the hover card in the fitting view.
+
+    Damage per second and its type split, range, capacitor drained or moved, hit
+    points repaired, scramble strength, speed factor -- whichever of those the module
+    actually carries, read as the fit modifies them (see
+    :mod:`web.services.module_effect`).
+    """
+    fit = _require_fit(fit_id)
+    if position < 0 or position >= len(fit.modules):
+        raise HTTPException(status_code=404, detail="module not found in fit")
+    module = fit.modules[position]
+    if module is None or module.isEmpty:
+        raise HTTPException(status_code=404, detail="that slot is empty")
+    data = module_effect(module)
+    if data is None:
+        raise HTTPException(status_code=404, detail="that slot is empty")
+    data["position"] = position
+    data["slot"] = slot_name(module.slot)
+    data["state"] = state_name(module.state)
+    return data
 
 
 @router.get("/{fit_id}/stats")

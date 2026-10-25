@@ -413,6 +413,69 @@ export interface ChargeRow {
   amount: number | null
 }
 
+/**
+ * One row of a fitted module's hover card (see `web/services/module_effect.py`).
+ *
+ * The server decides which rows a module has at all -- a turret brings damage and
+ * range, a neutralizer the capacitor it drains, a web the speed factor it applies --
+ * so the card renders whatever arrives instead of asking about module kinds.
+ */
+export type ModuleEffectRow =
+  | {
+      kind: "damage"
+      dps: number
+      em: number
+      thermal: number
+      kinetic: number
+      explosive: number
+      volley: number
+      cycle: number
+    }
+  | { kind: "range"; optimal: number; falloff: number }
+  | {
+      kind: "capDrain"
+      /** True for a nosferatu, which moves the capacitor instead of burning it. */
+      nosferatu: boolean
+      amount: number
+      perSecond: number
+      cycle: number
+      optimal?: number
+      falloff?: number
+    }
+  | {
+      kind: "capTransfer"
+      amount: number
+      perSecond: number
+      cycle: number
+      optimal?: number
+      falloff?: number
+    }
+  | {
+      kind: "repair"
+      target: "armor" | "shield" | "hull"
+      remote: boolean
+      amount: number
+      perSecond: number
+      cycle: number
+      optimal?: number
+      falloff?: number
+    }
+  | { kind: "warpScrambler"; strength: number; optimal?: number; falloff?: number }
+  | { kind: "web"; speedFactor: number; optimal?: number; falloff?: number }
+  | { kind: "propulsion"; speedFactor: number }
+
+/** What one fitted module does, as the hover card shows it. */
+export interface ModuleEffect {
+  position: number
+  itemId: number
+  name: string | null
+  group: string | null
+  slot: string
+  state: string
+  charge: { itemId: number; name: string; amount: number | null } | null
+  rows: ModuleEffectRow[]
+}
+
 export interface RequirementRow {
   skillId: number
   name: string
@@ -653,6 +716,9 @@ export const api = {
   searchFits: (q: string) => request<{ fits: FitSummary[] }>(`/api/fits?q=${encodeURIComponent(q)}`),
   fit: (fitId: number, stats = true) => request<Fit>(`/api/fits/${fitId}?stats=${stats}`),
   stats: (fitId: number) => request<{ id: number; stats: Stats }>(`/api/fits/${fitId}/stats`),
+  /** What one fitted module does; the hover card in the fitting view asks for it. */
+  moduleEffect: (fitId: number, position: number) =>
+    request<ModuleEffect>(`/api/fits/${fitId}/modules/${position}/effect`),
   fitPrice: (fitId: number) => request<FitPrice>(`/api/fits/${fitId}/price`),
   refreshFitPrice: (fitId: number) =>
     request<FitPrice>(`/api/fits/${fitId}/price/refresh`, { method: "POST" }),

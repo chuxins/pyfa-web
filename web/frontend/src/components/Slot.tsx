@@ -32,6 +32,7 @@ export const Slot = (props: { type: SlotType; index: number; fittable: boolean; 
   const removeModule = useFittingStore((state) => state.removeModule)
   const loadChargeAt = useFittingStore((state) => state.loadChargeAt)
   const preview = useUiStore((state) => state.preview)
+  const setModuleHover = useUiStore((state) => state.setModuleHover)
 
   const rack = RACK_BY_TYPE[props.type]
   const rackModules = (fit?.racks[rack] ?? []).slice().sort((a, b) => a.position - b.position)
@@ -75,6 +76,24 @@ export const Slot = (props: { type: SlotType; index: number; fittable: boolean; 
     },
     [loadChargeAt, hasItem, slotModule],
   )
+
+  /* Hovering a fitted module opens the effect card (damage, range, capacitor drain...).
+   * The pointer position travels with it because the card is drawn in a portal: the
+   * ring puts every slot inside a rotated wrapper. */
+  const onEnter = React.useCallback(
+    (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+      if (!hasItem || slotModule?.itemId == null) {
+        setModuleHover(null)
+        return
+      }
+      setModuleHover({ position: slotModule.position, itemId: slotModule.itemId, x: e.clientX, y: e.clientY })
+    },
+    [hasItem, slotModule, setModuleHover],
+  )
+
+  const onLeave = React.useCallback(() => {
+    setModuleHover(null)
+  }, [setModuleHover])
 
   const onOffline = React.useCallback(
     (e: React.MouseEvent<SVGSVGElement, MouseEvent>) => {
@@ -173,7 +192,7 @@ export const Slot = (props: { type: SlotType; index: number; fittable: boolean; 
   }
 
   return (
-    <div className="sfSlotOuter" data-hasitem={hasItem}>
+    <div className="sfSlotOuter" data-hasitem={hasItem} onMouseEnter={onEnter} onMouseLeave={onLeave}>
       <div
         className="sfSlot"
         onClick={props.readOnly !== true ? onCycle : undefined}

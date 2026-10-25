@@ -2253,6 +2253,83 @@ body {
   margin: 20px 0px;
 }
 
+/* Fitted-module hover card: what the module does, in the fit's own numbers */
+.moduleCard {
+  background-color: #161616;
+  border: 1px solid #3a3a3a;
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+  color: #c5c5c5;
+  font-size: 12px;
+  line-height: 16px;
+  padding: 6px 8px 7px;
+  pointer-events: none;
+  position: fixed;
+  z-index: 200;
+}
+.mcHead {
+  border-bottom: 1px solid #2a2a2a;
+  margin-bottom: 5px;
+  padding-bottom: 4px;
+}
+.mcName {
+  color: #e6e6e6;
+  display: block;
+  font-size: 13px;
+  font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mcCharge {
+  color: #8fbfe0;
+  display: block;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mcLine {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+.mcLine > span:first-child {
+  color: #9a9a9a;
+  white-space: nowrap;
+}
+.mcLine > span:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+.mcStrong > span {
+  color: #e6e6e6 !important;
+  font-weight: bold;
+}
+.mcDamage {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  margin: 1px 0 3px;
+}
+.mcDamageType {
+  align-items: center;
+  color: #b8b8b8;
+  display: inline-flex;
+  gap: 3px;
+  white-space: nowrap;
+}
+.mcDamageType > i {
+  border-radius: 2px;
+  display: inline-block;
+  height: 8px;
+  width: 8px;
+}
+.mcPending,
+.mcNone {
+  color: #8a8a8a;
+}
+
 /* Ship bonuses: the hull's own traits block, straight from the game data */
 .statBonuses .statBonusesHull {
   color: #8a8a8a;

@@ -4,6 +4,7 @@ import { ShipFit } from "./ShipFit"
 import { CargoBay } from "./CargoBay"
 import { DroneBay } from "./DroneBay"
 import { FitHistory } from "./FitHistory"
+import { ModuleCard } from "./ModuleCard"
 import { useFittingStore } from "../store/fitting"
 import { t } from "../i18n"
 import { handleRingDrop } from "../dragdrop"
@@ -23,6 +24,8 @@ export const ShipFitExtended = () => {
 
   return (
     <div className="sfxFit">
+      {/* Hovering a slot opens this: what the module does in the fit's own numbers */}
+      <ModuleCard />
       <ShipFit withStats />
 
       <div className="sfxFitName">

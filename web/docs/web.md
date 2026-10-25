@@ -50,6 +50,14 @@ A FastAPI server that reuses pyfa's own engine and editing commands, and a React
   price, so the panel starts from the hull's market price and takes a typed value --
   paste the 100% payout the in-game insurance window offers for the hull and every
   row becomes exact
+* hovering a fitted module shows what it does, in the fit's own numbers: damage per second
+  with its type split, volley and cycle and the range it works at for a weapon, the
+  capacitor a neutralizer burns (or a nos moves), hit points a repairer restores, warp
+  disruption strength, the speed a web takes away and the multiplier a prop mod adds.
+  The rows come from the engine (`GET /api/fits/{id}/modules/{pos}/effect`), so skills,
+  implants, rigs, the module's state and the loaded ammunition are all in the answer --
+  the same numbers the statistics column works from, and a slot that holds nothing or a
+  module the card does not model simply says less
 * the item panel opened from a row of a fit shows what the fit makes of that item:
   post-fit values for a module, drone, fighter, cargo stack, implant, booster or the
   charge loaded in a module, each modified attribute with its base value beside it,
