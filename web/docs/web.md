@@ -73,6 +73,12 @@ A FastAPI server that reuses pyfa's own engine and editing commands, and a React
   post-fit values for a module, drone, fighter, cargo stack, implant, booster or the
   charge loaded in a module, each modified attribute with its base value beside it,
   and the charges that item can take -- a tab that is only there when it can take any
+* a carrier's fighter squadrons are counted the way the game flies them: a squadron is its
+  full size (the game data's `fighterSquadronMaxSize`, six for a Templar II), it takes one
+  tube of the hull, and above all it fires **one** weapon -- its attack -- rather than its
+  attack and the anti-fighter missiles together. The game data switches both of those
+  damaging abilities on, so the engine keeps the primary one (`fighterAbilityAttackM`) and
+  leaves the missiles to the pilot (README §5.8)
 * the same stats the desktop window shows: firepower (with spool-up ranges),
   capacitor, tank, resistances, resources, targeting, remote reps, mining
 * the desktop's graphs as charts: a Graphs tab next to the stats runs pyfa's own

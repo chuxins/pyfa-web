@@ -41,6 +41,17 @@ class Fighter(HandledItem, HandledCharge, ItemAttrShortcut, ChargeAttrShortcut):
     DAMAGE_TYPES = ("em", "kinetic", "explosive", "thermal")
     DAMAGE_TYPES2 = ("EM", "Kin", "Exp", "Therm")
 
+    #: The squadron's primary weapon. A fighter that carries one fires it with the attack
+    #: button, and its other damaging abilities (the anti-fighter missiles) stay off --
+    #: both at once would count two weapons the pilot can never fire together.
+    STANDARD_ATTACK_EFFECTS = frozenset({"fighterAbilityAttackM"})
+
+    #: Abilities a pilot switches on deliberately; a fresh squadron starts with them off.
+    DEFAULT_OFF_EFFECTS = frozenset({
+        "fighterAbilityMicroWarpDrive",
+        "fighterAbilityEvasiveManeuvers",
+    })
+
     def __init__(self, item):
         """Initialize a fighter from the program"""
         self.__item = item
@@ -61,19 +72,25 @@ class Fighter(HandledItem, HandledCharge, ItemAttrShortcut, ChargeAttrShortcut):
 
         self.build()
 
-        standardAttackActive = False
-        for ability in self.abilities:
-            if ability.effect.isImplemented and ability.effect.name == 'fighterAbilityAttackM':
-                # Activate "standard attack" if available
+        # Which abilities a fresh squadron starts with.
+        #
+        # The decision about "is there a primary weapon?" has to be made before walking
+        # the list: the abilities come out of the game data in whatever order the effects
+        # were stored, and a one-pass loop that switches the anti-fighter missiles on as
+        # soon as it meets them (because no attack ability had been seen *yet*) made a
+        # Templar II squadron report both of its weapons at once -- 441 DPS instead of
+        # the 267 its attack actually does.
+        implemented = [ability for ability in self.abilities if ability.effect.isImplemented]
+        hasStandardAttack = any(
+            ability.effect.name in self.STANDARD_ATTACK_EFFECTS for ability in implemented)
+        for ability in implemented:
+            name = ability.effect.name
+            if name in self.STANDARD_ATTACK_EFFECTS:
+                # The attack button fires this one
                 ability.active = True
-                standardAttackActive = True
-            else:
-                # Activate all other abilities (Neut, Web, etc) except propmods if no standard attack is active
-                if ability.effect.isImplemented and \
-                                standardAttackActive is False and \
-                                ability.effect.name != 'fighterAbilityMicroWarpDrive' and \
-                                ability.effect.name != 'fighterAbilityEvasiveManeuvers':
-                    ability.active = True
+            elif not hasStandardAttack and name not in self.DEFAULT_OFF_EFFECTS:
+                # No primary weapon (a support squadron): bring its neut, web, ECM, ...
+                ability.active = True
 
     @reconstructor
     def init(self):

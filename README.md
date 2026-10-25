@@ -209,6 +209,28 @@ npm 9.2.0），按 `web/docs/web.md` 的做法 `npm ci && npm run build`（vite 
 配套的接口侧兜底见 §5.5（`group_ships` 按分组 id 回退 + 树按分组 id 去重、并把该组显式补进树），
 即使将来又出现第二份分组，树也不会丢船、也不会出现重复行。
 
+**5.8 `eos/saveddata/fighter.py`：舰载机只算一门主武器（2026-10-25 修复）。**
+
+出厂舰队（Templar II、Dragonfly II 等 36 种战斗舰载机）在游戏数据里同时带两个**会造成伤害**的能力：
+主攻击 `fighterAbilityAttackM` 和反舰载机导弹 `fighterAbilityMissiles`，而在游戏里同一时刻只可能用其中一门。
+
+上游是**一遍遍历**里决定默认激活哪些能力：碰到 `fighterAbilityAttackM` 就把它打开并记下
+`standardAttackActive = True`，其余能力在 `standardAttackActive is False` 时才打开。于是**顺序**决定结果 ——
+本仓库的 `eve.db` 里 effectID 小的排在前（`fighterAbilityMissiles` = 6431 早于 `fighterAbilityAttackM` = 6465），
+导弹先被看到时 `standardAttackActive` 还是 False，于是**两门武器全开**：
+
+| 凤凰级(Templar II 中队) | 修前 | 修后 |
+| --- | --- | --- |
+| 激活能力 | Turret Attack + **Missile Attack** | 只有 Turret Attack |
+| 齐射 | 3768.19 EM | 1336.5 EM |
+| 无人机/舰载机 DPS | **440.99** | **267.3** |
+
+修法：先把"有没有主攻击"判完（`hasStandardAttack`），再遍历激活 —— 有主攻击就只开它，
+没有主攻击（支援舰载机，例如 Cenobite I 只有能量中和 + 微曲）才按原意打开其余能力，
+微曲与规避机动仍然默认关闭。两个集合写成类常量 `STANDARD_ATTACK_EFFECTS` / `DEFAULT_OFF_EFFECTS`。
+回归测试见 `web/tests/test_fighters.py`（7 项：只开主武器、DPS = 齐射/5 s、手动打开导弹后 DPS 变大、
+第二种战斗舰载机同样、一队 6 架占 1 个发射管、收回后不计伤害、支援舰载机保留其干扰能力）。
+
 ## 6. 已验证（2026-10-01，本机）
 
 - 模拟全新克隆（删除 `eve.db` 与本地数据）后 `python -m web` 首启：自动建库成功
