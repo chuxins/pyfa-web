@@ -45,6 +45,7 @@ export const PortraitLayout = () => {
     <>
       <TopBar />
       <div className="pShell">
+        <PortraitNotice />
         <ModalDialogAnchor />
         <div className="pPanes">
           <div className={"pPane" + (tab === "ships" ? " active" : "")}>
@@ -92,6 +93,29 @@ const TabButton = (props: {
     {props.label}
   </button>
 )
+
+/**
+ * 竖屏顶部那条跑马灯提示：竖屏这套排架还在磨合，横屏的径向环更稳。
+ *
+ * 同一句话放两遍（第二遍 aria-hidden），靠 CSS 让它匀速滚过去：
+ * 平移 -50% 正好是一遍的宽度，所以接缝处看不出重新开始。
+ */
+const PortraitNotice = () => {
+  const text = t("Portrait mode still has rough edges — landscape is recommended")
+  return (
+    <div className="pNotice" role="status">
+      <span className="pNoticeIcon" aria-hidden="true">
+        &#9888;
+      </span>
+      <div className="pNoticeTrack">
+        <span className="pNoticeText">{text}</span>
+        <span className="pNoticeText" aria-hidden="true">
+          {text}
+        </span>
+      </div>
+    </div>
+  )
+}
 
 /**
  * 装配栏顶部的一排动作。桌面和横屏用的 FitButtonBar 是悬停弹出式菜单，

@@ -214,6 +214,10 @@ const ZH_CN: Record<string, string> = {
   "Clear fit?": "确定清空这个装配？",
   "Import/Export": "导入/导出",
 
+  // -- 竖屏顶部跑马灯 ---------------------------------------------------------
+  "Portrait mode still has rough edges — landscape is recommended":
+    "竖屏 bug 较多，建议横屏食用",
+
   // -- module states --------------------------------------------------------
   offline: "离线",
   online: "在线",

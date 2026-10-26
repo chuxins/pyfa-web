@@ -4113,6 +4113,75 @@ button.skillPip:disabled {
   padding: 0 9px;
 }
 
+/* ---- 竖屏顶部的跑马灯提示 --------------------------------------------
+   竖屏这套排架还在磨合，横屏的径向环更稳；顶栏下面一条醒目的跑马灯把这句话
+   滚出来（只在竖屏渲染，见 PortraitLayout 的 PortraitNotice）。 */
+.pNotice {
+  align-items: center;
+  background: linear-gradient(90deg, #3d1616 0%, #7a3925 45%, #a54b32 50%, #7a3925 55%, #3d1616 100%);
+  border-bottom: 1px solid #a54b32;
+  box-shadow: 0 0 14px rgba(165, 75, 50, 0.45), inset 0 0 18px rgba(0, 0, 0, 0.45);
+  color: #ffe0cd;
+  display: flex;
+  flex: none;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 6px;
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  padding: 7px 10px;
+  position: relative;
+  white-space: nowrap;
+}
+
+.pNoticeIcon {
+  color: #ffb38f;
+  flex: none;
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* 两遍同样的话首尾相接：每遍自己带右侧留白，轨道平移 -50% 正好是一遍的宽度 */
+.pNoticeTrack {
+  animation: pNoticeScroll 16s linear infinite;
+  display: flex;
+  min-width: 0;
+  will-change: transform;
+}
+
+.pNoticeText {
+  flex: none;
+  padding-right: 56px;
+}
+
+@keyframes pNoticeScroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* 关了动效的设备就静止显示一遍，不要一条永远不动的长句 */
+@media (prefers-reduced-motion: reduce) {
+  .pNotice {
+    justify-content: center;
+  }
+
+  .pNoticeTrack {
+    animation: none;
+  }
+
+  .pNoticeText {
+    padding-right: 0;
+  }
+
+  .pNoticeText + .pNoticeText {
+    display: none;
+  }
+}
+
 /* 没有装配时的落点 */
 .pDropEmpty {
   border: 1px dashed var(--border);
