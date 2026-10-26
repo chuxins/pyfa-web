@@ -2,8 +2,12 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <!-- 维护页直接由 nginx 伺服（见 deploy/nginx-maintenance.conf），不经过 Python，
-         所以样式脚本全部内联：后端正在重启时它必须能自己站住。 -->
+    <!-- 维护页有两个入口：
+         1) nginx 的 error_page（见 deploy/nginx-maintenance.conf）—— 后端挂了直接由 nginx 伺服；
+         2) 前端注册的 Service Worker（public/sw.js）—— 页面导航拿到 502/503/504 时用这份
+            缓存的副本顶上，所以哪怕 nginx 还没配 error_page，回访用户也看得到维护页。
+         因此样式脚本全部内联、不依赖 /assets：后端重启时它必须自己站住。
+         改动本页时把 sw.js 里的 CACHE 版本号 +1，旧缓存才会被换掉。 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#111111" />
     <meta name="robots" content="noindex" />

@@ -791,24 +791,47 @@ request after a start has to read game data from disk. For those few seconds ngi
 nothing to proxy to, produces a 502 of its own, and the browser shows the bare
 "502 Bad Gateway" page.
 
-`deploy/maintenance.html` is that missing page: a self-contained (inline CSS/JS, no
-Python, no build step) "正在维护，马上回来" screen that polls `api/meta` once every five
-seconds and, as soon as the app answers, sends the visitor back to the assembly page. Add
+`web/frontend/public/maintenance.html` is that missing page: a self-contained (inline
+CSS/JS, no Python, no build step) "正在维护，马上回来" screen that polls `api/meta` once
+every five seconds and, as soon as the app answers, sends the visitor back to the assembly
+page. The Vite build copies it to `web/static/maintenance.html`, so it is in the
+repository and the deploy script's `git reset --hard` keeps it current. It has two entry
+points, and they can be used together:
+
+**1. nginx** (covers everyone, including first-time visitors) — add
 `deploy/nginx-maintenance.conf` to the site's `server {}` block:
 
 ```nginx
 error_page 502 503 504 =503 /AssemblyPlanning/maintenance.html;
 
 location = /AssemblyPlanning/maintenance.html {
-    alias /opt/pyfa-web/deploy/maintenance.html;
+    alias /opt/pyfa-web/web/static/maintenance.html;
     default_type text/html;
     add_header Cache-Control "no-store" always;
     add_header Retry-After 30 always;
 }
 ```
 
-Both files are in the repository, so the deploy script's `git reset --hard` keeps them
-current. Two details worth knowing:
+Check it took effect while the app is healthy — the page must answer on its own:
+
+```bash
+curl -sI https://eve-tools.xyz/AssemblyPlanning/maintenance.html | head -3
+# Cache-Control: no-store ...  good
+# no such header, and the body is the SPA's <!doctype html> ... the block is missing
+# or the alias points at the wrong file
+```
+
+**2. A service worker** (no nginx change needed) — `main.tsx` registers
+`web/frontend/public/sw.js` in production builds. It caches only `maintenance.html` and
+intercepts only page navigations: every real navigation still goes to the network, and the
+cached page is substituted solely when the network fails or the answer is 502/503/504. It
+never caches `index.html` or the assets, so a new build is never hidden behind an old
+shell. It helps browsers that have visited before — during a deploy window that is usually
+the whole audience — but it cannot help a first-time visitor, which is why nginx is still
+the better half of the pair. Bump the `CACHE` constant in `sw.js` whenever you edit the
+maintenance page, so installed copies pick up the new one.
+
+Two details worth knowing:
 
 * `=503` answers with 503 rather than 502 — "temporarily unavailable" is what is actually
   happening, and monitors treat 502 as a broken gateway.
