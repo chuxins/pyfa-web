@@ -552,6 +552,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8091/api/meta   # 期�
 | 内存上限 | drop-in 提到 `MemoryHigh=1500M` / `MemoryMax=2600M`（见下"踩到的坑①"） |
 | 配置 | `web.yml`：`data_dir=/var/lib/pyfa-web`、`port=8091`、`public_url=https://eve-tools.xyz/AssemblyPlanning`、`root_path=/AssemblyPlanning`、`language=zh_CN`；`web.env` 目前只有注释（SSO 见"待补"） |
 | nginx | `/etc/nginx/sites-available/pyfa-web`：两段都只 strip 前缀（`/AssemblyPlanning/api/` 关缓冲、SSE 3600s；`/AssemblyPlanning/` 走 SPA fallback），**不再做任何 `sub_filter` 改写** —— 前缀已在构建期由 Vite `base` 补齐（见下"子路径"一条）；幂等 `proxy_redirect` 两条；`/` 302 到 `/AssemblyPlanning/` |
+| 维护页 | 同上文件的 HTTPS `server{}`：`error_page 502 503 504 =503 /AssemblyPlanning/maintenance.html`（页本体 `web/static/maintenance.html` 由 nginx 直接读磁盘，不经 Python）、`proxy_connect_timeout 3s` / `proxy_send_timeout 15s`、该路径的 `location =`（`no-store` + `Retry-After: 30`）。改前备份 `/root/pyfa-web.nginx.bak.20261026140530`（2026-10-26 配置） |
 | 证书 | certbot（`--nginx --redirect`），`eve-tools.xyz`，到期 2027-01-23，系统自带 `certbot.timer` 自动续期 |
 | 兜底轮询 | `pyfa-web-update.timer`（2 分钟，`User=root`） |
 | pypi | `/etc/pip.conf` 与 `/etc/uv/uv.toml` 指向清华源 —— 这台机器到 pypi.org 只有 **27 KB/s**，换源后约 1.1 MB/s |
@@ -570,6 +571,13 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8091/api/meta   # 期�
    "secret 缺失就报错"的前置检查与 `LogLevel=VERBOSE`。
 4. **nginx reload 后旧 worker 仍在服务**：改完立即测可能看到旧行为（`/AssemblyPlanning/` 仍 404），
    等几秒或 `systemctl restart nginx` 再验。
+
+**维护页实测（2026-10-26）**：`systemctl stop pyfa-web` 后请求
+`https://eve-tools.xyz/AssemblyPlanning/` 返回 **503 + 维护页正文**（6633 B，含
+`Under maintenance`），`/AssemblyPlanning/maintenance.html` 直接 200 且带
+`Cache-Control: no-store`、`Retry-After: 30`，SSE `/api/events` 仍 200；服务恢复后一切 200。
+前端还有一层兜底：`web/frontend/public/sw.js` 注册的 Service Worker 只缓存维护页，
+导航拿到 502/503/504 时用它顶上（即使 nginx 没配也生效，见 `web/docs/web.md`）。
 
 **EVE SSO（2026-10-25 已恢复）**。旧机器的 `/opt/pyfa-web/web.env` 随机器丢了，换机后重新填好了同一套
 CCP 应用凭据（回调登记 `https://eve-tools.xyz/AssemblyPlanning/api/auth/callback`）。密钥只在服务器上，
