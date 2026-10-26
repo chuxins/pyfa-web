@@ -11,7 +11,8 @@
   "dependencies": {
     "@eveshipfit/images": "^3.3632936.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "zustand": "^4.5.5"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",

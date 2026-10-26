@@ -50,8 +50,22 @@ jobs:
         run: ruff check web
 
       - name: Tests
-        # 首次运行会从 staticdata/ 生成 eve.db（约 60 s），整个套件 1 分钟上下
-        run: python -m pytest -q web/tests
+        # 首次运行会从 staticdata/ 生成 eve.db（约 60 s），整个套件 1 分钟上下。
+        # 输出同时落一份 pytest.log：失败了下一步会把尾巴打成一串 ::error:: 注释，
+        # 那样不进 job 日志、直接看 check-runs 的 annotations 就知道挂在哪。
+        run: |
+          set -o pipefail
+          python -m pytest -q web/tests --tb=short 2>&1 | tee pytest.log
+
+      - name: Report test failure
+        if: failure()
+        run: |
+          echo "pytest failed; last 20 lines:"
+          tail -20 pytest.log || true
+          # GitHub 每步最多显示 10 条注解，取最有信息量的尾部
+          tail -10 pytest.log | while IFS= read -r line; do
+            echo "::error::${line}"
+          done
 
   frontend:
     name: Frontend build
