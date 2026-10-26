@@ -1685,9 +1685,9 @@ body {
   aspect-ratio: 1 / 1;
   margin: 0 auto;
   position: relative;
-  /* Fill the reduced-height content box (80px shorter for the bottom strip):
+  /* Fill the reduced-height content box (padding-bottom for the bottom strip):
      size to the smaller axis; width-derived height then equals 100%. */
-  width: min(100%, calc(100cqh + 80px));
+  width: min(100%, calc(100cqh + var(--sfx-strip, 80px)));
 }
 .sfRingOuter {
   filter: drop-shadow(0 0 6px #000000);
@@ -1901,11 +1901,14 @@ body {
 /* ---- ShipFitExtended ---------------------------------------------------------- */
 
 .sfxFit {
+  /* 底部那条读数（货舱/无人机/CPU-PG/撤销条）的高度。手机横屏用同一套算法，
+     只是把这条压矮一点（见后面的 .mode-landscape 规则）。 */
+  --sfx-strip: 80px;
   background-color: #111111;
   color: #c5c5c5;
   font-size: 15px;
   height: 100%;
-  padding-bottom: 80px;
+  padding-bottom: var(--sfx-strip);
   position: relative;
   width: 100%;
 }
@@ -3676,29 +3679,60 @@ button.skillPip:disabled {
 }
 
 /* ======================================================================
-   横屏：还是径向环三栏，只是把宽度分给环
+   横屏：还是径向环三栏，只是把上下左右都让给环
+   —— 环按屏幕自动缩放，任何横屏尺寸下都整只装得下，不会被裁掉
    ====================================================================== */
 
-.mode-landscape .content {
-  gap: 8px;
-  padding: 8px;
-  border-radius: 14px;
+/* 横屏最缺的是高度：顶栏压成一行，装不下的控件横向滚动，
+   而不是换行再吃掉三四十像素 */
+.mode-landscape .topbar {
+  flex-wrap: nowrap;
+  gap: 6px;
+  overflow-x: auto;
+  padding-top: calc(4px + env(safe-area-inset-top));
+  padding-bottom: 4px;
 }
 
-/* 横屏的宽度全给中间的环：左右两栏按比例收缩，上限比桌面小得多，
-   小屏手机（568×320 之类）上环还不至于被挤没 */
+.mode-landscape .topbar .fitbar {
+  flex: 0 1 auto;
+  order: 0;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+/* 舰船就画在中间的环上，顶栏不用再写一遍船名 */
+.mode-landscape .topbar .fitbar .shipname {
+  display: none;
+}
+
+.mode-landscape .topbar .fitbar .fitname {
+  flex: 0 1 120px;
+  min-width: 64px;
+}
+
+.mode-landscape .content {
+  gap: 6px;
+  padding: 6px;
+  border-radius: 12px;
+}
+
+/* 左右两栏只缩不长：剩下的宽度全归中间的环 */
 .mode-landscape .selection {
-  flex: 1 1 150px;
-  max-width: 200px;
-  min-width: 0;
+  flex: 0 1 190px;
+  max-width: 190px;
+  min-width: 88px;
   padding-right: 4px;
 }
 
 .mode-landscape .statistics {
-  flex: 1 1 150px;
+  flex: 0 1 200px;
   width: auto;
-  max-width: 220px;
-  min-width: 0;
+  max-width: 200px;
+  min-width: 88px;
+}
+
+.mode-landscape .fit {
+  flex: 1 1 0;
 }
 
 /* 横屏高度本来就紧张，版权行让位给装配环 */
@@ -3708,7 +3742,7 @@ button.skillPip:disabled {
 
 /* 技能抽屉改成浮在内容上：手机上再挤掉 320px，环就只剩一小块了 */
 .mode-landscape .content.skillsOpen {
-  padding-right: 8px;
+  padding-right: 6px;
 }
 
 .mode-landscape .skillsPanel {
@@ -3717,6 +3751,80 @@ button.skillPip:disabled {
 
 .mode-landscape .skillsTab.open {
   right: min(300px, 78vw);
+}
+
+/* ---- 环：按屏幕算边长 ------------------------------------------------
+   横屏不再强求 .fitRing 是正方形：它铺满 .fit 并自己变成一个尺寸容器，
+   里面的 .sfFit 于是能用“可用区的宽/高”算边长：
+     环 = min(可用宽, 可用高 − 底部读数条)
+   永远是正方形（环里的槽位全是百分比，图标跟着一起缩放），横屏再矮也不会
+   被 .fit 的 overflow:hidden 裁掉下半圈。 */
+.mode-landscape .fitRing {
+  aspect-ratio: auto;
+  container-type: size;
+  height: 100%;
+  width: 100%;
+}
+
+.mode-landscape .sfxFit {
+  /* 手机上高度金贵：读数条从 80px 压到 44px */
+  --sfx-strip: 44px;
+  --sfx-tools: 30px;
+  /* 环（和它上面的编组按钮）在可用区里居中；读数条是绝对定位，不受影响 */
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.mode-landscape .sfFit {
+  width: max(0px, min(100cqw, calc(100cqh - var(--sfx-strip))));
+}
+
+/* 编组按钮（有同型武器才出现）也要占一条，出现时把环再收一点 */
+.mode-landscape .fitRing:has(.sfxHighTools) .sfFit {
+  width: max(0px, min(100cqw, calc(100cqh - var(--sfx-strip) - var(--sfx-tools))));
+}
+
+/* 环左上角的装配名：横屏顶栏已经有输入框，这里没有地方再放一遍 */
+.mode-landscape .sfxFitName {
+  display: none;
+}
+
+/* 环底部的撤销条是固定 335px 宽的，窄屏环装不下，横屏交给顶栏的撤销/恢复 */
+.mode-landscape .sfxHistory {
+  display: none;
+}
+
+/* 读数条里的徽标和字跟着条一起缩小 */
+.mode-landscape .sfxCargoText {
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.mode-landscape .sfxCargoIcon > svg {
+  width: 24px;
+  height: 24px;
+}
+
+.mode-landscape .sfxCpuPgTitle {
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+/* 货舱/无人机/舰载机面板是环内部绝对定位的，会被 .fit 的 overflow:hidden
+   裁掉；横屏改成贴视口的浮层，从环上弹出也看得全 */
+.mode-landscape .sfxCargoBayOverlay,
+.mode-landscape .sfxDroneBayOverlay,
+.mode-landscape .sfxFighterBayOverlay {
+  position: fixed;
+  bottom: calc(var(--sfx-strip) + 8px);
+  left: 8px;
+  right: auto;
+  width: min(460px, calc(100vw - 16px));
+  max-height: 60dvh;
+  overflow: auto;
+  z-index: 120;
 }
 
 /* 环上的槽位在触摸屏上要按得到 */
