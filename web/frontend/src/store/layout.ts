@@ -32,12 +32,34 @@ const MOBILE_QUERY = "(max-width: 1024px), (pointer: coarse) and (max-width: 128
 /** 竖屏：高度大于宽度（手机转屏、平板竖放都会命中）。 */
 const PORTRAIT_QUERY = "(orientation: portrait)"
 
+/**
+ * 横屏整块画布的最小设计尺寸。
+ *
+ * 手机横屏是又宽又矮的一条，桌面那套三栏布局原样放不下；横屏于是把整块画布
+ * 按统一系数缩小（CSS transform，见 app.css 的 .uiScale），画布宽高再换算回
+ * 屏幕尺寸，缩放后正好铺满。这两个数就是“缩到多小才装得下”的设计下限：
+ * 1180×620 是桌面三栏（左侧 350 + 装配 + 统计 350）挤得下的最小尺寸。
+ */
+const DESIGN_MIN_WIDTH = 1180
+const DESIGN_MIN_HEIGHT = 620
+
+/**
+ * 横屏的缩放系数：只缩不放（平板/桌面保持 1:1），下限 0.2 防止极端窗口算出 0。
+ */
+export function uiScaleOf(width: number, height: number): number {
+  if (!(width > 0) || !(height > 0)) return 1
+  const raw = Math.min(width / DESIGN_MIN_WIDTH, height / DESIGN_MIN_HEIGHT)
+  return Math.min(1, Math.max(0.2, raw))
+}
+
 interface LayoutState {
   mode: LayoutMode
   /** 竖屏当前显示哪一栏；桌面/横屏忽略它。 */
   tab: PortraitTab
+  /** 横屏整块 UI 的缩放系数（竖屏/桌面恒为 1，不使用）。 */
+  scale: number
   setTab: (tab: PortraitTab) => void
-  setViewport: (mobile: boolean, portrait: boolean) => void
+  setViewport: (mobile: boolean, portrait: boolean, scale: number) => void
 }
 
 function modeOf(mobile: boolean, portrait: boolean): LayoutMode {
@@ -45,18 +67,34 @@ function modeOf(mobile: boolean, portrait: boolean): LayoutMode {
   return portrait ? "portrait" : "landscape"
 }
 
+/**
+ * 首屏就用正确的形态（store 初始化时算一次，之后由 startLayoutWatch 维护），
+ * 否则手机上会先闪一下桌面布局再切过来。
+ */
+function initialViewport(): { mode: LayoutMode; scale: number } {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return { mode: "desktop", scale: 1 }
+  }
+  const mode = modeOf(window.matchMedia(MOBILE_QUERY).matches, window.matchMedia(PORTRAIT_QUERY).matches)
+  return { mode, scale: uiScaleOf(window.innerWidth, window.innerHeight) }
+}
+
 export const useLayoutStore = create<LayoutState>((set, get) => ({
-  mode: "desktop",
+  ...initialViewport(),
   // 手机上打开装配页比打开舰船列表更常见（页面启动就会打开上次的装配）
   tab: "fit",
 
   setTab: (tab) => set({ tab }),
 
-  setViewport: (mobile, portrait) => {
+  setViewport: (mobile, portrait, scale) => {
     const mode = modeOf(mobile, portrait)
-    if (mode === get().mode) return
-    // 转到竖屏时回到装配页：转屏的人多半正要改这个装配
-    set(mode === "portrait" ? { mode, tab: "fit" } : { mode })
+    const next: Partial<LayoutState> = { scale }
+    if (mode !== get().mode) {
+      next.mode = mode
+      // 转到竖屏时回到装配页：转屏的人多半正要改这个装配
+      if (mode === "portrait") next.tab = "fit"
+    }
+    set(next)
   },
 }))
 
@@ -72,7 +110,11 @@ export function startLayoutWatch(): () => void {
   const mobileQuery = window.matchMedia(MOBILE_QUERY)
   const portraitQuery = window.matchMedia(PORTRAIT_QUERY)
 
-  const apply = () => useLayoutStore.getState().setViewport(mobileQuery.matches, portraitQuery.matches)
+  // 横屏的缩放系数跟着窗口尺寸走（转屏、地址栏收起、分屏拖动都会重算）
+  const apply = () =>
+    useLayoutStore
+      .getState()
+      .setViewport(mobileQuery.matches, portraitQuery.matches, uiScaleOf(window.innerWidth, window.innerHeight))
   apply()
 
   const onChange = () => apply()

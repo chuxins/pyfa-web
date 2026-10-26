@@ -24,6 +24,7 @@ export const App = () => {
   const load = useSessionStore((state) => state.load)
   const promptLogin = useSessionStore((state) => state.promptLogin)
   const mode = useLayoutStore((state) => state.mode)
+  const scale = useLayoutStore((state) => state.scale)
 
   // fitting + browser banners
   const fitError = useFittingStore((state) => state.error)
@@ -72,6 +73,18 @@ export const App = () => {
   const error = fitError || browserError || portError
   const notice = fitNotice || browserNotice || portNotice
 
+  // 横屏：整块界面套在一张按 scale 缩放的画布里（尺寸换算在 .uiScale 的
+  // CSS 里），所以缩放后正好铺满屏幕；竖屏和桌面直接渲染，不缩放。
+  const main = <PageMain />
+  const scaledMain =
+    mode === "landscape" ? (
+      <div className="uiScale" style={{ "--ui-scale": scale } as React.CSSProperties}>
+        {main}
+      </div>
+    ) : (
+      main
+    )
+
   return (
     <div className={"app mode-" + mode}>
       {!loaded && <div className="bootscreen">{t("working…")}</div>}
@@ -81,7 +94,7 @@ export const App = () => {
           {ssoError && <div className="banner-error top">{ssoError}</div>}
           {error && <div className="banner-error top">{error}</div>}
           {notice && <div className="banner-notice top">{notice}</div>}
-          <PageMain />
+          {scaledMain}
           <LoginPrompt />
         </>
       )}

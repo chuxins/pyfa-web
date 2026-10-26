@@ -3620,9 +3620,9 @@ button.skillPip:disabled {
   min-height: 40px;
 }
 
-/* ---- 顶栏：手机上换成两行（品牌/账号一行，装配信息一行） ------------- */
+/* ---- 竖屏顶栏：换成两行（品牌/账号一行，装配信息一行） ---------------
+   横屏没有这些规则：横屏整块画布先按比例缩放了，顶栏在里面就是桌面那一行。 */
 
-.mode-landscape .topbar,
 .mode-portrait .topbar {
   flex-wrap: wrap;
   gap: 4px 8px;
@@ -3631,18 +3631,15 @@ button.skillPip:disabled {
   padding-left: calc(10px + env(safe-area-inset-left));
 }
 
-.mode-landscape .topbar .brand,
 .mode-portrait .topbar .brand {
   margin-right: 0;
 }
 
-/* 版本号是桌面上的脚注，手机上先让位给真正的控件 */
-.mode-landscape .topbar .version,
+/* 版本号是桌面上的脚注，竖屏上先让位给真正的控件 */
 .mode-portrait .topbar .version {
   display: none;
 }
 
-.mode-landscape .topbar .fitbar,
 .mode-portrait .topbar .fitbar {
   flex: 1 1 100%;
   order: 2;
@@ -3651,15 +3648,8 @@ button.skillPip:disabled {
   min-width: 0;
 }
 
-.mode-landscape .topbar .fitbar .shipname,
 .mode-portrait .topbar .fitbar .shipname {
   max-width: 62vw;
-}
-
-.mode-landscape .topbar .fitbar .fitname {
-  flex: 1 1 140px;
-  width: auto;
-  min-width: 0;
 }
 
 .mode-portrait .topbar .fitbar .fitname {
@@ -3673,92 +3663,70 @@ button.skillPip:disabled {
   display: none;
 }
 
-.mode-landscape .topbar button,
 .mode-portrait .topbar button {
   min-height: 30px;
 }
 
 /* ======================================================================
-   横屏：还是径向环三栏，只是把上下左右都让给环
-   —— 环按屏幕自动缩放，任何横屏尺寸下都整只装得下，不会被裁掉
-   ====================================================================== */
+   横屏：整块 UI 按比例缩小，缩放后正好铺满整个屏幕
+   ----------------------------------------------------------------------
+   手机横屏是又宽又矮的一条（844×390 之类），三栏并排的桌面布局原样放不下，
+   逐块改小又会让比例走样。这里换一种做法：界面还是桌面那一套（三栏 + 径向环，
+   尺寸一律按“设计像素”写），把整块画布按一个统一的缩放系数缩小——字体、
+   间距、图标、环一起等比缩，比例和桌面完全一致；画布的宽高再按
+   100vw / scale、100dvh / scale 换算回设计像素，缩放之后恰好等于屏幕大小，
+   所以既缩了又铺满，不留黑边也不用滚动。
 
-/* 横屏最缺的是高度：顶栏压成一行，装不下的控件横向滚动，
-   而不是换行再吃掉三四十像素 */
+   缩放系数由 JS 算（见 src/store/layout.ts 的 uiScaleOf，只缩不放），
+   这里只负责把它用上。安全区在缩放之前处理：.app 用 env() 内边距（屏幕像素），
+   画布里就只有设计像素，不会出现“内边距乘以缩放系数”的错位。 */
+
+.app.mode-landscape {
+  box-sizing: border-box;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+
+.mode-landscape .uiScale {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  overflow: hidden;
+  /* 换算回设计像素：缩放后正好是安全区以内的一整屏
+     （第一行给不支持 dvh 的旧浏览器兜底） */
+  width: calc(
+    (100vw - env(safe-area-inset-left) - env(safe-area-inset-right)) / var(--ui-scale, 1)
+  );
+  height: calc(
+    (100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom)) / var(--ui-scale, 1)
+  );
+  height: calc(
+    (100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom)) / var(--ui-scale, 1)
+  );
+  transform: scale(var(--ui-scale, 1));
+  transform-origin: 0 0;
+}
+
+/* 画布至少 1180×620 设计像素，顶栏在这些宽度上本来就是一行 */
 .mode-landscape .topbar {
   flex-wrap: nowrap;
-  gap: 6px;
-  overflow-x: auto;
-  padding-top: calc(4px + env(safe-area-inset-top));
-  padding-bottom: 4px;
 }
 
-.mode-landscape .topbar .fitbar {
-  flex: 0 1 auto;
-  order: 0;
-  flex-wrap: nowrap;
-  overflow: hidden;
-}
-
-/* 舰船就画在中间的环上，顶栏不用再写一遍船名 */
-.mode-landscape .topbar .fitbar .shipname {
-  display: none;
-}
-
-.mode-landscape .topbar .fitbar .fitname {
-  flex: 0 1 120px;
-  min-width: 64px;
-}
-
-.mode-landscape .content {
-  gap: 6px;
-  padding: 6px;
-  border-radius: 12px;
-}
-
-/* 左右两栏只缩不长：剩下的宽度全归中间的环 */
-.mode-landscape .selection {
-  flex: 0 1 190px;
-  max-width: 190px;
-  min-width: 88px;
-  padding-right: 4px;
-}
-
-.mode-landscape .statistics {
-  flex: 0 1 200px;
-  width: auto;
-  max-width: 200px;
-  min-width: 88px;
-}
-
-.mode-landscape .fit {
-  flex: 1 1 0;
-}
-
-/* 横屏高度本来就紧张，版权行让位给装配环 */
+/* 版权行在横屏没有位置，且缩放后也读不清 */
 .mode-landscape .footer {
   display: none;
 }
 
-/* 技能抽屉改成浮在内容上：手机上再挤掉 320px，环就只剩一小块了 */
-.mode-landscape .content.skillsOpen {
-  padding-right: 6px;
+/* 弹窗在画布里按设计像素算：vw/dvh 始终按真实视口算，缩放之后会错位 */
+.mode-landscape .modalContent {
+  max-height: 460px;
+  max-width: 560px;
 }
 
-.mode-landscape .skillsPanel {
-  width: min(300px, 78vw);
-}
-
-.mode-landscape .skillsTab.open {
-  right: min(300px, 78vw);
-}
-
-/* ---- 环：按屏幕算边长 ------------------------------------------------
-   横屏不再强求 .fitRing 是正方形：它铺满 .fit 并自己变成一个尺寸容器，
-   里面的 .sfFit 于是能用“可用区的宽/高”算边长：
+/* ---- 环：画布里的边长 --------------------------------------------------
+   .fitRing 铺满 .fit 并自己变成尺寸容器，.sfFit 用可用区的宽/高算边长：
      环 = min(可用宽, 可用高 − 底部读数条)
-   永远是正方形（环里的槽位全是百分比，图标跟着一起缩放），横屏再矮也不会
-   被 .fit 的 overflow:hidden 裁掉下半圈。 */
+   环永远是正方形（内部槽位全是百分比，跟着一起缩），读数条不会被裁。 */
 .mode-landscape .fitRing {
   aspect-ratio: auto;
   container-type: size;
@@ -3767,9 +3735,6 @@ button.skillPip:disabled {
 }
 
 .mode-landscape .sfxFit {
-  /* 手机上高度金贵：读数条从 80px 压到 44px */
-  --sfx-strip: 44px;
-  --sfx-tools: 30px;
   /* 环（和它上面的编组按钮）在可用区里居中；读数条是绝对定位，不受影响 */
   align-items: center;
   display: flex;
@@ -3778,59 +3743,12 @@ button.skillPip:disabled {
 }
 
 .mode-landscape .sfFit {
-  width: max(0px, min(100cqw, calc(100cqh - var(--sfx-strip))));
+  width: max(0px, min(100cqw, calc(100cqh - var(--sfx-strip, 80px))));
 }
 
 /* 编组按钮（有同型武器才出现）也要占一条，出现时把环再收一点 */
 .mode-landscape .fitRing:has(.sfxHighTools) .sfFit {
-  width: max(0px, min(100cqw, calc(100cqh - var(--sfx-strip) - var(--sfx-tools))));
-}
-
-/* 环左上角的装配名：横屏顶栏已经有输入框，这里没有地方再放一遍 */
-.mode-landscape .sfxFitName {
-  display: none;
-}
-
-/* 环底部的撤销条是固定 335px 宽的，窄屏环装不下，横屏交给顶栏的撤销/恢复 */
-.mode-landscape .sfxHistory {
-  display: none;
-}
-
-/* 读数条里的徽标和字跟着条一起缩小 */
-.mode-landscape .sfxCargoText {
-  font-size: 12px;
-  margin-top: 2px;
-}
-
-.mode-landscape .sfxCargoIcon > svg {
-  width: 24px;
-  height: 24px;
-}
-
-.mode-landscape .sfxCpuPgTitle {
-  margin-top: 8px;
-  font-size: 12px;
-}
-
-/* 货舱/无人机/舰载机面板是环内部绝对定位的，会被 .fit 的 overflow:hidden
-   裁掉；横屏改成贴视口的浮层，从环上弹出也看得全 */
-.mode-landscape .sfxCargoBayOverlay,
-.mode-landscape .sfxDroneBayOverlay,
-.mode-landscape .sfxFighterBayOverlay {
-  position: fixed;
-  bottom: calc(var(--sfx-strip) + 8px);
-  left: 8px;
-  right: auto;
-  width: min(460px, calc(100vw - 16px));
-  max-height: 60dvh;
-  overflow: auto;
-  z-index: 120;
-}
-
-/* 环上的槽位在触摸屏上要按得到 */
-.mode-landscape .sfSlotOptions > svg {
-  width: 26px;
-  height: 26px;
+  width: max(0px, min(100cqw, calc(100cqh - var(--sfx-strip, 80px) - 30px)));
 }
 
 /* ======================================================================
