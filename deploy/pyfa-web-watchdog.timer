@@ -1,0 +1,10 @@
+[Unit]
+Description=Periodic pyfa-web health check
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+Unit=pyfa-web-watchdog.service
+
+[Install]
+WantedBy=timers.target

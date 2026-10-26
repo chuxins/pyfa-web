@@ -1,0 +1,76 @@
+name: CI
+
+# 每次 push 到 master 与每个 PR 都跑一遍：后端测试 + ruff（只查 web/，eos 与 service 是
+# pyfa 上游代码，1060 条历史告警不是我们的）+ 前端 tsc/vite 构建。
+#
+# deploy.yml 挂在 CI 之后（workflow_run），所以 CI 红了就不会上线；服务器上的兜底
+# 定时器也会先读 GitHub 的 check-runs 再决定要不要 reset（见 deploy/auto-update.sh）。
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # 服务器跑 3.14；这里用 3.13：setup-python 的稳定版本里它有预编译 wheel，
+      # numpy/matplotlib 这类大包不用现场编译，CI 快很多。pyproject 要求 >=3.12。
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # 与 Dockerfile 的 runtime 段同一套钉住的版本，再加测试用的 httpx / pytest / ruff
+          python -m pip install \
+            "logbook==1.9.2" "numpy==2.5.1" "matplotlib==3.11.1" \
+            "python-dateutil==2.9.0.post0" "requests==2.34.2" "sqlalchemy==2.0.51" \
+            "cryptography==50.0.0" "markdown2==2.5.5" "packaging==26.2" "roman==5.2" \
+            "beautifulsoup4==4.15.0" "pyyaml==6.0.3" "python-jose==3.5.0" \
+            "requests-cache==1.3.3" "fastapi==0.141.1" "uvicorn[standard]==0.54.0" \
+            "itsdangerous==2.2.0" "httpx==0.28.1" "pytest==9.1.1" "ruff==0.16.1"
+
+      - name: Lint (web/ only)
+        run: ruff check web
+
+      - name: Tests
+        # 首次运行会从 staticdata/ 生成 eve.db（约 60 s），整个套件 1 分钟上下
+        run: python -m pytest -q web/tests
+
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: web/frontend
+        run: npm ci --no-fund --no-audit
+
+      # npm run build = tsc --noEmit && vite build（产物写到 ../static，CI 里不检查差异）
+      - name: Type-check and build
+        working-directory: web/frontend
+        run: npm run build

@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from logbook import Logger
+from starlette.middleware.gzip import GZipMiddleware
 
 from web import engine
 from web.api import api, eventsApi
@@ -140,6 +141,14 @@ def create_app(config=None):
             allow_headers=["*"],
         )
 
+    # 响应压缩：前端 bundle 有 300 KB 上下，不压就是明文传输。挂在最外层，
+    # 出错时的 JSON 也一起压。Starlette 的默认排除表里已经有 text/event-stream，
+    # 所以 SSE 不会被缓冲（gz 逐块压会让事件攒着不发）。
+    # 反向代理那一侧也开着 gzip（见 deploy/nginx.conf）：两边都开不会压两遍，
+    # nginx 看到 Content-Encoding 就直接透传；这里多一层是为了不走 nginx 的部署
+    # （compose 直接对外、本机开发）也一样小。
+    app.add_middleware(GZipMiddleware, minimum_size=1024)
+
     app.add_middleware(OriginCheckMiddleware, state=state)
     app.add_middleware(UserContextMiddleware, state=state)
 
@@ -162,7 +171,8 @@ def _mount_frontend(app, config):
     if (dist / "assets").is_dir():
         app.mount("/assets", StaticFiles(directory=str(dist / "assets")), name="assets")
 
-    @app.get("/", include_in_schema=False)
+    # HEAD 也放行：uptime 探针和 curl -I 用的就是 HEAD，只挂 GET 会让它们拿到 405
+    @app.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
     async def root(request: Request):
         forwarded = _forward_callback(request)
         if forwarded is not None:

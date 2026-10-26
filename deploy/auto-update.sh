@@ -42,6 +42,12 @@ HEALTH_TRIES=${PYFAWEB_HEALTH_TRIES:-30}
 HEALTH_INTERVAL=${PYFAWEB_HEALTH_INTERVAL:-2}
 VENV="$APP_DIR/.venv"
 
+# CI 闸门：目标提交在 GitHub 上的 CI 结论不是 success 就不上线。
+# 兜底定时器不看 Actions 的 workflow 依赖，没有这一步的话 CI 红的提交照样会在两分钟内
+# 被定时器拉下来。GITHUB_REPO 空字符串可关掉闸门（PYFAWEB_CI_GATE=0）。
+GITHUB_REPO=${PYFAWEB_GITHUB_REPO-chuxins/pyfa-web}
+CI_GATE=${PYFAWEB_CI_GATE:-1}
+
 log() { printf '[auto-update] %s\n' "$*"; }
 
 cd "$APP_DIR"
@@ -78,6 +84,44 @@ after=$(run_as_app git rev-parse "origin/$BRANCH")
 
 if [ "$before" = "$after" ]; then
   log "已是最新（${before:0:12}），无需更新"
+  exit 0
+fi
+
+# ---- CI 闸门 ---------------------------------------------------------------
+# 读 GitHub 上这个提交的 check-runs 结论：只要有一个没成功/还在跑就不上线。
+# 拿不到结论（API 限流、断网、仓库未公开）时放行并大声记一笔 —— 部署被一个
+# 网络抖动永久卡住比偶尔放行一个红提交更难查。
+ci_gate_allows() {
+  [ "$CI_GATE" = "1" ] || return 0
+  [ -n "$GITHUB_REPO" ] || return 0
+  command -v curl >/dev/null 2>&1 || { log "没有 curl，跳过 CI 闸门"; return 0; }
+
+  local api="https://api.github.com/repos/$GITHUB_REPO/commits/$after/check-runs"
+  local json
+  if ! json=$(curl -sS -m 15 -H 'Accept: application/vnd.github+json' -H 'User-Agent: pyfa-web-auto-update' "$api" 2>/dev/null); then
+    log "警告：取不到 CI 结论（网络/限流），按放行处理"
+    return 0
+  fi
+
+  # 统计总数与成功数，不引第三方 JSON 工具
+  local total success bad
+  total=$(printf '%s' "$json" | grep -o '"id":' | wc -l | tr -d ' ')
+  if [ "$total" = "0" ]; then
+    log "警告：该提交在 GitHub 上没有 check-runs（CI 未跑？），按放行处理"
+    return 0
+  fi
+  success=$(printf '%s' "$json" | grep -o '"conclusion":"success"' | wc -l | tr -d ' ')
+  if [ "$total" = "$success" ]; then
+    log "CI 闸门通过（$success/$total 成功）"
+    return 0
+  fi
+  bad=$(printf '%s' "$json" | grep -o '"conclusion":"[a-z_]*"' | sort -u | tr '\n' ' ')
+  log "CI 闸门拦截：${after:0:12} 的 check-runs 不是全部成功（成功 $success/$total，结论：${bad:-进行中}）"
+  return 1
+}
+
+if ! ci_gate_allows; then
+  log "跳过本次更新，等服务端 CI 变绿（手动上线可设 PYFAWEB_CI_GATE=0）"
   exit 0
 fi
 

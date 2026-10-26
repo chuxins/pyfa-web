@@ -1,0 +1,14 @@
+[Unit]
+Description=pyfa-web 数据备份（SQLite 在线备份 + tar，保留 14 份）
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# 以 root 跑只是为了能读 pyfaweb 的库；脚本用 /opt/pyfa-web/.venv/bin/python
+# 的 sqlite3 在线备份 API 导出一致快照，不直接 cp WAL 库。
+User=root
+ExecStart=/bin/bash /opt/pyfa-web/deploy/backup.sh
+# 备份默认落在 /var/backups/pyfa-web（700，文件 600），保留份数见脚本的 PYFAWEB_BACKUP_KEEP
+Nice=10
+IOSchedulingClass=idle

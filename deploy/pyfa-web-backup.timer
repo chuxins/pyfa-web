@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily pyfa-web data backup
+
+[Timer]
+# 每天 04:30（服务器本地时间）跑一次；开机错过就补跑一次
+OnCalendar=*-*-* 04:30:00
+Persistent=true
+RandomizedDelaySec=5min
+Unit=pyfa-web-backup.service
+
+[Install]
+WantedBy=timers.target

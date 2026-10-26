@@ -1,7 +1,9 @@
 name: Deploy to server
 
-# push 到 master 后，经 SSH 到服务器执行 deploy/auto-update.sh（即时更新）；
-# 服务器上的 pyfa-web-update.timer 作为兜底轮询（每 2 分钟）。
+# CI 通过之后才上线：本 workflow 挂在 CI（.github/workflows/ci.yml）的 completed 事件上，
+# 只在 CI 成功时执行；手动 dispatch 也允许（跳过等待，用于救火）。
+# 服务器上的 pyfa-web-update.timer 作为兜底轮询（每 2 分钟），它自己也会先读 GitHub 的
+# check-runs 再决定要不要 reset（见 deploy/auto-update.sh 的 CI 闸门）。
 #
 # 需要的仓库 Secrets（Settings → Secrets and variables → Actions）：
 #   SSH_HOST  服务器地址（当前：103.210.237.192）
@@ -9,7 +11,9 @@ name: Deploy to server
 #   SSH_KEY   登录私钥全文（当前对应 ~/.ssh/eve-test.pem，公钥在服务器
 #             /root/.ssh/authorized_keys；脚本以 root 运行时自己降权到 pyfaweb）
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [master]
   workflow_dispatch: {}
 
@@ -19,6 +23,10 @@ concurrency:
 
 jobs:
   deploy:
+    # CI 红了不上线；手动触发不看 CI 结论（救火时用）
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: SSH 到服务器执行自动更新

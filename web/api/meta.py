@@ -9,7 +9,7 @@ from web.services.character import list_characters
 router = APIRouter(tags=["meta"])
 
 
-@router.get("/meta")
+@router.api_route("/meta", methods=["GET", "HEAD"])
 def get_meta(request: Request, state: AppState = Depends(get_app_state)):
     """Version and capability info; the browser calls this on startup."""
     import eos.config

@@ -1,0 +1,15 @@
+[Unit]
+Description=pyfa-web health watchdog (self-heal + optional alert webhook)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/bin/bash /opt/pyfa-web/deploy/watchdog.sh
+# 告警 webhook（可选）：把 PYFAWEB_ALERT_URL 写进这个文件即可，例如
+#   PYFAWEB_ALERT_URL=https://hooks.slack.com/services/...
+# 文件不存在也不影响运行（那时只写 journal）。
+EnvironmentFile=-/opt/pyfa-web/monitor.env
+# 连续失败阈值：默认 2 次 × 5 分钟 ≈ 10 分钟没响应才重启/告警
+#Environment=PYFAWEB_FAIL_THRESHOLD=2

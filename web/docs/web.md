@@ -798,8 +798,8 @@ page. The Vite build copies it to `web/static/maintenance.html`, so it is in the
 repository and the deploy script's `git reset --hard` keeps it current. It has two entry
 points, and they can be used together:
 
-**1. nginx** (covers everyone, including first-time visitors) — add
-`deploy/nginx-maintenance.conf` to the site's `server {}` block:
+**1. nginx** (covers everyone, including first-time visitors) — `deploy/nginx.conf` is the
+whole site file; the parts that matter here:
 
 ```nginx
 error_page 502 503 504 =503 /AssemblyPlanning/maintenance.html;
@@ -838,6 +838,41 @@ Two details worth knowing:
 * `proxy_intercept_errors` is deliberately **not** set: it would also divert the app's own
   404s to the maintenance page. nginx produces 502/504 by itself, and `error_page` applies
   to those without it.
+
+### Backups, health watchdog and the CI gate
+
+Three small pieces keep the deployment from quietly rotting; all of them live in `deploy/`
+and are plain bash so they can be read in one sitting.
+
+**Backups** — `deploy/backup.sh` (daily via `pyfa-web-backup.timer`) archives the data
+directory to `/var/backups/pyfa-web/pyfa-web-<timestamp>.tar.gz` (mode 600, 14 kept). The
+SQLite files go through Python's `sqlite3.Connection.backup` rather than `cp`: `app.db` and
+each user's `saveddata.db` run in WAL mode, and copying them mid-write yields a torn
+snapshot. `PYFAWEB_BACKUP_HOOK` is run with the archive path afterwards, which is the hook
+for an off-site copy (`rclone copy "$1" remote:pyfa-web-backup/`).
+
+```bash
+sudo systemctl start pyfa-web-backup.service     # run one now
+journalctl -u pyfa-web-backup.service -n 20      # what it did
+ls -lh /var/backups/pyfa-web                     # the archives
+```
+
+**Watchdog** — `deploy/watchdog.sh` (`pyfa-web-watchdog.timer`, every five minutes) probes
+`api/meta`. systemd's `Restart=always` covers a process that *exits*; the watchdog covers
+the nastier case of a process that is still alive but not answering — it restarts the
+service after two consecutive failures and posts `{"text": ...}` to `PYFAWEB_ALERT_URL`
+when that is set (put it in `/opt/pyfa-web/monitor.env`, gitignored like `web.env`). It
+also announces the recovery, so an alert is not a message with no ending.
+
+**CI gate** — `.github/workflows/ci.yml` runs the backend suite, `ruff check web` and the
+frontend build on every push to `master` and every PR. `.github/workflows/deploy.yml` hangs
+off that with `workflow_run`, so a red CI never deploys. The server's two-minute fallback
+timer does not know about GitHub's workflow graph, so `deploy/auto-update.sh` reads the
+commit's check-runs itself before `git reset --hard` and skips the update when they are not
+all green. Unknown answers (API rate limit, no network, a commit with no checks) let the
+update through and say so loudly — a deployment stuck forever behind a rate limit is worse
+than occasionally shipping a red commit. `PYFAWEB_CI_GATE=0` disables the gate for a
+manual rescue deploy.
 
 The page works at the domain root too (`/maintenance.html`); only the `location` and
 `error_page` paths change. Its retry loop is relative (`api/meta`, then `./`), so neither
