@@ -8,6 +8,7 @@ import { ModuleCard } from "./ModuleCard"
 import { FighterBay } from "./FighterBay"
 import { HighRackTools } from "./HighRackTools"
 import { useFittingStore } from "../store/fitting"
+import { useLayoutStore } from "../store/layout"
 import { t } from "../i18n"
 import { handleRingDrop } from "../dragdrop"
 
@@ -15,6 +16,7 @@ import { handleRingDrop } from "../dragdrop"
  *  CPU/PG usage and the simulation history. */
 export const ShipFitExtended = () => {
   const fit = useFittingStore((state) => state.fit)
+  const mode = useLayoutStore((state) => state.mode)
 
   if (!fit) {
     return (
@@ -43,9 +45,14 @@ export const ShipFitExtended = () => {
         <ShipFighterBay />
       </div>
 
-      <div className="sfxHistory">
-        <FitHistory />
-      </div>
+      {/* 模拟历史条（撤销/恢复走查）：横屏那条又矮又宽的读数带里放不下，
+          而且整块画布已经缩过一遍，这一条只会更挤；横屏的撤销/恢复在顶栏。
+          回退历史本身没丢，转回竖屏/桌面就在原处。 */}
+      {mode !== "landscape" && (
+        <div className="sfxHistory">
+          <FitHistory />
+        </div>
+      )}
 
       <div className="sfxCpuPg">
         <CpuPg title="CPU">
