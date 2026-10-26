@@ -1,4 +1,4 @@
-﻿"""Server configuration for the web front end.
+"""Server configuration for the web front end.
 
 Values come from, in increasing order of precedence:
 
@@ -14,6 +14,17 @@ import os
 import secrets
 from dataclasses import dataclass, field, replace
 from pathlib import Path
+
+import eos.config
+
+# 多用户：关掉 pyfa 的进程级 saveddata 查询缓存（eos/config.py 里默认 True）。
+# 它假设一个进程只有一个用户（桌面版），缓存里的 Price/Fit/User 行会被同一进程里的
+# 下一个用户读到 —— 一个飞行员的价格面板就会显示另一个人的数字
+# （web/tests/test_prices.py::test_price_is_per_user 抓的就是这件事）。
+# 代价是每次多一次主键命中的 SQLite 读取（微秒级），换来真正的按用户隔离。
+# 必须在这里设置：eos/db/saveddata/queries.py 在 **import 时**读这个开关，
+# 而 web.config 比任何 eos.db 导入都早。
+eos.config.saveddataCache = False
 
 try:
     import yaml

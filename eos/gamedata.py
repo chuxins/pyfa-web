@@ -32,6 +32,27 @@ from .eqBase import EqBase
 
 pyfalog = Logger(__name__)
 
+#: Sentinel for ``Item._priceContext``: "no Price object cached yet".
+_NO_CONTEXT = object()
+
+
+def _current_session_context():
+    """The saveddata session context in force, or None outside the web server.
+
+    ``Item.price`` caches the per-user ``Price`` row on this (process-wide shared)
+    gamedata object, so the cache has to know which user's database it came from.
+    Failing to resolve a context simply means "no isolation needed" (desktop, tests
+    before an engine is up).
+    """
+    try:
+        from eos.db import sessionctx
+    except Exception:  # pragma: no cover - eos.db always exists
+        return None
+    try:
+        return sessionctx.current_context()
+    except Exception:  # pragma: no cover - defensive
+        return None
+
 
 def _t(x):
     return x
@@ -447,6 +468,15 @@ class Item(EqBase):
 
     @property
     def price(self):
+        # 每个用户有各自的 saveddata 库，而这个缓存挂在**进程级共享**的 gamedata Item 上。
+        # 桌面版一个进程只有一个用户，随便缓存；web 服务器一个进程跑很多用户，缓存下来的
+        # Price 会被下一个用户读到（价格面板就显示别人的数字）。所以记住这个 Price 属于
+        # 哪个会话上下文，换人就丢掉重读。
+        context = _current_session_context()
+        if getattr(self, '_priceContext', _NO_CONTEXT) is not context:
+            self.__priceObj = None
+            self._priceContext = context
+
         # todo: use `from sqlalchemy import inspect` instead (mac-deprecated doesn't have inspect(), was imp[lemented in 0.8)
         if self.__priceObj is not None and getattr(self.__priceObj, '_sa_instance_state', None) and self.__priceObj._sa_instance_state.deleted:
             pyfalog.debug("Price data for {} was deleted (probably from a cache reset), resetting object".format(self.ID))

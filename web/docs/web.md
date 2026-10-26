@@ -625,6 +625,19 @@ run fully in parallel. Idle user databases are closed after 30 minutes.
   module's effects, so it adds no bonus and no stacking penalty. (The serialized module
   carries `canOverheat` for the same reason, so the fitting view does not promise a
   right-click to overheat on a module that has no overheat state.)
+* `eos/gamedata.py` -- `Item.price` caches the per-user `Price` row on this
+  process-wide gamedata object. That is harmless in the desktop client (one user per
+  process) and wrong on a server: the next user on the same thread read the previous
+  one's price, so the price panel of one pilot showed another pilot's numbers. The
+  cached object now remembers which saveddata session context it came from and is
+  dropped when that changes. `web/config.py` also turns pyfa's process-wide
+  `saveddataCache` off for the same reason (the server is multi-user by definition);
+  `web/tests/test_prices.py::test_price_is_per_user` guards both.
+* `web/engine.py` -- re-reads the gamedata build number out of `eve.db` after the
+  bootstrap built it. `eos/db` reads `metadata` once at import time, and on a fresh
+  checkout the import happens before the database exists, leaving
+  `eos.config.gamedata_version` as `None` for the life of the process (`/api/meta`
+  reported no build at all).
 * `service/market.py` -- `Market.getInstance()` is guarded by a lock. `Market.__init__`
   starts the ship browser's worker thread, and that thread waits only
   ``mktRdy.wait(5)`` before it calls back in, so a start whose construction takes longer
