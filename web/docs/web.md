@@ -783,6 +783,43 @@ Then sign in from a browser. Consent comes back to host port 80 and the browser 
 on the app page with a session; a failure comes back with `?sso_error=<code>`, which the
 front page shows as a sentence for a few seconds, and the log keeps the reason behind it.
 
+### A maintenance page for 502s
+
+A restart is not instant: `deploy/auto-update.sh` ends with
+`systemctl restart pyfa-web` and then polls `api/meta` until it answers, and the first
+request after a start has to read game data from disk. For those few seconds nginx has
+nothing to proxy to, produces a 502 of its own, and the browser shows the bare
+"502 Bad Gateway" page.
+
+`deploy/maintenance.html` is that missing page: a self-contained (inline CSS/JS, no
+Python, no build step) "正在维护，马上回来" screen that polls `api/meta` once every five
+seconds and, as soon as the app answers, sends the visitor back to the assembly page. Add
+`deploy/nginx-maintenance.conf` to the site's `server {}` block:
+
+```nginx
+error_page 502 503 504 =503 /AssemblyPlanning/maintenance.html;
+
+location = /AssemblyPlanning/maintenance.html {
+    alias /opt/pyfa-web/deploy/maintenance.html;
+    default_type text/html;
+    add_header Cache-Control "no-store" always;
+    add_header Retry-After 30 always;
+}
+```
+
+Both files are in the repository, so the deploy script's `git reset --hard` keeps them
+current. Two details worth knowing:
+
+* `=503` answers with 503 rather than 502 — "temporarily unavailable" is what is actually
+  happening, and monitors treat 502 as a broken gateway.
+* `proxy_intercept_errors` is deliberately **not** set: it would also divert the app's own
+  404s to the maintenance page. nginx produces 502/504 by itself, and `error_page` applies
+  to those without it.
+
+The page works at the domain root too (`/maintenance.html`); only the `location` and
+`error_page` paths change. Its retry loop is relative (`api/meta`, then `./`), so neither
+form needs editing inside the HTML.
+
 Sizing: the engine is CPU-bound per fit edit. A handful of concurrent users is
 comfortable on two cores; the expensive parts are the first request after startup
 (game data is read from disk) and price/market refreshes.

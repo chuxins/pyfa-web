@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- 维护页直接由 nginx 伺服（见 deploy/nginx-maintenance.conf），不经过 Python，
+         所以样式脚本全部内联：后端正在重启时它必须能自己站住。 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#111111" />
+    <meta name="robots" content="noindex" />
+    <title>维护中 · pyfa web</title>
+    <style>
+      :root {
+        --bg: #111111;
+        --panel: #1a1a1a;
+        --border: #4f4f4f;
+        --text: #c5c5c5;
+        --dim: #7a7a7a;
+        --accent: #4a9eff;
+        --warn: #a54b32;
+        --ok: #4caf7d;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        height: 100%;
+      }
+
+      body {
+        align-items: center;
+        background: radial-gradient(120% 100% at 50% 0%, #1b1b1b 0%, var(--bg) 60%);
+        color: var(--text);
+        display: flex;
+        font: 15px/1.6 "Noto Sans", "Segoe UI", system-ui, -apple-system, "Microsoft YaHei", sans-serif;
+        justify-content: center;
+        /* 刘海和手势条：横竖屏都留出安全区 */
+        padding: calc(20px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right))
+          calc(20px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left));
+      }
+
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+        max-width: 520px;
+        padding: 28px 26px 24px;
+        text-align: center;
+        width: 100%;
+      }
+
+      .brand {
+        color: var(--dim);
+        font-size: 13px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .brand strong {
+        color: var(--text);
+        letter-spacing: 0.02em;
+      }
+
+      .spinner {
+        animation: spin 1.1s linear infinite;
+        border: 3px solid rgba(74, 158, 255, 0.18);
+        border-radius: 50%;
+        border-top-color: var(--accent);
+        height: 56px;
+        margin: 22px auto 18px;
+        width: 56px;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      h1 {
+        color: #e8e8e8;
+        font-size: 22px;
+        font-weight: 700;
+        margin-bottom: 8px;
+      }
+
+      .lead {
+        color: var(--text);
+      }
+
+      .lead small {
+        color: var(--dim);
+        display: block;
+        font-size: 13px;
+        margin-top: 6px;
+      }
+
+      .status {
+        align-items: center;
+        border-top: 1px solid #2a2a2a;
+        color: var(--dim);
+        display: flex;
+        flex-wrap: wrap;
+        font-size: 12px;
+        gap: 8px;
+        justify-content: center;
+        margin-top: 20px;
+        padding-top: 14px;
+      }
+
+      .dot {
+        background: var(--warn);
+        border-radius: 50%;
+        display: inline-block;
+        height: 8px;
+        width: 8px;
+      }
+
+      .dot.ok {
+        background: var(--ok);
+      }
+
+      button {
+        background: #222222;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text);
+        cursor: pointer;
+        font: inherit;
+        font-size: 13px;
+        min-height: 34px;
+        padding: 4px 14px;
+      }
+
+      button:hover {
+        background: #2e2e2e;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .spinner {
+          animation: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <div class="brand"><strong>pyfa</strong> web</div>
+      <div class="spinner" role="progressbar" aria-label="维护中"></div>
+
+      <h1>正在维护，马上回来</h1>
+      <p class="lead">
+        服务器正在更新或重启，装配数据都还在。
+        <small>Under maintenance — back in a moment. Your fits are safe.</small>
+      </p>
+
+      <div class="status">
+        <span class="dot" id="dot"></span>
+        <span id="state">等待服务恢复…</span>
+        <span id="count">已重试 0 次</span>
+        <button id="retry" type="button">立即重试</button>
+      </div>
+    </main>
+
+    <script>
+      // 页面自己在等后端：每 5 秒问一次 api/meta（相对当前目录，子路径部署也对），
+      // 一旦恢复就直接跳回装配页，不用用户手动刷新。
+      (function () {
+        var state = document.getElementById("state")
+        var count = document.getElementById("count")
+        var dot = document.getElementById("dot")
+        var retry = document.getElementById("retry")
+        var tries = 0
+        var waiting = false
+
+        function paint(text, ok) {
+          state.textContent = text
+          count.textContent = "已重试 " + tries + " 次"
+          dot.className = "dot" + (ok ? " ok" : "")
+        }
+
+        function check() {
+          if (waiting) return
+          waiting = true
+          tries += 1
+          paint("正在尝试连接服务器…", false)
+          var done = function (ok) {
+            waiting = false
+            if (ok) {
+              paint("服务已恢复，正在返回…", true)
+              window.setTimeout(function () {
+                // ./ 相对当前目录：/AssemblyPlanning/ 与域名根两种部署都对
+                window.location.replace("./")
+              }, 400)
+              return
+            }
+            paint("服务器还没起来，5 秒后再试", false)
+            window.setTimeout(check, 5000)
+          }
+          // 兜底：6 秒还没回应就当失败，避免一直卡在“连接中”
+          var timer = window.setTimeout(function () {
+            done(false)
+          }, 6000)
+          fetch("api/meta", { cache: "no-store", credentials: "same-origin" })
+            .then(function (response) {
+              window.clearTimeout(timer)
+              done(response.ok)
+            })
+            .catch(function () {
+              window.clearTimeout(timer)
+              done(false)
+            })
+        }
+
+        retry.addEventListener("click", check)
+
+        check()
+      })()
+    </script>
+  </body>
+</html>
