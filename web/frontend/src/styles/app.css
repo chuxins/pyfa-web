@@ -3707,9 +3707,57 @@ button.skillPip:disabled {
   transform-origin: 0 0;
 }
 
-/* 画布至少 1180×620 设计像素，顶栏在这些宽度上本来就是一行 */
+/* ---- 横屏顶栏：压薄 ---------------------------------------------------
+   画布已经整体缩过一遍，顶栏再按设计像素收紧：内边距、控件高度都往回收，
+   省下来的高度全给中间的环（环的高度 = 画布高 − 顶栏 − 读数条）。
+   字号维持原样，只是把 3px 的上下内边距和 24~30px 的控件高度压到 22px。 */
 .mode-landscape .topbar {
   flex-wrap: nowrap;
+  gap: 6px;
+  padding: 3px 8px;
+}
+
+.mode-landscape .topbar .brand {
+  font-size: 13px;
+}
+
+/* 版本号是桌面上的脚注，横屏没有这行字的位置 */
+.mode-landscape .topbar .version {
+  display: none;
+}
+
+.mode-landscape .topbar .fitbar {
+  gap: 5px;
+}
+
+.mode-landscape .topbar .fitbar .shipname {
+  font-size: 13px;
+  max-width: 150px;
+}
+
+.mode-landscape .topbar .fitbar .fitname {
+  width: 140px;
+  padding: 0 6px;
+  height: 22px;
+}
+
+.mode-landscape .topbar button,
+.mode-landscape .topbar .user button {
+  font-size: 12px;
+  min-height: 22px;
+  padding: 0 7px;
+}
+
+.mode-landscape .topbar .lang {
+  font-size: 11px;
+  height: 22px;
+  padding: 0 4px;
+}
+
+.mode-landscape .topbar .signin {
+  font-size: 12px;
+  line-height: 20px;
+  padding: 1px 8px;
 }
 
 /* 版权行在横屏没有位置，且缩放后也读不清 */
