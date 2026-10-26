@@ -210,6 +210,45 @@ def _init_saveddata(web_config):
     return eos.db
 
 
+def _refresh_gamedata_version():
+    """Re-read eve.db's build/date into ``eos.config`` after (re)building it.
+
+    ``eos.db`` reads those two values out of the ``metadata`` table when it is
+    *imported*, and the config/module import chain reaches it long before the engine
+    knows whether ``eve.db`` has to be built. On a fresh checkout (CI, a first start,
+    a new machine) that import happens while the database is still empty, the read
+    fails, both values are set to ``None`` and nothing ever looks again --
+    ``/api/meta`` then reports no game data build at all.
+
+    ``db_update`` releases the stale session and engine before unlinking the file, so
+    asking again here lands on the freshly built database.
+    """
+    import eos.config
+
+    try:
+        from sqlalchemy import text
+
+        import eos.db
+    except Exception as ex:  # pragma: no cover - defensive
+        pyfalog.warning("Could not import eos.db to read the gamedata version: {}", ex)
+        return
+
+    wanted = {
+        "gamedata_version": "SELECT field_value FROM metadata WHERE field_name LIKE 'client_build'",
+        "gamedata_date": "SELECT field_value FROM metadata WHERE field_name LIKE 'dump_time'",
+    }
+    for attribute, sql in wanted.items():
+        if getattr(eos.config, attribute, None):
+            continue  # already read successfully at import time
+        try:
+            row = eos.db.get_gamedata_session().execute(text(sql)).fetchone()
+        except Exception as ex:
+            pyfalog.warning("Could not read {} from eve.db: {}", attribute, ex)
+            continue
+        if row is not None and row[0] is not None:
+            setattr(eos.config, attribute, row[0])
+
+
 def initialize(web_config):
     """Bring the engine up. Safe to call more than once."""
     global _initialized, _web_config
@@ -224,6 +263,9 @@ def initialize(web_config):
         web_config.prepare()
         apply_gamedata_language(web_config.language)
         _ensure_gamedata(root)
+        # eve.db may have just been built, and eos.db already read the (empty) build
+        # number at import time: fill the gaps now instead of reporting None forever.
+        _refresh_gamedata_version()
         _bootstrap_config(web_config)
         _init_saveddata(web_config)
 
