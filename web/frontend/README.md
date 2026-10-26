@@ -122,3 +122,29 @@ npm run build   # tsc --noEmit && vite build → ../static（清空旧产物，�
 - 统计中的"含装填 DPS"未显示（后端 firepower 无 withReload 字段）；
   无人机的激活数量按 已有状态 展示。
 
+## 移动端适配（2026-11）：自动检测横竖屏
+
+`src/store/layout.ts` 用 `matchMedia` 判定形态，`App` 把结果写成外壳类名
+（`.mode-desktop` / `.mode-landscape` / `.mode-portrait`），`PageMain` 据此选界面：
+
+| 形态 | 判定 | 界面 |
+| --- | --- | --- |
+| 桌面 `.mode-desktop` | 宽屏且非触摸 | 原样：eveship.fit 径向环三栏 |
+| 手机横屏 `.mode-landscape` | 移动端 + 横向 | 径向环三栏，只收窄留白 / 放大触控目标 / 隐藏版权行 |
+| 手机竖屏 `.mode-portrait` | 移动端 + 竖向 | 原 pyfa 三栏：舰船与装配、装配、统计，底部标签一次一栏 |
+
+- **移动端**判定 = `(max-width: 1024px)`，或粗指针且 `(max-width: 1280px)`；
+  **竖屏** = `(orientation: portrait)`。桌面窗口拉成竖长条仍是桌面布局。
+- 竖屏中间那栏是 `components/PyfaRacks.tsx`：pyfa 桌面的竖排排架（高/中/低/改装件/
+  子系统，每行 图标·名称·弹药·状态·卸下），下面接无人机、舰载机、植入体、增效剂、
+  货舱。径向环在窄列里放不下，所以竖屏不用它。
+- 触摸屏没有悬停，所以每个动作都有按钮：点空槽开槽位物品选择器
+  （`SlotPicker`，现在按点中的槽位装配而不是"第一个空位"）、点弹药开弹药列表
+  （`api.charges` → `loadChargeAt`）、点状态循环状态、`×` 卸下。拖拽仍然可用。
+- 竖屏顶部是平铺的动作条（剪贴板 / 分享 / 另存为 / 导入导出 / 写入游戏 / 清空），
+  桌面和横屏的 `FitButtonBar` 是悬停菜单，触摸屏上不合适。
+- 视口用 `100dvh` + `env(safe-area-inset-*)`（`index.html` 已加
+  `viewport-fit=cover`），底部标签不会被浏览器工具栏挡住或压在手势条上。
+- 在舰船栏点开一个装配会自动跳到装配栏；没有打开装配时默认落在舰船栏。
+
+

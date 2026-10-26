@@ -194,6 +194,26 @@ const ZH_CN: Record<string, string> = {
   "Click an item in the browser below to fit it. Charges go into the selected module. Click a row of the fit to inspect it as fitted.":
     "点击下方浏览器中的物品以装配。弹药装入选中的模块。点击装配中的一行以查看其装配后的属性。",
 
+  // -- 竖屏（手机）排架：每一行都是按钮，不靠悬停 --------------------------------
+  "add a module…": "装一个模块…",
+  "replace the module in this slot": "换掉这个槽位里的模块",
+  "click to change the charge": "点这里换弹药",
+  "load…": "装弹…",
+  Charge: "弹药",
+  "no charges": "没有可选弹药",
+  "active {count}": "激活 {count}",
+  "{active} / {max} active": "激活 {active} / {max}",
+  launched: "已放出",
+  "in bay": "在机库",
+  mutated: "突变",
+  "from character": "来自角色",
+  "from fit": "来自装配",
+  switch: "切换",
+  "implants come from the character's clone or from the fit": "植入体取自角色克隆体或取自装配本身",
+  "Clear fit": "清空装配",
+  "Clear fit?": "确定清空这个装配？",
+  "Import/Export": "导入/导出",
+
   // -- module states --------------------------------------------------------
   offline: "离线",
   online: "在线",

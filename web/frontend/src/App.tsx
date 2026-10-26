@@ -7,17 +7,23 @@ import { useBrowserStore } from "./store/browser"
 import { usePortStore } from "./store/port"
 import { api, setUnauthorizedHandler } from "./api"
 import { offlineModeEnabled } from "./offline"
+import { startLayoutWatch, useLayoutStore } from "./store/layout"
 import { t } from "./i18n"
 
 /**
  * The app shell: loads the session, connects the live-update stream, handles the
  * ?fit= share URL, and draws the error/notice banners and the login prompt.
+ *
+ * It also watches the screen orientation: the shell gets a `mode-*` class so the
+ * stylesheet can tell desktop, phone landscape and phone portrait apart (the
+ * PageMain picks the fitting UI from the same store).
  */
 export const App = () => {
   const loaded = useSessionStore((state) => state.loaded)
   const ssoError = useSessionStore((state) => state.ssoError)
   const load = useSessionStore((state) => state.load)
   const promptLogin = useSessionStore((state) => state.promptLogin)
+  const mode = useLayoutStore((state) => state.mode)
 
   // fitting + browser banners
   const fitError = useFittingStore((state) => state.error)
@@ -29,7 +35,10 @@ export const App = () => {
 
   React.useEffect(() => {
     setUnauthorizedHandler(() => promptLogin("any"))
+    // The orientation watcher drives which of the two fitting UIs is drawn
+    const stopWatching = startLayoutWatch()
     void boot()
+    return stopWatching
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -64,7 +73,7 @@ export const App = () => {
   const notice = fitNotice || browserNotice || portNotice
 
   return (
-    <div className="app">
+    <div className={"app mode-" + mode}>
       {!loaded && <div className="bootscreen">{t("working…")}</div>}
       {loaded && (
         <>

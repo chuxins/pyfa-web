@@ -12,12 +12,13 @@ const SLOT_SCOPES = ["high", "med", "low", "rig", "subsystem", "service"]
 /**
  * The item picker for one rack slot (eveship.fit / pyfa-web mobile slot picker).
  * It browses or searches the modules of that slot's scope, filtered by the open
- * fit's ship, and fits the picked module into the first free slot.
+ * fit's ship, and fits the picked module into the slot that was tapped.
  */
 export const SlotPicker = () => {
   const picker = useUiStore((state) => state.slotPicker)
   const close = useUiStore((state) => state.closeSlotPicker)
   const fit = useFittingStore((state) => state.fit)
+  const addModuleToSlot = useFittingStore((state) => state.addModuleToSlot)
   const send = useFittingStore((state) => state.send)
 
   const [query, setQuery] = React.useState("")
@@ -47,12 +48,20 @@ export const SlotPicker = () => {
   if (!picker || !fit) return null
 
   async function pick(itemId: number) {
-    await send("addLocalModule", { itemId })
+    if (!picker) return
+    // A real slot (>= 0) gets the module swapped into place; a synthetic empty row
+    // of the mobile rack list (-1) just lets the server take the first free slot.
+    if (picker.position >= 0) await addModuleToSlot(itemId, picker.position, picker.slot)
+    else await send("addLocalModule", { itemId })
     close()
   }
 
   return (
-    <ModalDialog title={`${rackLabel(picker.slot)} · ${picker.position}`} onClose={close} width={520}>
+    <ModalDialog
+      title={picker.position >= 0 ? `${rackLabel(picker.slot)} · ${picker.position}` : rackLabel(picker.slot)}
+      onClose={close}
+      width={520}
+    >
       <div className="search">
         <input
           value={query}

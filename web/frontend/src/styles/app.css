@@ -3564,3 +3564,409 @@ button.skillPip:disabled {
     height: 240px;
   }
 }
+
+/* ========================================================================
+   移动端适配（自动检测横竖屏）
+   ------------------------------------------------------------------------
+   判定在 src/store/layout.ts：#app 外壳带 .mode-desktop / .mode-landscape /
+   .mode-portrait，页面主体据此选界面（PageMain）：
+     - 竖屏：原 pyfa 的三栏内容（舰船与装配 / 装配 / 统计），底部标签一次一栏，
+             中间的装配栏是竖排排架（PyfaRacks，类名 .pPyfa）；
+     - 横屏：eveship.fit 的径向环三栏，只把留白、触控尺寸和视口高度收一下。
+   桌面（.mode-desktop）完全不进这些规则，布局与改动前一致。
+   ======================================================================== */
+
+/* ---- 共用：动态视口高度与安全区 ------------------------------------- */
+
+/* 手机浏览器地址栏收起/弹出时 100vh 不变，底部标签会被切掉或悬空；dvh 跟着走。
+   overflow:hidden 让页面本身不滚动，滚动交给各栏内部。 */
+.app.mode-landscape,
+.app.mode-portrait {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* iOS 在输入框字号 < 16px 时会自动放大页面，所以表单控件统一 16px */
+.mode-landscape input,
+.mode-landscape select,
+.mode-landscape textarea,
+.mode-portrait input,
+.mode-portrait select,
+.mode-portrait textarea {
+  font-size: 16px;
+}
+
+.mode-landscape .modalContent,
+.mode-portrait .modalContent {
+  max-width: 94vw;
+  max-height: 84dvh;
+}
+
+/* 提示条 fixed 在顶部，别压到刘海/状态栏上 */
+.mode-landscape .banner-error.top,
+.mode-landscape .banner-notice.top,
+.mode-portrait .banner-error.top,
+.mode-portrait .banner-notice.top {
+  top: calc(8px + env(safe-area-inset-top));
+  max-width: 92vw;
+}
+
+.mode-portrait .pickerrow,
+.mode-landscape .pickerrow {
+  min-height: 40px;
+}
+
+/* ---- 顶栏：手机上换成两行（品牌/账号一行，装配信息一行） ------------- */
+
+.mode-landscape .topbar,
+.mode-portrait .topbar {
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  padding-top: calc(6px + env(safe-area-inset-top));
+  padding-right: calc(10px + env(safe-area-inset-right));
+  padding-left: calc(10px + env(safe-area-inset-left));
+}
+
+.mode-landscape .topbar .brand,
+.mode-portrait .topbar .brand {
+  margin-right: 0;
+}
+
+/* 版本号是桌面上的脚注，手机上先让位给真正的控件 */
+.mode-landscape .topbar .version,
+.mode-portrait .topbar .version {
+  display: none;
+}
+
+.mode-landscape .topbar .fitbar,
+.mode-portrait .topbar .fitbar {
+  flex: 1 1 100%;
+  order: 2;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mode-landscape .topbar .fitbar .shipname,
+.mode-portrait .topbar .fitbar .shipname {
+  max-width: 62vw;
+}
+
+.mode-landscape .topbar .fitbar .fitname {
+  flex: 1 1 140px;
+  width: auto;
+  min-width: 0;
+}
+
+.mode-portrait .topbar .fitbar .fitname {
+  flex: 1 1 120px;
+  width: auto;
+  min-width: 0;
+}
+
+/* 竖屏的装配栏顶上已经有舰船名和渲染图，顶栏不再重复占一行 */
+.mode-portrait .topbar .fitbar .shipname {
+  display: none;
+}
+
+.mode-landscape .topbar button,
+.mode-portrait .topbar button {
+  min-height: 30px;
+}
+
+/* ======================================================================
+   横屏：还是径向环三栏，只是把宽度分给环
+   ====================================================================== */
+
+.mode-landscape .content {
+  gap: 8px;
+  padding: 8px;
+  border-radius: 14px;
+}
+
+/* 横屏的宽度全给中间的环：左右两栏按比例收缩，上限比桌面小得多，
+   小屏手机（568×320 之类）上环还不至于被挤没 */
+.mode-landscape .selection {
+  flex: 1 1 150px;
+  max-width: 200px;
+  min-width: 0;
+  padding-right: 4px;
+}
+
+.mode-landscape .statistics {
+  flex: 1 1 150px;
+  width: auto;
+  max-width: 220px;
+  min-width: 0;
+}
+
+/* 横屏高度本来就紧张，版权行让位给装配环 */
+.mode-landscape .footer {
+  display: none;
+}
+
+/* 技能抽屉改成浮在内容上：手机上再挤掉 320px，环就只剩一小块了 */
+.mode-landscape .content.skillsOpen {
+  padding-right: 8px;
+}
+
+.mode-landscape .skillsPanel {
+  width: min(300px, 78vw);
+}
+
+.mode-landscape .skillsTab.open {
+  right: min(300px, 78vw);
+}
+
+/* 环上的槽位在触摸屏上要按得到 */
+.mode-landscape .sfSlotOptions > svg {
+  width: 26px;
+  height: 26px;
+}
+
+/* ======================================================================
+   竖屏：pyfa 三栏 + 底部标签
+   ====================================================================== */
+
+.pShell {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.pPanes {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 一屏一栏：不用 display:block，各栏自己的 flex/grid 骨架要留着 */
+.pPane {
+  display: none;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+}
+
+.pPane.active {
+  display: flex;
+  flex-direction: column;
+}
+
+.pScroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pTabs {
+  display: flex;
+  flex: none;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.pTabs > button {
+  flex: 1;
+  min-height: 52px;
+  padding: 8px 4px;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+.pTabs > button.active {
+  background: var(--panel-2);
+  color: var(--accent);
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+/* 第一栏：舰船与装配 / 硬件 —— 桌面 .selection 的 350px 上限在这里没有意义 */
+.pSelection {
+  flex: 1;
+  max-width: none;
+  width: 100%;
+  padding-right: 0;
+}
+
+/* 第三栏：角色与统计 */
+.pStatistics {
+  flex: 1 1 auto;
+  width: 100%;
+  padding: 8px;
+}
+
+/* 竖屏里技能抽屉相对统计栏浮动 */
+.pPane .skillsPanel {
+  top: 8px;
+  right: 8px;
+  bottom: 8px;
+  width: min(300px, 84vw);
+}
+
+.pPane .skillsTab.open {
+  right: calc(min(300px, 84vw) + 8px);
+}
+
+/* ---- 装配栏：动作条 + 排架 -------------------------------------------- */
+
+.pActions {
+  display: flex;
+  flex: none;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  overflow-x: auto;
+}
+
+.pActions > button {
+  flex: none;
+  min-height: 34px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.pFitPane .fitting {
+  padding: 8px 8px calc(16px + env(safe-area-inset-bottom));
+  gap: 8px;
+}
+
+.pPyfa .shipheader {
+  padding: 2px 4px 4px;
+}
+
+/* 舰船渲染图：竖屏没有径向环了，留一张小图当装配的面孔 */
+.pPyfa .pfHull {
+  flex: none;
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+
+.pPyfa .shipheadermeta {
+  gap: 2px;
+}
+
+/* 一行槽位：手机上分两行（图标/名称/状态/卸下 + 弹药），否则五列挤不下 */
+.pPyfa .module {
+  grid-template-columns: 34px minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    "icon name state remove"
+    "icon charge charge charge";
+  gap: 2px 8px;
+  min-height: 46px;
+  padding: 4px 8px;
+}
+
+.pPyfa .module > .pfIcon {
+  grid-area: icon;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  overflow: hidden;
+}
+
+.pPyfa .module > .name {
+  grid-area: name;
+}
+
+.pPyfa .module > .charge {
+  grid-area: charge;
+}
+
+.pPyfa .module > .state {
+  grid-area: state;
+}
+
+.pPyfa .module > .remove {
+  grid-area: remove;
+}
+
+.pPyfa .module .name,
+.pPyfa .module .state,
+.pPyfa .module .remove {
+  min-height: 32px;
+}
+
+.pPyfa .module .name {
+  font-size: 13px;
+}
+
+.pPyfa .module .amount {
+  width: 68px;
+  height: 30px;
+}
+
+.pPyfa .module .chargebtn,
+.pPyfa .module .load {
+  min-height: 30px;
+}
+
+/* 空槽在手机上是「点这里装模块」的入口，给它一点反馈 */
+.pPyfa .module.slot-tap {
+  cursor: pointer;
+}
+
+.pPyfa .module.slot-tap:hover {
+  background: rgba(128, 128, 128, 0.09);
+}
+
+.pPyfa .module.empty .name {
+  color: var(--text-dim);
+}
+
+/* 拖拽（平板/带触摸笔的设备上仍然可用）时整行高亮 */
+.pPyfa .module.pDrop {
+  background: rgba(74, 158, 255, 0.14);
+  outline: 1px dashed var(--accent);
+}
+
+.pPyfa[data-dropover="true"] {
+  outline: 1px dashed var(--accent);
+  outline-offset: -4px;
+}
+
+.pPyfa .rackhead {
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  padding: 6px 8px;
+}
+
+.pPyfa .racktail {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pPyfa .racktail .load {
+  min-height: 26px;
+  padding: 0 6px;
+  font-size: 11px;
+}
+
+/* 没有装配时的落点 */
+.pDropEmpty {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 32px 16px;
+  color: var(--text-dim);
+  font-size: 13px;
+  text-align: center;
+}
+
+.pDropEmpty.over {
+  border-color: var(--accent);
+  color: var(--text);
+}
