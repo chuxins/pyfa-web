@@ -4030,6 +4030,89 @@ button.skillPip:disabled {
   font-size: 11px;
 }
 
+/* ---- 竖屏复用桌面面板：浮层摊成栏内的列表 -----------------------------
+   战术模式、无人机舱、舰载机库、货舱在桌面是环上的浮层（绝对定位 / 450px 宽），
+   竖屏直接复用同一批组件，只把定位、边框和行高改成栏内列表，行高按手指放大。 */
+
+/* 战术模式（T3D / 蛇鹈号）：环上那颗是绝对居中，竖屏放到舰船名下面一行 */
+.pPyfa .sfModes {
+  bottom: auto;
+  left: auto;
+  margin: 0 auto 2px;
+  max-width: 100%;
+  position: static;
+  transform: none;
+}
+
+.pPyfa .sfModes .sfMode {
+  min-height: 28px;
+  padding: 2px 12px;
+  font-size: 13px;
+}
+
+.pPyfa .droneBay,
+.pPyfa .cargoBay {
+  background: none;
+  border: none;
+  font-size: 13px;
+  padding: 0 2px 4px;
+}
+
+.pPyfa .cargoBayEntry {
+  height: 44px;
+  padding: 2px 4px;
+}
+
+.pPyfa .cargoBayAmount,
+.pPyfa .cargoBayName,
+.pPyfa .cargoBayClose {
+  line-height: 40px;
+}
+
+.pPyfa .cargoBayAmount {
+  width: 44px;
+}
+
+/* 无人机一行里还有带宽说明和一排「放出」小方块，高度让它自己长 */
+.pPyfa .droneBayEntry {
+  height: auto;
+  min-height: 64px;
+  padding: 4px 2px;
+}
+
+.pPyfa .droneBayEntry > div {
+  margin-right: 6px;
+}
+
+.pPyfa .droneBayAmount,
+.pPyfa .droneBayClose {
+  line-height: 64px;
+}
+
+.pPyfa .droneBayName {
+  line-height: 24px;
+}
+
+/* 无人机逐架放出/收回的小方块：桌面上 16px，手机上放大到 22px 才点得中 */
+.pPyfa .droneBayEntrySelected {
+  font-size: 11px;
+  height: 22px;
+  line-height: 22px;
+  margin: 3px 2px 0 0;
+  width: 22px;
+}
+
+.pPyfa .fighterLaunch {
+  line-height: 32px;
+  min-width: 60px;
+  text-align: center;
+}
+
+.pPyfa .fighterAbility {
+  line-height: 26px;
+  padding: 0 9px;
+}
+
 /* 没有装配时的落点 */
 .pDropEmpty {
   border: 1px dashed var(--border);

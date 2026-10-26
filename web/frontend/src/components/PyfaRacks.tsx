@@ -1,5 +1,5 @@
 import React from "react"
-import { api, type CargoItem, type ChargeRow, type Drone, type Fighter, type Module } from "../api"
+import { api, type ChargeRow, type Module } from "../api"
 import { handleModuleDrop, handleRingDrop, isItemDrag } from "../dragdrop"
 import { TypeIcon } from "../images"
 import { RACK_ORDER, rackLabel, stateLabel } from "../labels"
@@ -7,6 +7,10 @@ import { useFittingStore } from "../store/fitting"
 import { useUiStore } from "../store/ui"
 import { t } from "../i18n"
 import { ModalDialog } from "./ModalDialog"
+import { ShipModes } from "./ShipModes"
+import { CargoBay } from "./CargoBay"
+import { DroneBay } from "./DroneBay"
+import { FighterBay } from "./FighterBay"
 
 /**
  * pyfa 风格的装配面板：高/中/低/改装件/子系统按排架竖着列出来，每行一个槽位
@@ -15,6 +19,10 @@ import { ModalDialog } from "./ModalDialog"
  * 竖屏（手机）用它代替 eveship.fit 的径向环：环是正方形，窄而高的列放不下；
  * pyfa 桌面版的这一套行列表在窄列里反而好按。触摸屏没有鼠标悬停，所以每个动作
  * 都有自己的按钮：点空槽开物品选择器、点弹药开弹药列表、点状态循环状态、× 卸下。
+ *
+ * 装配栏里的其它面板能复用就直接复用桌面的那几块：战术模式（ShipModes）、
+ * 无人机舱 / 舰载机库 / 货舱（DroneBay / FighterBay / CargoBay）——同一份组件、
+ * 同一批命令，只是竖屏把浮层摊成栏内的行列表（见 app.css 的 .pPyfa 规则）。
  */
 
 /** 后端物品搜索认识这些 scope，空槽才开得出选择器（模式/系统槽没有模块列表）。 */
@@ -95,6 +103,9 @@ export const PyfaRacks = () => {
         </div>
       </div>
 
+      {/* 战术模式切换（T3D / 蛇鹈号）：与径向环上那颗同一个组件、同一条命令 */}
+      <ShipModes />
+
       {RACK_ORDER.map((rack) => {
         const modules = (fit.racks[rack] ?? []).slice().sort((a, b) => a.position - b.position)
         const total = slots[rack] ?? modules.length
@@ -136,20 +147,14 @@ export const PyfaRacks = () => {
         )
       })}
 
+      {/* 货舱/无人机/舰载机直接复用桌面的那三块面板（ShipFitExtended 里的浮层
+          就是它们），竖屏只是把浮层改成栏内的一行行列表（见 app.css 的 .pPyfa） */}
       {drones.length > 0 && (
         <section className="containerblock">
           <div className="rackhead">
             <span className="rackname">{t("Drones")}</span>
-            <span className="dim mono">
-              {t("{active} / {max} active", {
-                active: stats?.resources.drones.active ?? 0,
-                max: stats?.resources.drones.maxActive ?? 0,
-              })}
-            </span>
           </div>
-          {drones.map((drone) => (
-            <DroneRow key={`drone-${drone.position}`} drone={drone} />
-          ))}
+          <DroneBay />
         </section>
       )}
 
@@ -157,14 +162,8 @@ export const PyfaRacks = () => {
         <section className="containerblock">
           <div className="rackhead">
             <span className="rackname">{t("Fighters")}</span>
-            <span className="dim mono">
-              {(stats?.resources.fighters?.bayUsed ?? 0).toFixed(1)} /{" "}
-              {(stats?.resources.fighters?.bayTotal ?? 0).toFixed(1)} m³
-            </span>
           </div>
-          {fighters.map((fighter) => (
-            <FighterRow key={`fighter-${fighter.position}`} fighter={fighter} />
-          ))}
+          <FighterBay />
         </section>
       )}
 
@@ -226,9 +225,7 @@ export const PyfaRacks = () => {
               {(stats?.resources.cargo.used ?? 0).toFixed(1)} / {(stats?.resources.cargo.total ?? 0).toFixed(1)} m³
             </span>
           </div>
-          {cargo.map((entry) => (
-            <CargoRow key={`cargo-${entry.itemId}`} entry={entry} />
-          ))}
+          <CargoBay />
         </section>
       )}
     </div>
@@ -391,121 +388,6 @@ const ChargeDialog = (props: { position: number; itemId: number; onClose: () => 
         {rows?.length === 0 && <div className="dim pEmptyNote">{t("no charges")}</div>}
       </div>
     </ModalDialog>
-  )
-}
-
-/* --------------------------------------------------------------------------
-   数量输入：本地价值 + 提交时才发命令（每次按键都发一条命令既慢又会写一堆历史）
-   -------------------------------------------------------------------------- */
-
-const AmountInput = (props: { value: number; onCommit: (amount: number) => void }) => {
-  const [text, setText] = React.useState(String(props.value))
-
-  React.useEffect(() => {
-    setText(String(props.value))
-  }, [props.value])
-
-  const commit = () => {
-    const amount = Math.round(Number(text))
-    if (!Number.isFinite(amount) || amount <= 0) {
-      setText(String(props.value))
-      return
-    }
-    if (amount !== props.value) props.onCommit(amount)
-  }
-
-  return (
-    <input
-      className="amount mono"
-      type="number"
-      min={1}
-      inputMode="numeric"
-      value={text}
-      onChange={(event) => setText(event.target.value)}
-      onBlur={commit}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") (event.target as HTMLInputElement).blur()
-      }}
-    />
-  )
-}
-
-/* --------------------------------------------------------------------------
-   无人机 / 舰载机 / 货舱 / 植入体 / 增效剂
-   -------------------------------------------------------------------------- */
-
-const DroneRow = (props: { drone: Drone }) => {
-  const setDroneAmount = useFittingStore((state) => state.setDroneAmount)
-  const toggleDrone = useFittingStore((state) => state.toggleDrone)
-  const removeDrone = useFittingStore((state) => state.removeDrone)
-  const drone = props.drone
-  const active = (drone.amountActive ?? 0) > 0
-
-  return (
-    <div className="module">
-      <span className="pfIcon">{drone.itemId !== null ? <TypeIcon typeId={drone.itemId} size={26} /> : <span className="icon placeholder" />}</span>
-      <button className="name" onClick={() => void toggleDrone(drone.position)}>
-        {drone.item?.name}
-      </button>
-      <span className="charge mono">
-        <AmountInput value={drone.amount} onCommit={(amount) => void setDroneAmount(drone.position, amount)} />
-        <span className="dim">{t("active {count}", { count: drone.amountActive ?? 0 })}</span>
-      </span>
-      <button className={"state " + (active ? "active" : "offline")} onClick={() => void toggleDrone(drone.position)}>
-        {t(active ? "active" : "offline")}
-      </button>
-      <button className="remove danger" title={t("Remove")} onClick={() => void removeDrone(drone.position)}>
-        &times;
-      </button>
-    </div>
-  )
-}
-
-const FighterRow = (props: { fighter: Fighter }) => {
-  const toggleFighter = useFittingStore((state) => state.toggleFighter)
-  const removeFighter = useFittingStore((state) => state.removeFighter)
-  const fighter = props.fighter
-  const launched = fighter.active === true
-
-  return (
-    <div className="module">
-      <span className="pfIcon">
-        {fighter.itemId !== null ? <TypeIcon typeId={fighter.itemId} size={26} /> : <span className="icon placeholder" />}
-      </span>
-      <button className="name" onClick={() => void toggleFighter(fighter.position)}>
-        {fighter.item?.name}
-      </button>
-      <span className="charge mono">
-        <span className="dim">x{fighter.amount}</span>
-      </span>
-      <button className={"state " + (launched ? "active" : "offline")} onClick={() => void toggleFighter(fighter.position)}>
-        {t(launched ? "launched" : "in bay")}
-      </button>
-      <button className="remove danger" title={t("Remove")} onClick={() => void removeFighter(fighter.position)}>
-        &times;
-      </button>
-    </div>
-  )
-}
-
-const CargoRow = (props: { entry: CargoItem }) => {
-  const setCargoAmount = useFittingStore((state) => state.setCargoAmount)
-  const removeCargo = useFittingStore((state) => state.removeCargo)
-  const entry = props.entry
-
-  return (
-    <div className="module">
-      <span className="pfIcon">
-        {entry.item !== null ? <TypeIcon typeId={entry.item.id} size={26} /> : <span className="icon placeholder" />}
-      </span>
-      <span className="name">{entry.item?.name}</span>
-      <span className="charge mono">
-        <AmountInput value={entry.amount} onCommit={(amount) => void setCargoAmount(entry.itemId, amount)} />
-      </span>
-      <button className="remove danger" title={t("Remove")} onClick={() => void removeCargo(entry.itemId)}>
-        &times;
-      </button>
-    </div>
   )
 }
 

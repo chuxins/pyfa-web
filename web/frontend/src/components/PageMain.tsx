@@ -1,6 +1,7 @@
 import React from "react"
 import { TopBar } from "./TopBar"
 import { SelectionPanel } from "./SelectionPanel"
+import { FitButtonBar } from "./FitButtonBar"
 import { ShipFitExtended } from "./ShipFitExtended"
 import { ShipStatistics } from "./ShipStatistics"
 import { CharacterSelection } from "./CharacterSelection"
@@ -31,6 +32,8 @@ export const PageMain = () => {
         <ModalDialogAnchor />
         <div className="selection">
           <SelectionPanel />
+          {/* 保存 / 剪贴板 / 分享 / 重命名：桌面和横屏用的悬停菜单 */}
+          <FitButtonBar />
         </div>
         <div className="fit">
           <div className="fitRing">

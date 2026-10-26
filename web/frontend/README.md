@@ -138,6 +138,12 @@ npm run build   # tsc --noEmit && vite build → ../static（清空旧产物，�
 - 竖屏中间那栏是 `components/PyfaRacks.tsx`：pyfa 桌面的竖排排架（高/中/低/改装件/
   子系统，每行 图标·名称·弹药·状态·卸下），下面接无人机、舰载机、植入体、增效剂、
   货舱。径向环在窄列里放不下，所以竖屏不用它。
+- 竖屏**复用桌面三栏的组件**，不另写一套：`SelectionPanel`（舰船与装配 / 硬件）、
+  `ShipStatistics` + `CharacterSelection`（统计栏）、`SkillsSidebar`（技能抽屉）、
+  `ImportExportDialog` / `SlotPicker` / `ModalDialog`；装配栏里的 `ShipModes`
+  （战术模式）、`DroneBay`、`FighterBay`、`CargoBay` 也是同一批组件，只是把环上的
+  浮层改成栏内列表（`.pPyfa` 规则），行高按手指放大。唯一保留差异的是悬停卡
+  `ModuleCard`（桌面上鼠标悬停显示模块效果，触摸屏没有悬停）。
 - 触摸屏没有悬停，所以每个动作都有按钮：点空槽开槽位物品选择器
   （`SlotPicker`，现在按点中的槽位装配而不是"第一个空位"）、点弹药开弹药列表
   （`api.charges` → `loadChargeAt`）、点状态循环状态、`×` 卸下。拖拽仍然可用。
