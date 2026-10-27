@@ -552,11 +552,23 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8091/api/meta   # 期�
 | 内存上限 | drop-in 提到 `MemoryHigh=1500M` / `MemoryMax=2600M`（见下"踩到的坑①"） |
 | 配置 | `web.yml`：`data_dir=/var/lib/pyfa-web`、`port=8091`、`public_url=https://eve-tools.xyz/AssemblyPlanning`、`root_path=/AssemblyPlanning`、`language=zh_CN`；`web.env` 目前只有注释（SSO 见"待补"） |
 | nginx | `/etc/nginx/sites-available/pyfa-web`：两段都只 strip 前缀（`/AssemblyPlanning/api/` 关缓冲、SSE 3600s；`/AssemblyPlanning/` 走 SPA fallback），**不再做任何 `sub_filter` 改写** —— 前缀已在构建期由 Vite `base` 补齐（见下"子路径"一条）；幂等 `proxy_redirect` 两条；`/` 302 到 `/AssemblyPlanning/` |
-| 维护页 | 同上文件的 HTTPS `server{}`：`error_page 502 503 504 =503 /AssemblyPlanning/maintenance.html`（页本体 `web/static/maintenance.html` 由 nginx 直接读磁盘，不经 Python）、`proxy_connect_timeout 3s` / `proxy_send_timeout 15s`、该路径的 `location =`（`no-store` + `Retry-After: 30`）。改前备份 `/root/pyfa-web.nginx.bak.20261026140530`（2026-10-26 配置） |
+| 维护页 | 同上文件的 HTTPS `server{}`：`error_page 502 503 504 =503 /AssemblyPlanning/maintenance.html`（页本体 `web/static/maintenance.html` 由 nginx 直接读磁盘，不经 Python）、`proxy_connect_timeout 3s` / `proxy_send_timeout 15s`、该路径的 `location =`（`no-store` + `Retry-After: 30`）。备份依次在 `/root/pyfa-web.nginx.bak.*`（最新一次 2026-10-27 全套配置） |
 | 证书 | certbot（`--nginx --redirect`），`eve-tools.xyz`，到期 2027-01-23，系统自带 `certbot.timer` 自动续期 |
-| 兜底轮询 | `pyfa-web-update.timer`（2 分钟，`User=root`） |
+| 兜底轮询 | `pyfa-web-update.timer`（2 分钟，`User=root`），带 CI 闸门（见下） |
+| 备份 | `pyfa-web-backup.timer` 每日 04:30 → `deploy/backup.sh`：SQLite 在线备份 + tar 到 `/var/backups/pyfa-web`（600，保留 14 份） |
+| 看门狗 | `pyfa-web-watchdog.timer` 每 5 分钟探 `api/meta`，连续 2 次失败重启服务；告警走 `/opt/pyfa-web/monitor.env` 的 `PYFAWEB_ALERT_URL`（未配置，现在只写 journal） |
 | pypi | `/etc/pip.conf` 与 `/etc/uv/uv.toml` 指向清华源 —— 这台机器到 pypi.org 只有 **27 KB/s**，换源后约 1.1 MB/s |
 | 实测 | `https://eve-tools.xyz/AssemblyPlanning/` 200、`api/meta` 200（`gamedata.build=3532181`、`language=zh_CN`）、`/` 302、HTTP 自动 301 到 HTTPS、证书链校验通过；`auto-update.sh` 手工跑一次打印"已是最新" |
+
+**P0/P1 落地（2026-10-27）**：`deploy/nginx.conf` 已按新版铺到服务器并验证 ——
+JS 由 gzip 传输（原 316 KB 明文）、`/assets/` 一年 `expires` 长缓存、入口 HTML 与
+`sw.js` 不缓存、`client_max_body_size 16m`、安全响应头（nosniff / X-Frame-Options /
+Referrer-Policy / Permissions-Policy / HSTS）经 `/etc/nginx/snippets/pyfa-web-headers.conf`
+覆盖到每个 location（`add_header` 不继承的坑）、`listen 443 ssl http2` 实测
+`http_version=2`。应用侧加了 `GZipMiddleware`（SSE 默认排除）与 `HEAD` 支持
+（`curl -I` 之前是 405）。CI 见 `.github/workflows/ci.yml`（后端全量 pytest + ruff +
+前端构建），`deploy.yml` 改挂 `workflow_run`，服务器定时器另有自己的 CI 闸门
+（读 GitHub 的 check-runs，见 `deploy/auto-update.sh`；用 python 解析，忽略 deploy 作业）。
 
 **踩到的坑与修法**
 
