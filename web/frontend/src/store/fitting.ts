@@ -10,6 +10,7 @@ import { api, apiUrl, type Fit, type FitSummary, type History, type Module } fro
 import { errorText } from "../errors"
 import { t } from "../i18n"
 import { useBrowserStore } from "./browser"
+import { useUiStore } from "./ui"
 import { useSessionStore } from "./session"
 
 const LAST_FIT_KEY = "pyfa.lastFit"
@@ -62,6 +63,8 @@ export interface FittingState {
   error: string
   notice: string
   armedDeleteId: number | null
+  /** 有未保存的编辑（服务器只在点保存时落盘） */
+  dirty: boolean
   selectedModule: number | null
   weaponGroups: boolean
   quietUntil: number
@@ -91,6 +94,11 @@ export interface FittingState {
   promptForMissingFit: () => null
   /** Refresh the left sidebar's fit lists (the tree and the selected ship's fits). */
   refreshSidebar: () => void
+  /** 把未保存的编辑写进装配方案（唯一的持久化入口）。 */
+  save: () => Promise<Fit | null>
+  /** 放弃未保存的编辑，回到上次保存的状态。 */
+  discard: () => Promise<void>
+  promptSaveOrDiscard: (reason: string) => Promise<"saved" | "discarded" | "cancelled">
   loadCharge: (chargeItemId: number) => Promise<Fit | null>
   moduleAt: (position: number) => Module | null
   groupMates: (module: { position: number; itemId?: number | null }) => number[]
@@ -137,6 +145,7 @@ export const useFittingStore = create<FittingState>((set, get) => ({
   error: "",
   notice: "",
   armedDeleteId: null,
+  dirty: false,
   selectedModule: null,
   weaponGroups: false,
   quietUntil: 0,
@@ -162,9 +171,15 @@ export const useFittingStore = create<FittingState>((set, get) => ({
   applyFit(fit: Fit) {
     set({ fit, quietUntil: Date.now() + 1500 })
     if (fit.history) set({ history: fit.history })
+    if (typeof fit.dirty === "boolean") set({ dirty: fit.dirty })
   },
 
   async open(fitId: number) {
+    // 换装配前先把当前未保存的编辑落盘（否则它们会跟下一份一起被提交，或直接丢掉）
+    if (get().dirty && get().fit && get().fit!.id !== fitId) {
+      const saved = await get().save()
+      if (saved) get().showNotice(t("Saved the previous fit's changes"), 3000)
+    }
     set({ loading: true })
     try {
       const fit = await api.fit(fitId)
@@ -231,6 +246,7 @@ export const useFittingStore = create<FittingState>((set, get) => ({
     try {
       const fit = await api.runCommand(current.id, command, args)
       get().applyFit(fit)
+      set({ dirty: true })
       return fit
     } catch (error) {
       get().setError(error)
@@ -246,6 +262,7 @@ export const useFittingStore = create<FittingState>((set, get) => ({
     set({ busy: true })
     try {
       get().applyFit(await api.undo(current.id))
+      set({ dirty: true })
     } catch (error) {
       get().setError(error)
     } finally {
@@ -259,6 +276,7 @@ export const useFittingStore = create<FittingState>((set, get) => ({
     set({ busy: true })
     try {
       get().applyFit(await api.redo(current.id))
+      set({ dirty: true })
     } catch (error) {
       get().setError(error)
     } finally {
@@ -363,20 +381,23 @@ export const useFittingStore = create<FittingState>((set, get) => ({
     const inGame = fit.fromGame || fit.importedToGame
     const confirmed = opts?.confirmed === true
     if (!confirmed) {
-      if (inGame && get().armedDeleteId !== fitId) {
-        get().armDelete(fitId)
-        get().showNotice(
-          t("This fit is also in EVE; deleting it removes it from the website and from the game. Click delete again to confirm."),
-          6000,
-        )
-        return false
-      }
       get().disarmDelete()
-      if (inGame) {
-        if (!window.confirm(t("Delete this fit from the website and from EVE?"))) return false
-      } else if (!window.confirm(t("Delete this fit?"))) {
-        return false
-      }
+      // 从游戏里导入的装配：删掉它就等于同时删掉游戏里的那一份，必须让用户明确确认。
+      // 用页面内的确认框（而不是 window.confirm），好把后果写清楚、样式也和界面一致。
+      const choice = await useUiStore.getState().ask({
+        title: inGame ? t("Delete fit (also in EVE)") : t("Delete fit"),
+        message: inGame
+          ? t(
+              "'{name}' was imported from EVE. Deleting it removes it from this website AND from the game. This cannot be undone.",
+              { name: fit.name },
+            )
+          : t("Delete '{name}'? This cannot be undone.", { name: fit.name }),
+        choices: [
+          { id: "delete", label: inGame ? t("Delete from website and EVE") : t("Delete"), danger: true },
+          { id: "cancel", label: t("Cancel"), primary: true },
+        ],
+      })
+      if (choice !== "delete") return false
     } else {
       get().disarmDelete()
     }
@@ -479,6 +500,78 @@ export const useFittingStore = create<FittingState>((set, get) => ({
     const browser = useBrowserStore.getState()
     void browser.refreshFits()
     void browser.loadAllFits()
+  },
+
+  /**
+   * 保存：这是唯一会真正写进装配方案的编辑路径。
+   *
+   * 编辑期间服务器把每次 commit 降级成 flush（见 eos/db/saveddata/queries.py），所以
+   * 装模块、切状态这些动作只改内存里的状态；这里显式提交一次。
+   */
+  async save() {
+    const fit = get().fit
+    if (!fit) return null
+    set({ busy: true })
+    try {
+      const saved = await api.saveFit(fit.id)
+      get().applyFit(saved)
+      set({ dirty: false })
+      get().showNotice(t("Fit saved"), 2500)
+      get().refreshSidebar()
+      return saved
+    } catch (error) {
+      get().setError(error)
+      return null
+    } finally {
+      set({ busy: false })
+    }
+  },
+
+  /** 放弃：服务器回滚事务并重建这个用户的会话，然后把装配重新读回来。 */
+  async discard() {
+    const fit = get().fit
+    if (!fit) return
+    set({ busy: true })
+    try {
+      await api.discardFit(fit.id)
+      set({ dirty: false, selectedModule: null, weaponGroups: false })
+      const fresh = await api.fit(fit.id)
+      get().applyFit(fresh)
+      set({ dirty: false })
+      get().showNotice(t("Changes discarded"), 2500)
+    } catch (error) {
+      get().setError(error)
+    } finally {
+      set({ busy: false })
+    }
+  },
+
+  /**
+   * 「有未保存的修改，怎么办？」——换装配、删装配、刷新页面前问一句。
+   *
+   * 用页面内的确认框（ConfirmDialog）而不是 window.confirm：它要三个出口
+   * （保存 / 放弃 / 取消），浏览器自带的那一个没有。
+   */
+  async promptSaveOrDiscard(reason: string) {
+    if (!get().dirty) return "saved"
+    const choice = await useUiStore.getState().ask({
+      title: t("Unsaved changes"),
+      message: reason,
+      choices: [
+        { id: "save", label: t("Save"), primary: true },
+        { id: "discard", label: t("Discard changes"), danger: true },
+        { id: "cancel", label: t("Cancel") },
+      ],
+    })
+    if (choice === "save") {
+      const saved = await get().save()
+      return saved ? "saved" : "cancelled"
+    }
+    if (choice === "discard") {
+      await get().discard()
+      return "discarded"
+    }
+    return "cancelled"
   },
 
   /** Load a charge into the selected module, or every module that accepts it. */

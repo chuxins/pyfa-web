@@ -235,3 +235,16 @@ def set_session_cookie(response, state: AppState, user_id):
 
 def clear_session_cookie(response, state: AppState):
     response.delete_cookie(state.config.cookie_name, path="/")
+
+
+def persist_after_response(userData: UserData = Depends(get_user_data)):  # noqa: ARG001
+    """写操作结束后强制落盘（绕过「未保存」的草稿模式）。
+
+    编辑装配时 commit 被降级成 flush（见 eos/db/saveddata/queries.py），库文件要等用户
+    点保存才更新。但另存为、删除、导入、技能/植入体这类动作本身就是显式的持久操作，
+    它们的响应发出去之后必须真的进库 —— 这个依赖就是那个例外。
+    """
+    yield
+    import eos.db
+
+    eos.db.commit_now()

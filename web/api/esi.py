@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from logbook import Logger
 from pydantic import BaseModel
 
-from web.deps import event_channel, get_app_state, get_user_data, require_user
+from web.deps import event_channel, get_app_state, get_user_data, require_user, persist_after_response
 from web.events import publish
 from web.services import esiFittings
 
@@ -25,7 +25,7 @@ pyfalog = Logger(__name__)
 router = APIRouter(prefix="/esi", tags=["esi"])
 
 
-@router.post("/fittings/import")
+@router.post("/fittings/import", dependencies=[Depends(persist_after_response)])
 def import_fittings(user=Depends(require_user), state=Depends(get_app_state)):
     """Fetch the fittings this pilot saved in game and save them under their ships."""
     try:
@@ -61,7 +61,7 @@ class EsiExportRequest(BaseModel):
     fitId: int
 
 
-@router.delete("/fittings/{fit_id}", status_code=204)
+@router.delete("/fittings/{fit_id}", status_code=204, dependencies=[Depends(persist_after_response)])
 def delete_fitting(
     fit_id: int,
     user=Depends(require_user),

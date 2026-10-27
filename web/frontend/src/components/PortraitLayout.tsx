@@ -7,6 +7,7 @@ import { ShipStatistics } from "./ShipStatistics"
 import { SkillsSidebar } from "./SkillsSidebar"
 import { SlotPicker } from "./SlotPicker"
 import { ImportExportDialog } from "./ImportExportDialog"
+import { ConfirmDialog } from "./ConfirmDialog"
 import { ModalDialogAnchor } from "./ModalDialog"
 import { useLayoutStore, type PortraitTab } from "../store/layout"
 import { useFittingStore } from "../store/fitting"
@@ -79,6 +80,7 @@ export const PortraitLayout = () => {
 
       <SlotPicker />
       <ImportExportDialog />
+      <ConfirmDialog />
     </>
   )
 }
@@ -126,6 +128,9 @@ const PortraitFitActions = () => {
   const busy = useFittingStore((state) => state.busy)
   const exporting = useFittingStore((state) => state.exporting)
   const saveAs = useFittingStore((state) => state.saveAs)
+  const save = useFittingStore((state) => state.save)
+  const discard = useFittingStore((state) => state.discard)
+  const dirty = useFittingStore((state) => state.dirty)
   const reset = useFittingStore((state) => state.reset)
   const fitText = useFittingStore((state) => state.fitText)
   const exportToGame = useFittingStore((state) => state.exportToGame)
@@ -154,6 +159,12 @@ const PortraitFitActions = () => {
 
   return (
     <div className="pActions">
+      <button className={dirty ? "primary" : ""} disabled={busy || !dirty} onClick={() => void save()}>
+        {dirty ? t("Save (unsaved changes)") : t("Save")}
+      </button>
+      <button className="danger" disabled={busy || !dirty} onClick={() => void discard()}>
+        {t("Discard")}
+      </button>
       <button disabled={busy} onClick={() => void copyEft()}>
         {copied ? t("In Clipboard") : t("Clipboard")}
       </button>

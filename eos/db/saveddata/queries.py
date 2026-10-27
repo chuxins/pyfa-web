@@ -557,7 +557,35 @@ def remove(stuff):
     commit()
 
 
+def _defer_commit():
+    """草稿模式：浏览器里改了东西但还没点保存。"""
+    from eos.db.sessionctx import defer_commit_enabled
+
+    return defer_commit_enabled()
+
+
 def commit():
+    """提交事务；草稿模式下只 flush（写入本连接、但不落盘）。
+
+    这样 pyfa 的那些 Gui*Command 照旧调用 ``eos.db.commit()``，行为却变成「保存在
+    内存里」：引擎能看到新状态（统计、撤销栈都正常），库文件要等用户点保存
+    （:func:`commit_now`）才更新，关掉页面就等于放弃。
+    """
+    with sd_lock:
+        try:
+            if _defer_commit():
+                saveddata_session.flush()
+                return
+            saveddata_session.commit()
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except Exception:
+            saveddata_session.rollback()
+            raise
+
+
+def commit_now():
+    """强制提交：忽略草稿模式（另存为、删除、导入这类必须立刻落盘的路径）。"""
     with sd_lock:
         try:
             saveddata_session.commit()

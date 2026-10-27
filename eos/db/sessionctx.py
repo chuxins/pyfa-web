@@ -46,12 +46,29 @@ class SessionContext:
         # Kept so database migrations can find the file to back up
         self.save_path = save_path
         self.save_db = save_db
+        # 未保存的编辑（pyfa-web 的「草稿」）：浏览器里改了装配但还没点保存时，这个
+        # 上下文里的 commit() 会被降级成 flush()，事务一直开着，库文件里还是旧内容。
+        # 只有 /api/fits/{id}/save 真正提交，/discard 则回滚。
+        self.defer_commit = False
+        self.draft_fit_id = None
         # Singletons that hold per-user engine state (see scoped_instance) live
         # here, so they are released together with the context.
         self.scoped_instances = {}
 
     def __repr__(self):
         return "<SessionContext {}>".format(self.name)
+
+
+def defer_commit_enabled():
+    """当前上下文是不是处在「不自动保存」的草稿状态。"""
+    ctx = current_context()
+    return bool(ctx is not None and getattr(ctx, "defer_commit", False))
+
+
+def draft_fit_id():
+    """正在草稿里被编辑的那个装配 id（没有草稿时是 None）。"""
+    ctx = current_context()
+    return None if ctx is None else getattr(ctx, "draft_fit_id", None)
 
 
 def scoped_instance(cls, factory):

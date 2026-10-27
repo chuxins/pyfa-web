@@ -237,6 +237,8 @@ export interface Fit {
   modCount: number
   stats?: Stats
   history?: History
+  /** 有未保存的编辑（服务器把 commit 降级成 flush，等用户点保存） */
+  dirty?: boolean
 }
 
 export interface DamageTypes {
@@ -856,6 +858,11 @@ export const api = {
     }>("/api/commands"),
   runCommand: (fitId: number, command: string, args: Record<string, unknown>) =>
     request<Fit>(`/api/fits/${fitId}/commands`, { method: "POST", body: JSON.stringify({ command, args }) }),
+  /** 把未保存的编辑真正落盘（唯一会持久化编辑的调用）。 */
+  saveFit: (fitId: number) => request<Fit>(`/api/fits/${fitId}/save`, { method: "POST" }),
+  /** 放弃未保存的编辑：回滚到库里最后一次保存的状态。 */
+  discardFit: (fitId: number) =>
+    request<{ fitId: number; discarded: boolean }>(`/api/fits/${fitId}/discard`, { method: "POST" }),
   undo: (fitId: number) => request<Fit>(`/api/fits/${fitId}/undo`, { method: "POST" }),
   redo: (fitId: number) => request<Fit>(`/api/fits/${fitId}/redo`, { method: "POST" }),
   resetFit: (fitId: number) => request<void>(`/api/fits/${fitId}/reset`, { method: "POST" }),

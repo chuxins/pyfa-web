@@ -13,6 +13,8 @@ import { t } from "../i18n"
 export const FitButtonBar = () => {
   const fit = useFittingStore((state) => state.fit)
   const saveAs = useFittingStore((state) => state.saveAs)
+  const save = useFittingStore((state) => state.save)
+  const dirty = useFittingStore((state) => state.dirty)
   const rename = useFittingStore((state) => state.rename)
   const fitText = useFittingStore((state) => state.fitText)
   const showNotice = useFittingStore((state) => state.showNotice)
@@ -70,7 +72,14 @@ export const FitButtonBar = () => {
     setRenameOpen(true)
   }
 
+  /** 主按钮 = 保存到当前装配方案（编辑期间的改动此刻才落盘）。 */
   async function doSave() {
+    await save()
+    setSaveOpen(false)
+  }
+
+  /** 弹出菜单里的另存为：复制出一个新的装配。 */
+  async function doSaveAs() {
     const copy = await saveAs()
     setSaveOpen(false)
     if (copy) showNotice(t("Saved a copy as {name}", { name: copy.name }), 3000)
@@ -84,6 +93,9 @@ export const FitButtonBar = () => {
           <div className={"fpopup" + (saveOpen ? "" : " fpopupCollapsed")}>
             <div>
               <div className="fbutton fbuttonSmall" onClick={() => void doSave()}>
+                {dirty ? t("Save (unsaved changes)") : t("Save")}
+              </div>
+              <div className="fbutton fbuttonSmall" onClick={() => void doSaveAs()}>
                 {t("Save As")}
               </div>
             </div>

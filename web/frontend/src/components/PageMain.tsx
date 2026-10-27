@@ -8,6 +8,7 @@ import { CharacterSelection } from "./CharacterSelection"
 import { SkillsSidebar } from "./SkillsSidebar"
 import { ModalDialogAnchor } from "./ModalDialog"
 import { ImportExportDialog } from "./ImportExportDialog"
+import { ConfirmDialog } from "./ConfirmDialog"
 import { PortraitLayout } from "./PortraitLayout"
 import { useLayoutStore } from "../store/layout"
 import { t } from "../i18n"
@@ -54,6 +55,7 @@ export const PageMain = () => {
       </div>
 
       <ImportExportDialog />
+      <ConfirmDialog />
     </>
   )
 }

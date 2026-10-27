@@ -29,7 +29,26 @@ export interface ModuleHoverState {
   y: number
 }
 
+/** 页面内确认框的一次提问：几个出口由调用方决定。 */
+export interface ConfirmChoice {
+  id: string
+  label: string
+  primary?: boolean
+  danger?: boolean
+}
+
+export interface ConfirmRequest {
+  title: string
+  message: string
+  choices: ConfirmChoice[]
+  resolve: (choice: string) => void
+}
+
 interface UiState {
+  confirm: ConfirmRequest | null
+  /** 弹一个页面内确认框，返回用户点的那个出口 id。 */
+  ask: (request: { title: string; message: string; choices: ConfirmChoice[] }) => Promise<string>
+  answerConfirm: (choice: string) => void
   importExportOpen: boolean
   slotPicker: SlotPickerState | null
   preview: PreviewState | null
@@ -42,7 +61,20 @@ interface UiState {
   setModuleHover: (hover: ModuleHoverState | null) => void
 }
 
-export const useUiStore = create<UiState>((set) => ({
+export const useUiStore = create<UiState>((set, get) => ({
+  confirm: null,
+
+  ask: (request) =>
+    new Promise<string>((resolve) => {
+      set({ confirm: { ...request, resolve } })
+    }),
+
+  answerConfirm: (choice) => {
+    const current = get().confirm
+    set({ confirm: null })
+    current?.resolve(choice)
+  },
+
   importExportOpen: false,
   slotPicker: null,
   preview: null,

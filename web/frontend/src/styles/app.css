@@ -2123,6 +2123,38 @@ body {
 }
 
 /* Fitted-module hover card: what the module does, in the fit's own numbers */
+/* ---- 未保存标记 / 页面内确认框 ------------------------------------------ */
+
+.unsaved {
+  background: #7a3925;
+  border: 1px solid #a54b32;
+  border-radius: 9px;
+  color: #ffd9c4;
+  font-size: 11px;
+  line-height: 16px;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+
+.confirmBody {
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 12px;
+  max-width: 42em;
+}
+
+.confirmActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.confirmButton {
+  min-height: 30px;
+  padding: 3px 14px;
+}
+
 /* ---- DPS 构成卡（悬停在 DPS 上） --------------------------------------- */
 
 /* 触发器只是个包裹层，不改变原有布局 */

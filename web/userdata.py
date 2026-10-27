@@ -262,6 +262,32 @@ class UserDataRegistry:
         with self._lock:
             return list(self._users)
 
+    def reset_user(self, user_id):
+        """重建一个用户的会话（放弃草稿后调用）。
+
+        回滚只把数据库退回上一个已提交点，SQLAlchemy 的身份映射与 pyfa 服务里缓存的
+        ORM 对象还是「回滚前」的那批；把它们整体丢掉、重新开一个会话，下一次请求就是
+        干干净净从库里读出来的状态。撤销栈（command_processors）同样清空。
+        """
+        with self._lock:
+            if user_id is None:
+                # 匿名请求用的是共享的 guest 库（见 get_guest）
+                if self.guest is not None:
+                    self.guest.close()
+                    self.guest.command_processors = {}
+                    self.guest.open()
+                    self.guest.touch()
+                return self.guest
+            data = self._users.get(user_id)
+            if data is None:
+                return self.get(user_id)
+            data.close()
+            data.command_processors = {}
+            data.open()
+            data.touch()
+            pyfalog.info("User {} session rebuilt (draft discarded)", user_id)
+            return data
+
     def close_user(self, user_id):
         """Close one user's cached session, if it is open. True when it was."""
         with self._lock:

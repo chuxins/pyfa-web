@@ -34,6 +34,19 @@ export const App = () => {
   const portError = usePortStore((state) => state.error)
   const portNotice = usePortStore((state) => state.notice)
 
+  // 未保存的编辑：关标签页/刷新前让浏览器问一句（服务器那边事务还没提交，
+  // 直接关掉就等于放弃，所以至少要拦住一次误操作）
+  const dirty = useFittingStore((state) => state.dirty)
+  React.useEffect(() => {
+    if (!dirty) return
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ""
+    }
+    window.addEventListener("beforeunload", warn)
+    return () => window.removeEventListener("beforeunload", warn)
+  }, [dirty])
+
   React.useEffect(() => {
     setUnauthorizedHandler(() => promptLogin("any"))
     // The orientation watcher drives which of the two fitting UIs is drawn

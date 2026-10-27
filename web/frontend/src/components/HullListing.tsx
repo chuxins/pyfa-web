@@ -1,6 +1,5 @@
 import React from "react"
 import { Icon, type IconName } from "./Icon"
-import { ModalDialog } from "./ModalDialog"
 import { TreeListing, TreeHeader, TreeHeaderAction, TreeLeaf } from "./TreeListing"
 import { useBrowserStore } from "../store/browser"
 import { useFittingStore } from "../store/fitting"
@@ -30,15 +29,6 @@ export const HullListing = () => {
 
   const [search, setSearch] = React.useState("")
   const [filter, setFilter] = React.useState<FitFilter>({ localFits: false, characterFits: false, currentHull: false })
-  /** The fit whose delete confirmation is open, if any. */
-  const [pendingDelete, setPendingDelete] = React.useState<FitSummary | null>(null)
-
-  const confirmDelete = async () => {
-    const fit = pendingDelete
-    if (!fit) return
-    setPendingDelete(null)
-    await removeFit(fit.id, fit, { confirmed: true })
-  }
 
   React.useEffect(() => {
     void loadAllFits()
@@ -116,33 +106,11 @@ export const HullListing = () => {
             searching={searching}
             onOpenFit={(fitId) => void openFit(fitId)}
             onNewFit={(shipId) => void create(shipId)}
-            onDeleteFit={(fit) => setPendingDelete(fit)}
+            onDeleteFit={(fit) => void removeFit(fit.id, fit)}
           />
         ))}
         {categories.length === 0 && <div className="empty dim">{t("working…")}</div>}
       </div>
-
-      <ModalDialog
-        visible={pendingDelete !== null}
-        onClose={() => setPendingDelete(null)}
-        className="fconfirm"
-        width={420}
-        title={t("Delete fitting")}
-      >
-        <div className="fconfirmText">
-          {pendingDelete && (pendingDelete.fromGame || pendingDelete.importedToGame)
-            ? t("Delete '{name}' from the website and from EVE?", { name: pendingDelete.name })
-            : t("Delete '{name}'?", { name: pendingDelete?.name ?? "" })}
-        </div>
-        <div className="fconfirmButtons">
-          <span className="fbutton fbuttonSmall" onClick={() => setPendingDelete(null)}>
-            {t("Cancel")}
-          </span>
-          <span className="fbutton fbuttonSmall fbuttonDanger" onClick={() => void confirmDelete()}>
-            {t("Delete")}
-          </span>
-        </div>
-      </ModalDialog>
     </div>
   )
 }

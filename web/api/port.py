@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from logbook import Logger
 from pydantic import BaseModel, Field
 
-from web.deps import UserData, event_channel, get_user_data, user_or_guest
+from web.deps import UserData, event_channel, get_user_data, user_or_guest, persist_after_response
 from web.events import publish
 from web.services import port as portService
 from web.userdb import User
@@ -46,7 +46,7 @@ def _port_errors(ex: portService.PortError):
     return HTTPException(status_code=ex.status, detail=ex.detail())
 
 
-@router.post("/import", status_code=201)
+@router.post("/import", status_code=201, dependencies=[Depends(persist_after_response)])
 def import_text(
     payload: ImportRequest,
     user: User | None = Depends(user_or_guest),

@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from logbook import Logger
 from pydantic import BaseModel, Field
 
-from web.deps import event_channel, get_app_state, get_user_data, user_or_guest
+from web.deps import event_channel, get_app_state, get_user_data, user_or_guest, persist_after_response
 from web.events import publish
 from web.services import commands as commandService
 from web.services import esiFittings
@@ -91,7 +91,7 @@ def list_fits(
     return {"fits": fits[:limit], "count": len(fits)}
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, dependencies=[Depends(persist_after_response)])
 def create_fit(payload: FitCreate, user=Depends(user_or_guest)):
     """Create an empty fit for a ship.
 
@@ -166,7 +166,7 @@ def get_fit_price(fit_id: int):
     return fit_price(fit)
 
 
-@router.post("/{fit_id}/price/refresh")
+@router.post("/{fit_id}/price/refresh", dependencies=[Depends(persist_after_response)])
 def refresh_fit_price(fit_id: int):
     """Re-fetch market prices for the fit's items from the configured source."""
     from web.services.prices import refresh_prices
@@ -203,7 +203,7 @@ def search_all_skills(q: str = Query(..., min_length=1), limit: int = Query(20, 
     return {"query": q, "results": [serialize_item(item) for item in items]}
 
 
-@router.post("/{fit_id}/custom-skills", status_code=201)
+@router.post("/{fit_id}/custom-skills", status_code=201, dependencies=[Depends(persist_after_response)])
 def add_custom_skill(
     fit_id: int,
     payload: CustomSkillBody,
@@ -230,7 +230,7 @@ def add_custom_skill(
     return payload_out
 
 
-@router.delete("/{fit_id}/custom-skills/{skill_id}", status_code=200)
+@router.delete("/{fit_id}/custom-skills/{skill_id}", status_code=200, dependencies=[Depends(persist_after_response)])
 def remove_custom_skill(
     fit_id: int,
     skill_id: int,
@@ -251,7 +251,7 @@ class SkillLevelBody(BaseModel):
     level: int = Field(ge=0, le=5)
 
 
-@router.put("/{fit_id}/skills/{skill_id}/level", status_code=200)
+@router.put("/{fit_id}/skills/{skill_id}/level", status_code=200, dependencies=[Depends(persist_after_response)])
 def set_fit_skill_level(
     fit_id: int,
     skill_id: int,
@@ -285,7 +285,7 @@ def set_fit_skill_level(
     return out
 
 
-@router.post("/{fit_id}/skills/reset", status_code=200)
+@router.post("/{fit_id}/skills/reset", status_code=200, dependencies=[Depends(persist_after_response)])
 def reset_fit_skills(
     fit_id: int,
     user=Depends(user_or_guest),  # noqa: ARG001 - SSE channel only
@@ -302,7 +302,7 @@ def reset_fit_skills(
     return out
 
 
-@router.patch("/{fit_id}")
+@router.patch("/{fit_id}", dependencies=[Depends(persist_after_response)])
 def update_fit(fit_id: int, payload: FitUpdate, user=Depends(user_or_guest)):
     """Rename a fit, edit its notes, or toggle its flags. Open to guests."""
     import eos.db
@@ -336,7 +336,7 @@ def update_fit(fit_id: int, payload: FitUpdate, user=Depends(user_or_guest)):
     return serialize_fit(fit, includeStats=False)
 
 
-@router.post("/{fit_id}/duplicate", status_code=201)
+@router.post("/{fit_id}/duplicate", status_code=201, dependencies=[Depends(persist_after_response)])
 def duplicate_fit(fit_id: int, user=Depends(user_or_guest)):
     """Copy a fit; the copy lands in the same database, the caller's own or the guest's.
 
@@ -356,7 +356,7 @@ def duplicate_fit(fit_id: int, user=Depends(user_or_guest)):
     return serialize_fit_summary(clone)
 
 
-@router.delete("/{fit_id}", status_code=204)
+@router.delete("/{fit_id}", status_code=204, dependencies=[Depends(persist_after_response)])
 def delete_fit(
     fit_id: int,
     user=Depends(user_or_guest),

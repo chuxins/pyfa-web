@@ -20,6 +20,9 @@ export const TopBar = () => {
   const undo = useFittingStore((state) => state.undo)
   const redo = useFittingStore((state) => state.redo)
   const rename = useFittingStore((state) => state.rename)
+  const dirty = useFittingStore((state) => state.dirty)
+  const save = useFittingStore((state) => state.save)
+  const discard = useFittingStore((state) => state.discard)
   const user = useSessionStore((state) => state.user)
   const logout = useSessionStore((state) => state.logout)
   const pyfaVersion = useSessionStore((state) => state.pyfaVersion)
@@ -61,6 +64,24 @@ export const TopBar = () => {
             }}
             spellCheck={false}
           />
+          {/* 编辑不再自动保存：这里是唯一的持久化入口（旁边还有「放弃」） */}
+          {dirty && <span className="unsaved">{t("Unsaved")}</span>}
+          <button
+            className={dirty ? "primary" : ""}
+            disabled={busy || !dirty}
+            title={t("Save changes to this fit")}
+            onClick={() => void save()}
+          >
+            {t("Save")}
+          </button>
+          <button
+            className="danger"
+            disabled={busy || !dirty}
+            title={t("Throw away the unsaved changes")}
+            onClick={() => void discard()}
+          >
+            {t("Discard")}
+          </button>
           <button
             disabled={!history.canUndo || busy}
             title={history.undoName ?? t("Undo")}

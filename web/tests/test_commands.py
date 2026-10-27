@@ -56,6 +56,31 @@ def make_fit(client, name="Edit Test"):
     return response.json()["id"]
 
 
+def test_edits_stay_unsaved_until_the_save_endpoint(user_client):
+    """编辑不再自动保存：命令只改内存状态，保存才落盘，放弃则回到库里的样子。"""
+    fit_id = make_fit(user_client, "Draft Test")
+
+    # 装一个模块：响应里带 dirty，说明这次改动还没保存
+    response = run_command(user_client, fit_id, "addLocalModule", itemId=AUTOCANNON_ID)
+    assert response.status_code == 200, response.text
+    assert response.json()["dirty"] is True
+    assert any(not m["isEmpty"] for m in response.json()["racks"]["high"])
+
+    # 放弃：回到没装模块的状态
+    discarded = user_client.post("/api/fits/{}/discard".format(fit_id))
+    assert discarded.status_code == 200, discarded.text
+    after_discard = user_client.get("/api/fits/{}".format(fit_id)).json()
+    assert all(m["isEmpty"] for m in after_discard["racks"]["high"])
+
+    # 再来一次，这次保存
+    assert run_command(user_client, fit_id, "addLocalModule", itemId=AUTOCANNON_ID).status_code == 200
+    saved = user_client.post("/api/fits/{}/save".format(fit_id))
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["dirty"] is False
+    after_save = user_client.get("/api/fits/{}".format(fit_id)).json()
+    assert any(m["itemId"] == AUTOCANNON_ID for m in after_save["racks"]["high"])
+
+
 def test_command_registry_is_exposed(user_client):
     payload = user_client.get("/api/commands").json()
     names = {entry["name"] for entry in payload["commands"]}

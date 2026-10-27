@@ -17,7 +17,7 @@ from logbook import Logger
 from pydantic import BaseModel
 
 from service.character import Character
-from web.deps import user_or_guest
+from web.deps import user_or_guest, persist_after_response
 from web.services import charimplants
 from web.services.serialize import serialize_item
 
@@ -141,7 +141,7 @@ def _recalc_open_fit(fit_id):
     return serialize_fit(fit, includeStats=True)
 
 
-@router.post("/characters/{character_id}/implants", status_code=201)
+@router.post("/characters/{character_id}/implants", status_code=201, dependencies=[Depends(persist_after_response)])
 def add_character_implant(
     character_id: int,
     payload: CharacterImplantBody,
@@ -170,7 +170,7 @@ def add_character_implant(
     return out
 
 
-@router.delete("/characters/{character_id}/implants/{item_id}")
+@router.delete("/characters/{character_id}/implants/{item_id}", dependencies=[Depends(persist_after_response)])
 def remove_character_implant(
     character_id: int,
     item_id: int,
@@ -196,7 +196,7 @@ def remove_character_implant(
     return out
 
 
-@router.post("/characters/{character_id}/implants/sync-esi")
+@router.post("/characters/{character_id}/implants/sync-esi", dependencies=[Depends(persist_after_response)])
 def sync_character_implants(
     character_id: int,
     fitId: int | None = Query(None),

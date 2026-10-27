@@ -852,6 +852,33 @@ Two details worth knowing:
   404s to the maintenance page. nginx produces 502/504 by itself, and `error_page` applies
   to those without it.
 
+### Editing is not saving
+
+Edits do not touch the database until the reader presses **保存**: the command
+endpoint marks the user's session context as a draft (``defer_commit``), and
+``eos.db.commit()`` -- which every ``Gui*Command`` calls at the end of ``Do()`` --
+is downgraded to a ``flush()``. The engine therefore sees the new state (the stats,
+the undo stack, the module list all update immediately) while the fit on disk stays
+as it was. Two endpoints complete the picture:
+
+* ``POST /api/fits/{id}/save`` -- ``eos.db.commit_now()`` and clear the flag; this is
+  the only path that persists an edit.
+* ``POST /api/fits/{id}/discard`` -- roll back the transaction and rebuild the user's
+  session (``UserDataRegistry.reset_user``), because SQLAlchemy's identity map and
+  pyfa's service singletons still hold the pre-rollback objects. The browser then
+  re-reads the fit.
+
+Two consequences worth knowing. Actions that are themselves explicit saves -- import,
+duplicate (save as), delete, skill and implant edits, price refresh -- carry the
+``persist_after_response`` dependency, which force-commits whatever is pending, so a
+draft is written by them too. And because the pending changes live in one open
+transaction per user, closing the page without saving simply loses them (the tab
+warns once via ``beforeunload``).
+
+Deleting a fit that came from the game asks first, in the page's own dialog
+(``ConfirmDialog`` / ``useUiStore.ask``): it names the fit and says that the copy in
+EVE goes with it.
+
 ### Backups, health watchdog and the CI gate
 
 Three small pieces keep the deployment from quietly rotting; all of them live in `deploy/`

@@ -220,6 +220,23 @@ const ZH_CN: Record<string, string> = {
   "This fit is also in EVE; deleting it removes it from the website and from the game. Click delete again to confirm.":
     "这个装配同时存在于 EVE 中；删除会同时删掉网站和游戏里的那一份。再点一次删除以确认。",
 
+  // -- 未保存的编辑 / 确认框 ---------------------------------------------------
+  Unsaved: "未保存",
+  Discard: "放弃",
+  "Save changes to this fit": "把改动写进这个装配方案",
+  "Throw away the unsaved changes": "丢弃未保存的改动，回到上次保存的状态",
+  "Fit saved": "装配已保存",
+  "Save (unsaved changes)": "保存（有未保存改动）",
+  "Changes discarded": "已放弃改动",
+  "Saved the previous fit's changes": "上一份装配的改动已保存",
+  "Unsaved changes": "有未保存的改动",
+  "Discard changes": "放弃改动",
+  "Delete fit (also in EVE)": "删除装配（游戏内也有）",
+  "Delete from website and EVE": "从网站和游戏里删除",
+  "'{name}' was imported from EVE. Deleting it removes it from this website AND from the game. This cannot be undone.":
+    "「{name}」是从游戏内导入的装配。删除会同时删掉网站和游戏里的那一份，且无法撤销。",
+  "Delete '{name}'? This cannot be undone.": "确定删除「{name}」吗？此操作无法撤销。",
+
   // -- DPS 构成卡（悬停） ----------------------------------------------------
   "DPS breakdown": "DPS 构成",
   Weapons: "武器",
