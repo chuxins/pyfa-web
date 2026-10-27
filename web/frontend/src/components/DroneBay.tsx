@@ -1,6 +1,7 @@
 import React from "react"
 import { useFittingStore } from "../store/fitting"
-import { imageUrl, type Drone } from "../api"
+import type { Drone } from "../api"
+import { TypeIcon } from "../images"
 import { formatAmount } from "../format"
 import { t } from "../i18n"
 
@@ -97,7 +98,7 @@ const DroneBayEntry = ({
     <div className="droneBayEntry">
       <div className="droneBayAmount">{total} x</div>
       <div>
-        <img src={imageUrl(drone.item?.image, 1) ?? undefined} alt="" />
+        <TypeIcon typeId={drone.itemId ?? drone.item?.id ?? 0} size={44} />
       </div>
       <div className="droneBayMiddle">
         <div className="droneBayName">{drone.item?.name ?? ""}</div>

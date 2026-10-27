@@ -1,6 +1,7 @@
 import React from "react"
 import { useFittingStore } from "../store/fitting"
-import { imageUrl, type Fighter } from "../api"
+import type { Fighter } from "../api"
+import { TypeIcon } from "../images"
 import { formatAmount } from "../format"
 import { t } from "../i18n"
 
@@ -69,7 +70,7 @@ const FighterBayEntry = ({
   <div className={"droneBayEntry" + (fighter.active ? "" : " fighterInHangar")}>
     <div className="droneBayAmount">{Math.max(1, fighter.amount ?? 1)} x</div>
     <div>
-      <img src={imageUrl(fighter.item?.image, 1) ?? undefined} alt="" />
+      <TypeIcon typeId={fighter.itemId ?? fighter.item?.id ?? 0} size={44} />
     </div>
     <div className="droneBayMiddle">
       <div className="droneBayName">{fighter.item?.name ?? ""}</div>

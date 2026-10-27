@@ -4,7 +4,7 @@ import { ModalDialog } from "./ModalDialog"
 import { TreeListing, TreeHeader, TreeHeaderAction, TreeLeaf } from "./TreeListing"
 import { useBrowserStore } from "../store/browser"
 import { useFittingStore } from "../store/fitting"
-import type { FitSummary, ShipCategory } from "../api"
+import { imageUrl, type FitSummary, type ImageRef, type ShipCategory } from "../api"
 import { MIME_FIT_ID, MIME_KIND, MIME_TYPE_ID } from "../dragdrop"
 import { t } from "../i18n"
 
@@ -178,6 +178,8 @@ interface HullTreeProps {
 interface HullShip {
   id: number
   name: string
+  /** 接口随行给出的本机渲染图（/img/renders/{graphicId}@2x，64px） */
+  image?: ImageRef | null
   race?: { id: number | null; name: string; order: number } | null
 }
 
@@ -258,7 +260,17 @@ const HullRow = (props: HullTreeProps & { ship: HullShip }) => {
     e.dataTransfer.setData(MIME_TYPE_ID, props.ship.id.toString())
     e.dataTransfer.setData(MIME_KIND, "ship")
     e.dataTransfer.effectAllowed = "copy"
-    // 拖动跟随图交给浏览器默认（船在静态数据里没有 iconID，只有渲染图，而渲染图太大不适合做拖影）
+    // 拖动跟随图用本机渲染图（/img/renders/@2x，64px，一年缓存）
+    const thumb = imageUrl(props.ship.image, 2)
+    if (thumb) {
+      try {
+        const img = new Image()
+        img.src = thumb
+        e.dataTransfer.setDragImage(img, 32, 32)
+      } catch {
+        // ignore
+      }
+    }
   }
 
   return (
@@ -268,7 +280,9 @@ const HullRow = (props: HullTreeProps & { ship: HullShip }) => {
       expanded={props.searching ? true : undefined}
       header={
         <TreeHeader
-          icon="fitting-hull"
+          // 船的缩略图：接口随行给出 /img/renders/{graphicId}@2x（本机 64px，
+          // 比外链的 32px 更清楚，也不发外部请求）
+          icon={imageUrl(props.ship.image, 2) ?? undefined}
           text={props.ship.name}
           action={
             <TreeHeaderAction

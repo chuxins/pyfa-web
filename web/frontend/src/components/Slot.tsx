@@ -3,7 +3,6 @@ import { Icon } from "./Icon"
 import { useFittingStore } from "../store/fitting"
 import { useUiStore } from "../store/ui"
 import type { Module } from "../api"
-import { imageUrl } from "../api"
 import { handleModuleDrop, isItemDrag } from "../dragdrop"
 import { t } from "../i18n"
 
@@ -172,23 +171,27 @@ export const Slot = (props: { type: SlotType; index: number; fittable: boolean; 
   let item: React.ReactNode
 
   if (previewHere) {
-    const previewSrc = imageUrl(preview!.image, 1)
-    item = previewSrc ? (
-      <img src={previewSrc} title={t("Preview")} className="sfPreview" alt="" />
-    ) : (
-      <Icon name={PLACEHOLDER_ICON[props.type]} />
+    // 环上的槽位是按百分比放大的，pyfa 自带的 PNG 只有 16/32px，放大就糊；
+    // 这里用 CCP 的 64px 图标（浏览器缓存一年），环才干净
+    item = (
+      <img
+        src={`https://images.evetech.net/types/${preview!.itemId}/icon?size=64`}
+        title={t("Preview")}
+        className="sfPreview"
+        alt=""
+      />
     )
   } else if (hasItem && slotModule.item) {
-    // 装填了弹药就画弹药的图标（和游戏里一致），否则画模块自己的
-    const src = imageUrl(slotModule.charge ? slotModule.charge.item.image : slotModule.item.image, 1)
-    item = src ? (
+    item = (
       <img
-        src={src}
+        src={
+          slotModule.charge
+            ? `https://images.evetech.net/types/${slotModule.charge.item.id}/icon?size=64`
+            : `https://images.evetech.net/types/${slotModule.item.id}/icon?size=64`
+        }
         title={slotModule.charge ? `${slotModule.item.name}\n${slotModule.charge.item.name}` : slotModule.item.name}
         alt=""
       />
-    ) : (
-      <Icon name={PLACEHOLDER_ICON[props.type]} />
     )
   } else {
     item = <Icon name={PLACEHOLDER_ICON[props.type]} />

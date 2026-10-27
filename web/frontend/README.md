@@ -25,16 +25,18 @@ web/frontend/
   eslint.config.js  # ESLint 9 扁平配置，npm run lint
 ```
 
-### 图标来源（2026-10-27 起统一）
+### 图标来源（2026-10-27 定稿）
 
-- **物品图标与舰船渲染**：一律走本机 `/img/{kind}/{id}@1x|2x`（`api.ts` 的
-  `imageUrl()`），数据来自接口里的 `item.image = { kind, id }`，由后端从 `imgs/`
-  直接读盘并带 `Cache-Control: public, max-age=31536000, immutable`。
-- **固定尺寸的小图标**（槽位选择器、竖屏排架行）：`TypeIcon`（打包的
-  `@eveshipfit/images`，`images.dat` 加载一次后不再发请求）。
-- 前端已**不再外链 `images.evetech.net`**，两条路径都在本机且都有长缓存。市场树
-  为此在接口里补了 `image` 字段（`web/services/market_tree.py`），
-  `web/tests/test_items.py::test_market_tree_rows_carry_a_local_image_ref` 守着。
+三类来源，按「谁更清楚 + 谁不用发外部请求」取舍：
+
+| 场景 | 来源 | 原因 |
+| --- | --- | --- |
+| 左侧船树缩略图、拖动跟随图、竖屏标题渲染图 | 本机 `/img/renders/{graphicId}@2x`（64px，一年 immutable） | 接口随行带 `image`（`kind: renders`），64px 对 24–28px 的行足够清楚，不外链 |
+| 无人机舱 / 舰载机库 / 货舱行、槽位选择器、竖屏排架行 | `TypeIcon`（打包的 `@eveshipfit/images`，64px 原生分层 WebP） | 固定尺寸，`images.dat` 已在包里，零请求且不会糊 |
+| **径向环上的槽位图标 / 悬停预览 / 环心舰船渲染** | `images.evetech.net`（icon 64px、render 1024px） | 环是按百分比缩放的：`imgs/` 里的 PNG 只有 16/32px（渲染图 32/64px），放大到几十甚至几百像素必然糊；百分比容器也没法让固定 `zoom` 的 `TypeIcon` 跟着缩放 |
+
+也就是说：**不再外链的**是侧栏、货舱/无人机/舰载机行、槽位选择器与竖屏那一套；只有「跟着环缩放」的三处仍然用 CCP 的图（浏览器缓存一年）。市场树为此在接口里带上了 `image`（`web/services/market_tree.py`），
+`web/tests/test_items.py::test_market_tree_rows_carry_a_local_image_ref` 守着。
 
 ## 开发
 

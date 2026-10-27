@@ -1,6 +1,6 @@
 import React from "react"
-import { imageUrl } from "../api"
 import { useFittingStore } from "../store/fitting"
+import { TypeIcon } from "../images"
 import { t } from "../i18n"
 
 /** The cargo hold overlay: stacks with amounts, an icon, and a remove button.
@@ -34,7 +34,7 @@ export const CargoBay = () => {
         >
           <div className="cargoBayAmount">{cargo.amount} x</div>
           <div>
-            <img src={imageUrl(cargo.item?.image, 1) ?? undefined} alt="" />
+            <TypeIcon typeId={cargo.itemId} size={28} />
           </div>
           <div className="cargoBayMiddle">
             <div className="cargoBayName">{cargo.item?.name ?? ""}</div>

@@ -235,12 +235,7 @@ export const HardwareListing = () => {
       setPreview(null)
       return
     }
-    setPreview({
-      itemId: item.id,
-      slotType: item.slotType ?? "High",
-      kind: "module",
-      image: item.image ?? null,
-    })
+    setPreview({ itemId: item.id, slotType: item.slotType ?? "High", kind: "module" })
   }
 
   const renderGroup = (group: MarketGroup, path: string, level: number) => {

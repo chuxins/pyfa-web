@@ -4,7 +4,6 @@
  * Kept separate from the data stores so dialogs can be opened from anywhere.
  */
 import { create } from "zustand"
-import type { ImageRef } from "../api"
 
 export interface SlotPickerState {
   slot: string
@@ -15,8 +14,6 @@ export interface PreviewState {
   itemId: number | null
   slotType: string | null
   kind: string
-  /** 本地图片引用（/img/icons/…）；树条目没带图标时是 null，槽位显示占位图标 */
-  image?: ImageRef | null
 }
 
 /**
