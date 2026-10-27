@@ -89,35 +89,85 @@ fi
 
 # ---- CI 闸门 ---------------------------------------------------------------
 # 读 GitHub 上这个提交的 check-runs 结论：只要有一个没成功/还在跑就不上线。
-# 拿不到结论（API 限流、断网、仓库未公开）时放行并大声记一笔 —— 部署被一个
-# 网络抖动永久卡住比偶尔放行一个红提交更难查。
+#
+# 用 python 解析 JSON 而不是 grep 数字段：check-run 对象里 "id" 出现好几次
+# （run/app/suite 各有 id），之前按 '"id":' 计数会得出 3/12 这种假结论，把绿的提交
+# 也拦下来（2026-10-27 实际踩过）。机器上一定有 venv 里的 python（服务就是它跑的）。
+#
+# 拿不到结论（断网、API 限流、仓库未公开）时放行并大声记一笔 —— 部署被一次网络抖动
+# 永久卡住，比偶尔放行一个红提交更难查。CI 还没开始跑（没有 check-run）时则等下一轮
+# 轮询，除非这个提交已经超过 GATE_MAX_AGE 秒还没见到任何检查（那种情况多半是仓库没配 CI）。
 ci_gate_allows() {
   [ "$CI_GATE" = "1" ] || return 0
   [ -n "$GITHUB_REPO" ] || return 0
-  command -v curl >/dev/null 2>&1 || { log "没有 curl，跳过 CI 闸门"; return 0; }
+
+  local python_bin="$VENV/bin/python"
+  [ -x "$python_bin" ] || python_bin=$(command -v python3 || true)
+  if [ -z "$python_bin" ] || ! command -v curl >/dev/null 2>&1; then
+    log "没有 curl/python，跳过 CI 闸门"
+    return 0
+  fi
 
   local api="https://api.github.com/repos/$GITHUB_REPO/commits/$after/check-runs"
-  local json
+  local json tmp verdict
   if ! json=$(curl -sS -m 15 -H 'Accept: application/vnd.github+json' -H 'User-Agent: pyfa-web-auto-update' "$api" 2>/dev/null); then
     log "警告：取不到 CI 结论（网络/限流），按放行处理"
     return 0
   fi
 
-  # 统计总数与成功数，不引第三方 JSON 工具
-  local total success bad
-  total=$(printf '%s' "$json" | grep -o '"id":' | wc -l | tr -d ' ')
-  if [ "$total" = "0" ]; then
-    log "警告：该提交在 GitHub 上没有 check-runs（CI 未跑？），按放行处理"
-    return 0
-  fi
-  success=$(printf '%s' "$json" | grep -o '"conclusion":"success"' | wc -l | tr -d ' ')
-  if [ "$total" = "$success" ]; then
-    log "CI 闸门通过（$success/$total 成功）"
-    return 0
-  fi
-  bad=$(printf '%s' "$json" | grep -o '"conclusion":"[a-z_]*"' | sort -u | tr '\n' ' ')
-  log "CI 闸门拦截：${after:0:12} 的 check-runs 不是全部成功（成功 $success/$total，结论：${bad:-进行中}）"
-  return 1
+  tmp=$(mktemp)
+  printf '%s' "$json" >"$tmp"
+  verdict=$("$python_bin" - "$tmp" <<'PY'
+import json
+import sys
+
+data = json.load(open(sys.argv[1], encoding="utf-8-sig"))
+# 本仓库 deploy.yml 的 job 叫 deploy，它自己就会调这个脚本：把它算进闸门会变成
+# "部署等部署" —— 手动从 Actions 上线时会白跑一趟。只认 CI 的作业。
+IGNORED = {"deploy"}
+runs = [
+    run
+    for run in (data.get("check_runs") or [])
+    if (run.get("name") or "").strip().lower() not in IGNORED
+]
+if not runs:
+    print("none")
+    raise SystemExit(0)
+bad = [
+    "{}/{}".format(run.get("name"), run.get("conclusion") or run.get("status"))
+    for run in runs
+    if run.get("status") != "completed" or run.get("conclusion") != "success"
+]
+print("ok:{}".format(len(runs)) if not bad else "blocked:{}".format(",".join(bad)))
+PY
+  ) || verdict="unknown"
+  rm -f "$tmp"
+
+  case "$verdict" in
+    ok:*)
+      log "CI 闸门通过（${verdict#ok:} 个检查全绿）"
+      return 0
+      ;;
+    blocked:*)
+      log "CI 闸门拦截：${after:0:12} 有未成功的检查（${verdict#blocked:}）"
+      return 1
+      ;;
+    none)
+      # 没有 check-run：CI 可能还没开始。提交很旧就说明这个仓库根本没有 CI，放行。
+      age=$(git log -1 --format=%ct "$after" 2>/dev/null || echo 0)
+      now=$(date +%s)
+      if [ "$age" != "0" ] && [ $((now - age)) -gt "${PYFAWEB_CI_WAIT_MAX:-1800}" ]; then
+        log "警告：${after:0:12} 提交超过 30 分钟仍没有 check-runs，按放行处理"
+        return 0
+      fi
+      log "CI 还没开始跑（没有 check-runs），等下一轮轮询"
+      return 1
+      ;;
+    *)
+      log "警告：看不懂 CI 结论，按放行处理"
+      return 0
+      ;;
+  esac
 }
 
 if ! ci_gate_allows; then
