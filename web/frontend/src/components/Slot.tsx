@@ -3,6 +3,7 @@ import { Icon } from "./Icon"
 import { useFittingStore } from "../store/fitting"
 import { useUiStore } from "../store/ui"
 import type { Module } from "../api"
+import { imageUrl } from "../api"
 import { handleModuleDrop, isItemDrag } from "../dragdrop"
 import { t } from "../i18n"
 
@@ -171,25 +172,23 @@ export const Slot = (props: { type: SlotType; index: number; fittable: boolean; 
   let item: React.ReactNode
 
   if (previewHere) {
-    item = (
-      <img
-        src={`https://images.evetech.net/types/${preview!.itemId}/icon?size=64`}
-        title={t("Preview")}
-        className="sfPreview"
-        alt=""
-      />
+    const previewSrc = imageUrl(preview!.image, 1)
+    item = previewSrc ? (
+      <img src={previewSrc} title={t("Preview")} className="sfPreview" alt="" />
+    ) : (
+      <Icon name={PLACEHOLDER_ICON[props.type]} />
     )
   } else if (hasItem && slotModule.item) {
-    item = (
+    // 装填了弹药就画弹药的图标（和游戏里一致），否则画模块自己的
+    const src = imageUrl(slotModule.charge ? slotModule.charge.item.image : slotModule.item.image, 1)
+    item = src ? (
       <img
-        src={
-          slotModule.charge
-            ? `https://images.evetech.net/types/${slotModule.charge.item.id}/icon?size=64`
-            : `https://images.evetech.net/types/${slotModule.item.id}/icon?size=64`
-        }
+        src={src}
         title={slotModule.charge ? `${slotModule.item.name}\n${slotModule.charge.item.name}` : slotModule.item.name}
         alt=""
       />
+    ) : (
+      <Icon name={PLACEHOLDER_ICON[props.type]} />
     )
   } else {
     item = <Icon name={PLACEHOLDER_ICON[props.type]} />

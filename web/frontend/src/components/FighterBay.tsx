@@ -1,6 +1,6 @@
 import React from "react"
 import { useFittingStore } from "../store/fitting"
-import type { Fighter } from "../api"
+import { imageUrl, type Fighter } from "../api"
 import { formatAmount } from "../format"
 import { t } from "../i18n"
 
@@ -69,7 +69,7 @@ const FighterBayEntry = ({
   <div className={"droneBayEntry" + (fighter.active ? "" : " fighterInHangar")}>
     <div className="droneBayAmount">{Math.max(1, fighter.amount ?? 1)} x</div>
     <div>
-      <img src={`https://images.evetech.net/types/${fighter.itemId}/icon?size=64`} alt="" />
+      <img src={imageUrl(fighter.item?.image, 1) ?? undefined} alt="" />
     </div>
     <div className="droneBayMiddle">
       <div className="droneBayName">{fighter.item?.name ?? ""}</div>

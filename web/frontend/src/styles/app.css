@@ -256,17 +256,6 @@ a {
   white-space: nowrap;
 }
 
-.ssoLogin {
-  background: var(--accent-dim);
-  border: 1px solid var(--accent);
-  border-radius: 4px;
-  color: #fff;
-  padding: 4px 12px;
-  text-decoration: none;
-  text-align: center;
-  flex: 1;
-}
-
 /* ---- browser (hull listing / hardware listing) ----------------------- */
 
 .browser {
@@ -345,55 +334,11 @@ a {
   background: var(--hover);
 }
 
-.shiprow {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  text-align: left;
-  background: none;
-  border: none;
-  padding: 2px 6px;
-  cursor: pointer;
-  overflow: hidden;
-}
-
-.shiprow span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.shiprow:hover {
-  background: var(--hover);
-}
-
-.shiprow.selected {
-  background: var(--accent-dim);
-}
-
-.shiprow.in-race {
-  padding-left: 36px;
-}
-
-/* ---- selected ship detail -------------------------------------------- */
-
-.shipdetail {
-  border-top: 1px solid var(--border);
-  padding-top: 8px;
-}
-
 .shiphead {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 8px;
-}
-
-.shipmeta {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
 }
 
 .shipname {
@@ -409,27 +354,11 @@ a {
   font-size: 11px;
 }
 
-.newfit {
-  width: 100%;
-}
-
 .fits {
   display: grid;
   gap: 2px;
   align-content: start;
   min-height: 60px;
-}
-
-.fitrow {
-  display: flex;
-  justify-content: space-between;
-  gap: 6px;
-  align-items: center;
-  text-align: left;
-  background: none;
-  border: none;
-  padding: 3px 6px;
-  cursor: pointer;
 }
 
 .fitlabel {
@@ -538,24 +467,6 @@ a {
   background: rgba(128, 128, 128, 0.09);
 }
 
-.iconbtn {
-  background: none;
-  border: none;
-  padding: 0;
-  line-height: 0;
-  cursor: pointer;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.iconbtn:hover {
-  background: rgba(128, 128, 128, 0.15);
-  border-radius: 4px;
-}
-
 .icon.placeholder {
   display: inline-block;
   width: 26px;
@@ -652,60 +563,12 @@ a {
   line-height: 1.3;
 }
 
-.bonusbody {
-  padding: 8px 10px;
-  font-size: 12px;
-  line-height: 1.55;
-  color: var(--text);
-}
-
-.bonusbody b {
-  color: var(--text-dim);
-  font-weight: 600;
-}
-
 /* ---- statistics -------------------------------------------------------- */
 
 .statistics {
   display: grid;
   gap: 10px;
   align-content: start;
-}
-
-.statsection {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
-  background: var(--panel);
-}
-
-.statshead {
-  padding: 4px 8px;
-  background: rgba(0, 0, 0, 0.25);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-dim);
-}
-
-.statsbody {
-  padding: 4px 8px;
-}
-
-.statrow {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 2px 0;
-  font-size: 12px;
-}
-
-.statlabel {
-  color: var(--text-dim);
-}
-
-.statvalue {
-  text-align: right;
 }
 
 /* ---- item browser rows / details --------------------------------------- */
@@ -729,19 +592,6 @@ a {
   background: var(--accent-dim);
 }
 
-.browsetitle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: none;
-  border: none;
-  text-align: left;
-  flex: 1;
-  min-width: 0;
-  padding: 2px 0;
-  cursor: pointer;
-}
-
 .itemrowname {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -752,76 +602,6 @@ a {
   font-size: 11px;
   padding: 0 5px;
   white-space: nowrap;
-}
-
-.itemdetails {
-  border-top: 1px solid var(--border);
-  padding-top: 8px;
-}
-
-.detailsHead {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 6px;
-}
-
-.detailsTitle {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 0;
-}
-
-
-/* ---- modal dialogs -------------------------------------------------------- */
-
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 150;
-}
-
-.modal {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  max-width: 94vw;
-  max-height: 88vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.modal-title {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
-  font-weight: 600;
-}
-
-.modal-close {
-  background: none;
-  border: none;
-  font-size: 16px;
-  line-height: 1;
-  padding: 0 4px;
-  color: var(--text-dim);
-}
-
-.modal-close:hover {
-  color: var(--danger);
-}
-
-.modal-body {
-  padding: 12px;
-  overflow: auto;
 }
 
 .dialogPanel {
@@ -896,43 +676,6 @@ a {
   background: transparent;
 }
 
-.itemname {
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.detailsBody {
-  padding: 4px 6px;
-  max-height: 260px;
-  overflow: auto;
-}
-
-.attrtable {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.attrtable td {
-  padding: 2px 4px;
-  font-size: 12px;
-  border-bottom: 1px solid rgba(128, 128, 128, 0.1);
-}
-
-.attrname {
-  color: var(--text-dim);
-}
-
-.attrvalue {
-  text-align: right;
-}
-
-.itemlist {
-  display: grid;
-  gap: 2px;
-}
-
 /* ---- tabs ---------------------------------------------------------------- */
 
 .tabs {
@@ -974,29 +717,6 @@ a {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.fitdelete {
-  background: none;
-  border: none;
-  padding: 0 2px;
-  font-size: 13px;
-  line-height: 1;
-  color: var(--text-dim);
-  cursor: pointer;
-}
-
-.fitdelete:hover {
-  color: var(--danger);
-}
-
-.fitdelete.armed {
-  color: var(--danger);
-  font-weight: 600;
-}
-
-.fitrow:hover {
-  background: var(--hover);
 }
 
 .empty {
@@ -1193,15 +913,7 @@ body {
 .treeHeaderHover:hover {
   background-color: #4f4f4f;
 }
-.treeHeader1 {
-  background-color: #1d1d1d;
-}
-.treeHeader2 {
-  background-color: #1d1d1d;
-}
-.treeHeader3 {
-  background-color: #1d1d1d;
-}
+
 .treeHeaderText {
   flex: 1;
   white-space: normal;
@@ -2654,9 +2366,6 @@ body {
   color: #ff454b;
 }
 
-
-
-
 /* ---- skills sidebar ---------------------------------------------------- */
 
 /* A right-edge drawer inside the rounded container (.content is position:
@@ -2865,10 +2574,6 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.skillSourcesLabel {
-  color: #6a6a6a;
 }
 
 /* Divider/heading between the required-skill and custom-skill groups. */

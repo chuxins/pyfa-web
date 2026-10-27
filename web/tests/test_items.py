@@ -351,6 +351,19 @@ def test_market_tree_rows_carry_the_filter_fields(client):
         assert 'nameEn' in item
 
 
+def test_market_tree_rows_carry_a_local_image_ref(client):
+    """``image`` points the browser at /img/…, so the tree never hotlinks
+    images.evetech.net any more. Modules land on an icon, the rest may be None."""
+    payload = client.get('/api/items/market-tree').json()
+    by_id = {item['id']: item for item in _all_tree_items(payload['groups'])}
+    autocannon = by_id[AUTOCANNON_ID]['image']
+    assert autocannon and autocannon['kind'] == 'icons'
+    assert isinstance(autocannon['id'], int) and autocannon['id'] > 0
+    for item in _all_tree_items(payload['groups']):
+        if item['kind'] == 'module':
+            assert item['image'] and item['image']['kind'] == 'icons'
+
+
 def test_market_tree_is_well_formed(client):
     """No group appears twice, and every branch leads to items (no dead ends)."""
     payload = client.get('/api/items/market-tree').json()

@@ -258,13 +258,7 @@ const HullRow = (props: HullTreeProps & { ship: HullShip }) => {
     e.dataTransfer.setData(MIME_TYPE_ID, props.ship.id.toString())
     e.dataTransfer.setData(MIME_KIND, "ship")
     e.dataTransfer.effectAllowed = "copy"
-    try {
-      const img = new Image()
-      img.src = `https://images.evetech.net/types/${props.ship.id}/icon?size=64`
-      e.dataTransfer.setDragImage(img, 32, 32)
-    } catch {
-      // ignore
-    }
+    // 拖动跟随图交给浏览器默认（船在静态数据里没有 iconID，只有渲染图，而渲染图太大不适合做拖影）
   }
 
   return (
@@ -274,7 +268,7 @@ const HullRow = (props: HullTreeProps & { ship: HullShip }) => {
       expanded={props.searching ? true : undefined}
       header={
         <TreeHeader
-          icon={`https://images.evetech.net/types/${props.ship.id}/icon?size=32`}
+          icon="fitting-hull"
           text={props.ship.name}
           action={
             <TreeHeaderAction

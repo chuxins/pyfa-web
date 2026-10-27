@@ -84,6 +84,10 @@ jobs:
         working-directory: web/frontend
         run: npm ci --no-fund --no-audit
 
+      - name: Lint (eslint)
+        working-directory: web/frontend
+        run: npm run lint
+
       # npm run build = tsc --noEmit && vite build（产物写到 ../static，CI 里不检查差异）
       - name: Type-check and build
         working-directory: web/frontend

@@ -1,5 +1,5 @@
 import React from "react"
-import { api, type ChargeRow, type Module } from "../api"
+import { api, imageUrl, type ChargeRow, type Module } from "../api"
 import { handleModuleDrop, handleRingDrop, isItemDrag } from "../dragdrop"
 import { TypeIcon } from "../images"
 import { RACK_ORDER, rackLabel, stateLabel } from "../labels"
@@ -90,7 +90,7 @@ export const PyfaRacks = () => {
       <div className="shipheader">
         <img
           className="pfHull"
-          src={`https://images.evetech.net/types/${fit.ship.id}/render?size=256`}
+          src={imageUrl(fit.ship.item.image, 2) ?? undefined}
           alt=""
           loading="lazy"
         />

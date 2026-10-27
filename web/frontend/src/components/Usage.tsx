@@ -16,7 +16,7 @@ export const Usage = (props: {
   markers: number
   color: string
 }) => {
-  let usageUsed = Math.min(props.used, props.total)
+  const usageUsed = Math.min(props.used, props.total)
   const radius = 232
   const degrees = props.angle
   // A zero total (stats not loaded yet, or a ship without rig slots) would make

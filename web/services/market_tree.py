@@ -26,7 +26,7 @@ from functools import lru_cache
 
 from sqlalchemy import bindparam, text
 
-from web.services.serialize import classify_item
+from web.services.serialize import classify_item, item_image
 
 #: Market-group roots the Modules / Charges tabs are built from (a subset of
 #: ``service.market.ROOT_MARKET_GROUPS``, kept here so the client does not need the
@@ -99,10 +99,11 @@ def _build():
             children[parent].append(group_id)
 
     # Every item in the subtree in one query, with the English group/category names
-    # classify_item compares against and the English name the search box matches
+    # classify_item compares against and the English name the search box matches.
+    # iconID rides along so each row can point at /img/icons without a second query.
     item_rows = session.execute(
         text("SELECT i.typeID, i.{0}, i.typeName, i.metaGroupID, i.marketGroupID, "
-             "g.name, c.name "
+             "g.name, c.name, i.iconID "
              "FROM invtypes i JOIN invgroups g ON i.groupID = g.groupID "
              "JOIN invcategories c ON c.categoryID = g.categoryID "
              "WHERE i.published = 1 AND i.marketGroupID IN :ids".format("typeName" + lang))
@@ -111,7 +112,7 @@ def _build():
 
     slot_of = _slot_of()
     items_by_group = {}
-    for type_id, name, name_en, meta_group_id, group_id, group_name, category_name in item_rows:
+    for type_id, name, name_en, meta_group_id, group_id, group_name, category_name, icon_id in item_rows:
         items_by_group.setdefault(group_id, []).append({
             "id": type_id,
             "name": name,
@@ -119,6 +120,9 @@ def _build():
             "kind": _classify(category_name, group_name),
             "metaGroupId": meta_group_id,
             "slotType": slot_of.get(type_id),
+            # 浏览器拿它去 /img/icons/{id}@1x 取图标（本机静态、一年缓存），
+            # 不再外链 images.evetech.net
+            "image": {"kind": "icons", "id": icon_id} if icon_id else None,
         })
 
     # pyfa files a handful of items that CCP left without a market group into one
@@ -190,4 +194,7 @@ def _item_node(item, slot_of):
         "kind": classify_item(item),
         "metaGroupId": getattr(meta, "ID", None),
         "slotType": slot_of.get(item.ID),
+        # 浏览器直接拿这个去 /img/icons/{id}@1x 显示图标（本机静态、一年缓存），
+        # 不用再外链 images.evetech.net
+        "image": item_image(item),
     }

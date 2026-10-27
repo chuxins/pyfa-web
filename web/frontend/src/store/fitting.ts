@@ -12,8 +12,6 @@ import { t } from "../i18n"
 import { useBrowserStore } from "./browser"
 import { useSessionStore } from "./session"
 
-const RACK_ORDER = ["high", "med", "low", "rig", "subsystem", "service", "mode", "system"] as const
-
 const LAST_FIT_KEY = "pyfa.lastFit"
 
 function rememberFit(fitId: number) {

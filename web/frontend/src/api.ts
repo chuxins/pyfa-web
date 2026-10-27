@@ -45,6 +45,8 @@ export interface MarketTreeItem {
   kind: string
   metaGroupId: number | null
   slotType: "Low" | "Medium" | "High" | "Rig" | "SubSystem" | "Service" | null
+  /** Which local image (/img/icons or /img/renders) represents this item. */
+  image?: ImageRef | null
 }
 
 /** One market group of the browser tree: children groups and its own items. */

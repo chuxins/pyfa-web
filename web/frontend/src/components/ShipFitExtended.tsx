@@ -171,7 +171,6 @@ const ShipDroneBay = () => {
 const ShipFighterBay = () => {
   const fit = useFittingStore((state) => state.fit)
   const [isOpen, setIsOpen] = React.useState(false)
-  const fighters = (fit?.fighters ?? []).filter((fighter) => fighter.itemId !== null)
   const resources = fit?.stats?.resources.fighters
   const bayUsed = resources?.bayUsed ?? 0
   const bayTotal = resources?.bayTotal ?? 0

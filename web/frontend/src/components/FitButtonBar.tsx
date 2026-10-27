@@ -16,7 +16,6 @@ export const FitButtonBar = () => {
   const rename = useFittingStore((state) => state.rename)
   const fitText = useFittingStore((state) => state.fitText)
   const showNotice = useFittingStore((state) => state.showNotice)
-  const setError = useFittingStore((state) => state.setError)
   const openImportExport = useUiStore((state) => state.openImportExport)
   const importText = usePortStore((state) => state.importText)
   const busy = usePortStore((state) => state.busy)

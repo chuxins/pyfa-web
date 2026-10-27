@@ -214,6 +214,12 @@ const ZH_CN: Record<string, string> = {
   "Clear fit?": "确定清空这个装配？",
   "Import/Export": "导入/导出",
 
+  // -- 补漏（界面里出现但目录里没有的） --------------------------------------
+  "Active Drones": "已激活无人机",
+  "Offline mode": "离线模式",
+  "This fit is also in EVE; deleting it removes it from the website and from the game. Click delete again to confirm.":
+    "这个装配同时存在于 EVE 中；删除会同时删掉网站和游戏里的那一份。再点一次删除以确认。",
+
   // -- 竖屏顶部跑马灯 ---------------------------------------------------------
   "Portrait mode still has rough edges — landscape is recommended":
     "竖屏 bug 较多，建议横屏食用",

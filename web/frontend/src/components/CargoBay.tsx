@@ -1,4 +1,5 @@
 import React from "react"
+import { imageUrl } from "../api"
 import { useFittingStore } from "../store/fitting"
 import { t } from "../i18n"
 
@@ -7,7 +8,6 @@ import { t } from "../i18n"
 export const CargoBay = () => {
   const fit = useFittingStore((state) => state.fit)
   const removeCargo = useFittingStore((state) => state.removeCargo)
-  const addItem = useFittingStore((state) => state.addItem)
 
   if (!fit) return <></>
 
@@ -34,7 +34,7 @@ export const CargoBay = () => {
         >
           <div className="cargoBayAmount">{cargo.amount} x</div>
           <div>
-            <img src={`https://images.evetech.net/types/${cargo.itemId}/icon?size=32`} alt="" />
+            <img src={imageUrl(cargo.item?.image, 1) ?? undefined} alt="" />
           </div>
           <div className="cargoBayMiddle">
             <div className="cargoBayName">{cargo.item?.name ?? ""}</div>

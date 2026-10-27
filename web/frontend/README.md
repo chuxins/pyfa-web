@@ -13,15 +13,28 @@
 web/frontend/
   src/
     api.ts          # 完整类型化 API 客户端（服务端权威）
-    store/          # zustand 状态：session / browser / fitting / port / ui
-    components/     # Banner、PageMain、HullListing、HardwareListing、ShipFit、
+    store/          # zustand 状态：session / browser / fitting / port / ui / layout
+    components/     # PageMain、HullListing、HardwareListing、ShipFit、PyfaRacks、
                     #   ShipStatistics、CharacterSelection、SlotPicker、对话框…
     images.tsx      # @eveshipfit/images 分层图标（TypeIcon，含科技等级角标）
     i18n.ts         # 中文界面文案（chrome），游戏内名称由后端 zh_CN 数据提供
     format.ts       # 与桌面版一致的数值格式化
     offline.ts      # 离线模式开发接口（占位，未实现）
     styles/app.css  # eveship.fit 视觉语言（#111111 深色、圆角面板）
+  public/           # maintenance.html（维护页）、sw.js（维护页兜底 Service Worker）
+  eslint.config.js  # ESLint 9 扁平配置，npm run lint
 ```
+
+### 图标来源（2026-10-27 起统一）
+
+- **物品图标与舰船渲染**：一律走本机 `/img/{kind}/{id}@1x|2x`（`api.ts` 的
+  `imageUrl()`），数据来自接口里的 `item.image = { kind, id }`，由后端从 `imgs/`
+  直接读盘并带 `Cache-Control: public, max-age=31536000, immutable`。
+- **固定尺寸的小图标**（槽位选择器、竖屏排架行）：`TypeIcon`（打包的
+  `@eveshipfit/images`，`images.dat` 加载一次后不再发请求）。
+- 前端已**不再外链 `images.evetech.net`**，两条路径都在本机且都有长缓存。市场树
+  为此在接口里补了 `image` 字段（`web/services/market_tree.py`），
+  `web/tests/test_items.py::test_market_tree_rows_carry_a_local_image_ref` 守着。
 
 ## 开发
 

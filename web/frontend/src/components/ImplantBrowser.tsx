@@ -247,7 +247,8 @@ export const ImplantBrowser = ({
   }, [query])
 
   const browsing = query.trim() === ""
-  const source = browsing ? catalogue ?? [] : results ?? []
+  // 这一行会随 render 生成新数组，useMemo 的依赖因此每次都不一样；直接在 memo 里算，
+  // 否则 memo 形同虚设（eslint 的 react-hooks 也是这么提示的）。
   const busy = browsing ? loading : searching
   const implanted = React.useMemo(() => new Set(implantedIds), [implantedIds])
 
@@ -259,10 +260,10 @@ export const ImplantBrowser = ({
     return [...values].sort((a, b) => a - b)
   }, [catalogue])
 
-  const visible = React.useMemo(
-    () => (slot === null ? source : source.filter((item) => item.slot === slot)),
-    [source, slot],
-  )
+  const visible = React.useMemo(() => {
+    const source = browsing ? catalogue ?? [] : results ?? []
+    return slot === null ? source : source.filter((item) => item.slot === slot)
+  }, [browsing, catalogue, results, slot])
 
   // Cards are for browsing the whole catalogue. A search is ordered by
   // relevance and a slot filter leaves one row per set, so both stay flat.

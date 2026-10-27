@@ -1,6 +1,6 @@
 import React from "react"
 import { useFittingStore } from "../store/fitting"
-import type { Drone } from "../api"
+import { imageUrl, type Drone } from "../api"
 import { formatAmount } from "../format"
 import { t } from "../i18n"
 
@@ -18,7 +18,6 @@ export const DroneBay = () => {
   const fit = useFittingStore((state) => state.fit)
   const setDroneActive = useFittingStore((state) => state.setDroneActive)
   const removeDrone = useFittingStore((state) => state.removeDrone)
-  const addItem = useFittingStore((state) => state.addItem)
 
   if (!fit) return <></>
 
@@ -98,7 +97,7 @@ const DroneBayEntry = ({
     <div className="droneBayEntry">
       <div className="droneBayAmount">{total} x</div>
       <div>
-        <img src={`https://images.evetech.net/types/${drone.itemId}/icon?size=64`} alt="" />
+        <img src={imageUrl(drone.item?.image, 1) ?? undefined} alt="" />
       </div>
       <div className="droneBayMiddle">
         <div className="droneBayName">{drone.item?.name ?? ""}</div>

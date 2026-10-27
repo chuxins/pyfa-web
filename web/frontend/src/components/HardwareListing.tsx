@@ -2,7 +2,7 @@ import React from "react"
 import { Icon, type IconName } from "./Icon"
 import { TreeListing, TreeHeader, TreeLeaf } from "./TreeListing"
 import { TypeIcon } from "../images"
-import { api, type MarketGroup, type MarketTreeItem } from "../api"
+import { api, imageUrl, type MarketGroup, type MarketTreeItem } from "../api"
 import { useFittingStore } from "../store/fitting"
 import { useUiStore } from "../store/ui"
 import { t } from "../i18n"
@@ -217,12 +217,16 @@ export const HardwareListing = () => {
     e.dataTransfer.setData("application/esf-type-id", item.id.toString())
     e.dataTransfer.setData("application/esf-kind", item.kind)
     if (item.slotType) e.dataTransfer.setData("application/esf-slot-type", item.slotType)
-    try {
-      const img = new Image()
-      img.src = `https://images.evetech.net/types/${item.id}/icon?size=64`
-      e.dataTransfer.setDragImage(img, 32, 32)
-    } catch {
-      // ignore
+    // 拖动跟随图用本机静态图标（/img/icons，一年缓存）；没有图标的条目交给浏览器默认
+    const image = imageUrl(item.image, 1)
+    if (image) {
+      try {
+        const img = new Image()
+        img.src = image
+        e.dataTransfer.setDragImage(img, 32, 32)
+      } catch {
+        // ignore
+      }
     }
   }
 
@@ -231,7 +235,12 @@ export const HardwareListing = () => {
       setPreview(null)
       return
     }
-    setPreview({ itemId: item.id, slotType: item.slotType ?? "High", kind: "module" })
+    setPreview({
+      itemId: item.id,
+      slotType: item.slotType ?? "High",
+      kind: "module",
+      image: item.image ?? null,
+    })
   }
 
   const renderGroup = (group: MarketGroup, path: string, level: number) => {
