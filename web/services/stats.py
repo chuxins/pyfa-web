@@ -147,11 +147,20 @@ def _firepower_section(fit):
     drone = _spooled(fit, lambda s: damage_types(fit.getDroneDps()), defaultSpool)
     volley = _spooled(fit, lambda s: damage_types(fit.getTotalVolley(spoolOptions=s)), defaultSpool)
     dps = _spooled(fit, lambda s: damage_types(fit.getTotalDps(spoolOptions=s)), defaultSpool)
+    # 悬停 DPS 时要把「几门武器 / 几架无人机各贡献多少」拆开，所以把参与计算的单位数
+    # 一并送出去（武器只用 pyfa 自己的 canDealDamage()：和 getVolley 的状态判定一致，
+    # 无人机只数已放出的）。
+    weapon_count = sum(1 for module in fit.modules if module.canDealDamage())
+    drone_count = sum(drone.amountActive or 0 for drone in fit.drones) + sum(
+        1 for fighter in fit.fighters if getattr(fighter, "active", False) and fighter.itemID
+    )
     return {
         "weapon": weapon,
         "drone": drone,
         "volley": volley,
         "dps": dps,
+        "weaponCount": weapon_count,
+        "droneCount": drone_count,
         "defaultSpoolValue": defaultSpool,
         "hasTargetProfile": fit.targetProfile is not None,
     }

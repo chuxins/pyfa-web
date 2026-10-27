@@ -316,6 +316,10 @@ export interface Stats {
     drone: SpooledDamage
     volley: SpooledDamage
     dps: SpooledDamage
+    /** 参与 DPS 的模块数（会开火的已装配模块） */
+    weaponCount: number
+    /** 参与 DPS 的无人机数（已放出的数量 + 起飞的中队） */
+    droneCount: number
     defaultSpoolValue: number
     hasTargetProfile: boolean
   }

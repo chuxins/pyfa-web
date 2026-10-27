@@ -1,6 +1,7 @@
 import React from "react"
 import { Icon, type IconName } from "./Icon"
 import { Attr } from "./ShipAttribute"
+import { DpsBreakdown } from "./DpsBreakdown"
 import { useFittingStore } from "../store/fitting"
 import { t } from "../i18n"
 import { FitPricePanel } from "./FitPrice"
@@ -156,14 +157,18 @@ export const ShipStatistics = () => {
         headerLabel={t("Offense")}
         headerContent={
           <span>
-            <Attr value={fire.dps.value.total} fixed={1} unit="dps" />
+            <DpsBreakdown>
+              <Attr value={fire.dps.value.total} fixed={1} unit="dps" />
+            </DpsBreakdown>
           </span>
         }
       >
         <CategoryLine>
-          <Statistic icon="damage-dps" title={t("Damage Per Second")}>
-            <Attr value={fire.dps.value.total} fixed={1} unit="dps" />
-          </Statistic>
+          <DpsBreakdown>
+            <Statistic icon="damage-dps" title={t("Damage Per Second")}>
+              <Attr value={fire.dps.value.total} fixed={1} unit="dps" />
+            </Statistic>
+          </DpsBreakdown>
           <Statistic icon="damage-alpha" title={t("Alpha Strike")}>
             <Attr value={fire.volley.value.total} fixed={0} unit="HP" />
           </Statistic>

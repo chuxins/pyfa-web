@@ -2123,6 +2123,68 @@ body {
 }
 
 /* Fitted-module hover card: what the module does, in the fit's own numbers */
+/* ---- DPS 构成卡（悬停在 DPS 上） --------------------------------------- */
+
+/* 触发器只是个包裹层，不改变原有布局 */
+.dpsTrigger {
+  display: inline-block;
+  cursor: help;
+}
+
+.dpsCard {
+  background-color: #161616;
+  border: 1px solid #3a3a3a;
+  border-radius: 6px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.6);
+  color: #c5c5c5;
+  font-size: 12px;
+  line-height: 17px;
+  padding: 7px 9px 8px;
+  position: fixed;
+  z-index: 210;
+}
+
+.dpsHead {
+  align-items: baseline;
+  border-bottom: 1px solid #2a2a2a;
+  display: flex;
+  font-weight: 600;
+  gap: 8px;
+  justify-content: space-between;
+  margin-bottom: 5px;
+  padding-bottom: 4px;
+}
+
+.dpsTotal {
+  color: #e8e8e8;
+}
+
+.dpsRow {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.dpsRow.strong {
+  color: #e0e0e0;
+  margin-top: 3px;
+}
+
+.dpsRow.dim {
+  color: #9a9a9a;
+}
+
+.dpsSep {
+  border-top: 1px solid #2a2a2a;
+  margin: 5px 0 4px;
+}
+
+.dpsNote {
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+/* ---- 模块悬停卡（ModuleCard） ------------------------------------------ */
 .moduleCard {
   background-color: #161616;
   border: 1px solid #3a3a3a;

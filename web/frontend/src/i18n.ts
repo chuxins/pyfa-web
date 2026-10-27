@@ -220,6 +220,15 @@ const ZH_CN: Record<string, string> = {
   "This fit is also in EVE; deleting it removes it from the website and from the game. Click delete again to confirm.":
     "这个装配同时存在于 EVE 中；删除会同时删掉网站和游戏里的那一份。再点一次删除以确认。",
 
+  // -- DPS 构成卡（悬停） ----------------------------------------------------
+  "DPS breakdown": "DPS 构成",
+  Weapons: "武器",
+  guns: "门",
+  units: "架",
+  "Full spool": "满蓄能",
+  "Drones count only while launched": "无人机只在放出后才计入 DPS",
+  Pure: "纯净",
+
   // -- 竖屏顶部跑马灯 ---------------------------------------------------------
   "Portrait mode still has rough edges — landscape is recommended":
     "竖屏 bug 较多，建议横屏食用",

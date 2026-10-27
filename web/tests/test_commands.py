@@ -107,6 +107,10 @@ def test_add_module_with_ammo_matches_engine_numbers(user_client):
     volley = stats["volley"]["value"]
     assert volley["em"] == pytest.approx(49.31128125, rel=1e-4)
 
+    # 悬停 DPS 的构成卡要拆「几门武器 / 几架无人机」，两个计数必须和参与计算的单位数一致
+    assert stats["weaponCount"] == 1
+    assert stats["droneCount"] == 0
+
     resources = loaded.json()["stats"]["resources"]
     assert resources["cpu"]["used"] > 0
     assert resources["powergrid"]["used"] > 0
