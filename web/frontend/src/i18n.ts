@@ -223,7 +223,7 @@ const ZH_CN: Record<string, string> = {
   // -- DPS 构成卡（悬停） ----------------------------------------------------
   "DPS breakdown": "DPS 构成",
   Weapons: "武器",
-  guns: "门",
+  guns: "件",
   units: "架",
   "Full spool": "满蓄能",
   "Drones count only while launched": "无人机只在放出后才计入 DPS",
