@@ -741,13 +741,16 @@ a {
   z-index: 4;
 }
 
-/* the square fit ring: sized to whichever of the available width / height is
-   smaller, so it always fills the whole content area (any window size, any
-   top bar / footer height) and stays centred */
+/* 环的可用区：铺满 .fit 并自己成为尺寸容器。以前这里是个 width: min(100cqw,
+   100cqh) 的正方形，但 .sfxFit 还要在下面留 80px 读数条 —— 高度受限的窗口
+   （矮而宽的横屏、1366×768 这类）里方形本身就等于可用高度，读数条再占一段，
+   环的下半圈就被 .fit 的 overflow:hidden 切掉了。现在改成铺满，尺寸交给 .sfFit
+   按「扣掉读数条之后」算，环永远不会超出可用区。 */
 .fitRing {
-  aspect-ratio: 1 / 1;
-  height: auto;
-  width: min(100cqw, 100cqh);
+  aspect-ratio: auto;
+  container-type: size;
+  height: 100%;
+  width: 100%;
 }
 
 .statistics {
@@ -1389,17 +1392,20 @@ body {
 .sfFit {
   border-radius: 50%;
   border: 1px solid black;
-  /* ShipFitExtended reserves an 80px strip at the bottom (padding) for the
-     absolutely-positioned cargo/history/CPU-PG readouts, so the fill area is
-     wider than it is tall. The ring's SVG geometry assumes a square box
-     (usage arcs rotate about the parent's centre); keep this box square and
-     centre it horizontally inside that reduced-height area. */
+  /* 环要做成正方形（槽位的用量弧都绕着盒子中心旋转），边长取「可用宽」与
+     「可用高 − 底部读数条 − 上下留白」里更小的那个：这样不管窗口是宽扁还是窄高，
+     整只环都装得下，不会被 .fit 的 overflow:hidden 裁到，也不会顶到面板边缘。
+     100cqw/100cqh 指的是 .fitRing（.fit 里的那个尺寸容器）。 */
   aspect-ratio: 1 / 1;
   margin: 0 auto;
   position: relative;
-  /* Fill the reduced-height content box (padding-bottom for the bottom strip):
-     size to the smaller axis; width-derived height then equals 100%. */
-  width: min(100%, calc(100cqh + var(--sfx-strip, 80px)));
+  width: max(
+    0px,
+    min(
+      100cqw - 2 * var(--sfx-margin),
+      calc(100cqh - var(--sfx-strip) - 2 * var(--sfx-margin))
+    )
+  );
 }
 .sfRingOuter {
   filter: drop-shadow(0 0 6px #000000);
@@ -1613,9 +1619,10 @@ body {
 /* ---- ShipFitExtended ---------------------------------------------------------- */
 
 .sfxFit {
-  /* 底部那条读数（货舱/无人机/CPU-PG/撤销条）的高度。手机横屏用同一套算法，
-     只是把这条压矮一点（见后面的 .mode-landscape 规则）。 */
+  /* 底部读数条（货舱/无人机/CPU-PG/撤销条）的高度，以及环四周留的呼吸空间。
+     环的边长在 .sfFit 里按这两个值算，所以改这里就等于同时改环的大小。 */
   --sfx-strip: 80px;
+  --sfx-margin: 6px;
   background-color: #111111;
   color: #c5c5c5;
   font-size: 15px;
@@ -1623,6 +1630,11 @@ body {
   padding-bottom: var(--sfx-strip);
   position: relative;
   width: 100%;
+  /* 环（和它上面的编组按钮）在预留读数条之后的区域里居中 */
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 .sfxFitName {
   top: 35px;
@@ -3476,32 +3488,21 @@ button.skillPip:disabled {
   max-width: 560px;
 }
 
-/* ---- 环：画布里的边长 --------------------------------------------------
-   .fitRing 铺满 .fit 并自己变成尺寸容器，.sfFit 用可用区的宽/高算边长：
-     环 = min(可用宽, 可用高 − 底部读数条)
-   环永远是正方形（内部槽位全是百分比，跟着一起缩），读数条不会被裁。 */
-.mode-landscape .fitRing {
-  aspect-ratio: auto;
-  container-type: size;
-  height: 100%;
-  width: 100%;
-}
-
-.mode-landscape .sfxFit {
-  /* 环（和它上面的编组按钮）在可用区里居中；读数条是绝对定位，不受影响 */
-  align-items: center;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.mode-landscape .sfFit {
-  width: max(0px, min(100cqw, calc(100cqh - var(--sfx-strip, 80px))));
-}
+/* ---- 环的边长 --------------------------------------------------------
+   桌面、横屏、任何窗口形状都用同一套：.fitRing 是 .fit 里的尺寸容器，.sfFit 取
+     min(可用宽 − 留白, 可用高 − 读数条 − 留白)
+   的边长，保证整只环都落在可用区里（以前只在横屏这么做，桌面矮窗口会把下半圈
+   裁掉）。环内部全是百分比，所以槽位图标和环一起缩放。 */
 
 /* 编组按钮（有同型武器才出现）也要占一条，出现时把环再收一点 */
-.mode-landscape .fitRing:has(.sfxHighTools) .sfFit {
-  width: max(0px, min(100cqw, calc(100cqh - var(--sfx-strip, 80px) - 30px)));
+.fitRing:has(.sfxHighTools) .sfFit {
+  width: max(
+    0px,
+    min(
+      100cqw - 2 * var(--sfx-margin),
+      calc(100cqh - var(--sfx-strip) - 2 * var(--sfx-margin) - 30px)
+    )
+  );
 }
 
 /* ======================================================================

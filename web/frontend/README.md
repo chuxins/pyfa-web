@@ -167,8 +167,14 @@ npm run build   # tsc --noEmit && vite build → ../static（清空旧产物，�
 - 视口用 `100dvh` + `env(safe-area-inset-*)`（`index.html` 已加
   `viewport-fit=cover`），底部标签不会被浏览器工具栏挡住或压在手势条上。
 - 在舰船栏点开一个装配会自动跳到装配栏；没有打开装配时默认落在舰船栏。
+- 径向环的尺寸只有一条规则（桌面 / 横屏 / 任何窗口形状都一样）：
+  `.fitRing` 铺满 `.fit` 并成为尺寸容器，`.sfFit` 取
+  `min(可用宽 − 2×留白, 可用高 − 读数条 − 2×留白)` 的边长（留白 `--sfx-margin`、
+  读数条 `--sfx-strip` 都在 `.sfxFit` 上），环因此永远是正方形、永远完整落在
+  可用区里，不会被 `.fit` 的 `overflow:hidden` 裁掉下半圈；出现武器编组按钮时
+  再用 `:has(.sfxHighTools)` 多让 30px。环内部全是百分比，槽位图标跟着一起缩放。
 - 横屏是「整块 UI 按比例缩小 + 铺满整屏」：界面仍按桌面那一套设计像素写
-  （三栏 350 + 环 + 350，环 `min(可用宽, 可用高 − 读数条)`），`App` 把它套进
+  （三栏 350 + 环 + 350），`App` 把它套进
   `.uiScale` 画布，用 `transform: scale(var(--ui-scale))` 等比缩——字体、间距、图标、
   环一起缩，比例和桌面一致。缩放系数在 `store/layout.ts` 的 `uiScaleOf()` 里算：
   `min(视口宽/1180, 视口高/620)`，只缩不放（下限 0.2），转屏/改窗口尺寸实时重算。
