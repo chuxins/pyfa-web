@@ -459,10 +459,24 @@ class ModifiedAttributeDict(MutableMapping):
         To fix this, we pass the skill which ends up here, where we register it
         with the fit and thus get the correct affector. Returns skill level to
         be used to modify modifier. See GH issue #101
+
+        The in-game fitting window assembles a fit without checking prerequisites
+        and applies *ship* bonuses at level 1 for a ship skill the pilot has not
+        trained; pyfa's engine would use the real level (0) and show e.g. 90% of
+        the in-game DPS for a Black Ops fit on a pilot still training its
+        battleship skill. This path is exactly where ship bonuses read their
+        skill, so the game's fit-window behaviour is mirrored here. Module skill
+        effects (Shield Compensation, missile specializations, ...) keep the real
+        level -- the game does not floor those, and flooring them here would
+        wrongly discount e.g. a shield booster's capacitor use. The All 0 / All 5
+        presets keep their fixed levels (they are simulation tools, not pilots).
         """
         skill = self.fit.character.getSkill(skillName)
         self.__tmpModifier = skill
-        return skill.level
+        level = skill.level
+        if level == 0 and getattr(self.fit.character, "savedName", None) not in ("All 0", "All 5"):
+            return 1
+        return level
 
     def getAfflictions(self, key):
         return self.__affectedBy.get(key, {})

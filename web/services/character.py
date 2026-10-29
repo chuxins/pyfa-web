@@ -20,30 +20,31 @@ from service.esi import Esi
 
 pyfalog = Logger(__name__)
 
-#: Untrained skills simulate at this level, matching the in-game fitting window
-#: (see :func:`ensure_simulation_floor`).
-SIMULATION_FLOOR = 1
 
+def clear_simulation_floor(char):
+    """Undo the abandoned level-1 ``defaultLevel`` experiment on an SSO character.
 
-def ensure_simulation_floor(char):
-    """Untrained skills read as level 1, exactly as the game's fitting window does.
+    A previous release set an SSO pilot's ``defaultLevel`` to 1 so untrained
+    skills simulated at level 1 like the game's fitting window. That turned out
+    to be too broad: the game floors only *ship* bonuses at level 1, while module
+    skills (Shield Compensation and the like) keep their real level. The ship
+    floor now lives in the engine (``eos/modifiedAttributeDict.__handleSkill``),
+    so the character row has to go back to pyfa's ``None`` (untrained = level 0).
 
-    The in-game fitting window assembles a fit without checking prerequisites and
-    applies every skill-keyed bonus at level 1 for skills the pilot has not
-    trained; pyfa's engine instead uses the real level (0), so the two disagree
-    whenever a fit leans on a skill the pilot lacks (e.g. a Black Ops fit on a
-    pilot still training Caldari Battleship shows 90% of the in-game DPS). This
-    web mirrors the game: an SSO pilot's ``defaultLevel`` is set to 1, which is
-    exactly the level pyfa gives to skills missing from the sheet.
-
-    The All 5 / All 0 presets are untouched (the engine fixes their levels by
-    name), and a skill the pilot has trained still reads its real level.
-    Returns True when the floor was applied (a one-time write per character).
+    Skills already materialised from the old floor sit in memory at level 1 and
+    would keep simulating at 1 until the next full reload, so the skill
+    collection is expired to re-read it from the database (only trained skills
+    exist there; missing ones are re-created on demand at the real level).
+    Presets are untouched and a trained skill keeps its saved level.
     """
-    if char.ro or char.defaultLevel == SIMULATION_FLOOR:
+    if char.ro or char.defaultLevel is None:
         return False
-    char.defaultLevel = SIMULATION_FLOOR
+    char.defaultLevel = None
+    eos.db.saveddata_session.expire(char, ["_Character__skills"])
     eos.db.commit()
+    # Rebuild the character's in-memory skill map from the reloaded collection so
+    # no skill materialised from the old floor survives at level 1.
+    char.init()
     return True
 
 
@@ -62,10 +63,9 @@ def list_characters(userData):  # noqa: ARG001
     ]
     for sso in sorted(_sso_characters(), key=lambda row: row.characterName.lower()):
         for char in sso.characters:
-            # The strip is the first thing every page load asks for, so it is also
-            # where a pilot whose sheet predates the level-1 simulation floor gets
-            # backfilled (see ensure_simulation_floor).
-            ensure_simulation_floor(char)
+            # One-time cleanup of the abandoned level-1 defaultLevel experiment;
+            # the strip is the first thing every page load asks for.
+            clear_simulation_floor(char)
             characters.append({
                 "id": char.ID,
                 "name": char.name,
@@ -88,10 +88,7 @@ def ensure_sso_character(userData, character_id, character_name, server_name):  
     char = sChar.getCharacter(character_name)
     if char is None:
         char = sChar.new(character_name)
-
-    # The pilot's own sheet follows the game's fitting window: skills missing
-    # from it simulate at level 1 (see ensure_simulation_floor).
-    ensure_simulation_floor(char)
+    clear_simulation_floor(char)
 
     client_hash = pyfaConfig.getClientSecret()
     sso = eos.db.saveddata_session.query(SsoCharacter).filter(
