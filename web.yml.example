@@ -11,6 +11,13 @@ port: 8080
 # registered with CCP must be exactly <public_url>/api/auth/callback.
 public_url: http://127.0.0.1:8080
 
+# Prefix of the mount point when a reverse proxy serves this app under a
+# sub-path (the proxy strips it; routes stay root-relative). It only affects the
+# URLs the app *generates* -- /api/docs loading its openapi.json, the placeholder
+# page shown when the front end is not built -- and it has to agree with the front
+# end's build-time Vite base (PYFA_BASE, see docs/operations.md). Empty = root.
+# root_path: /AssemblyPlanning
+
 # Session cookie signing key. Generated and persisted to <data_dir>/session.key
 # when left empty; rotating it signs everyone out.
 secret_key: ""

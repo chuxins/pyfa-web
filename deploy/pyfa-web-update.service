@@ -11,5 +11,5 @@ Type=oneshot
 # 用 /bin/bash 显式调用，避免 Windows 检出/权限位丢失导致脚本无法执行。
 User=root
 ExecStart=/bin/bash /opt/pyfa-web/deploy/auto-update.sh
-# 健康检查地址与 web.yml 的 port 不一致时在这里覆盖（默认 8091，见 README §9）
+# 健康检查地址与 web.yml 的 port 不一致时在这里覆盖（默认 8091，见 docs/operations.md §2.2）
 #Environment=PYFAWEB_HEALTH_URL=http://127.0.0.1:8091/api/meta

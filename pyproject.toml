@@ -1,7 +1,8 @@
 [project]
 name = "pyfa"
-# "fake" version; tools read version.yml, so make sure to keep that one updated. This one ultimately doesn't matter
-version = "2.68.0"
+# Kept in step with version.yml (pyfa reads that one at runtime); this copy is for
+# tooling that insists on a PEP 621 version.
+version = "2.69.0"
 description = "Python fitting assistant, a ship fitting tool for EVE Online"
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -63,7 +64,11 @@ web = [
 
 [tool.uv]
 package = false
-default-groups = ["dev", "wx-source"]
+# The server runs the engine headless (pyfa_compat/, no wxPython), so wxPython is
+# *not* a default group: `uv sync --group web` must not drag a 4.3.1 wxPython build
+# into a deployment venv. Desktop work builds against wx with an explicit
+# `uv sync --group wx-source` (or `--group wx-binary` on Linux).
+default-groups = ["dev"]
 conflicts = [[{ group = "wx-binary" }, { group = "wx-source" }]]
 
 [[tool.uv.index]]

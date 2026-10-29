@@ -43,6 +43,3 @@ eve.db
 eve.db-*
 imgs.zip
 web/static
-
-# ---- 已废弃的旧前端（仅作参考，不参与构建）----
-legacy

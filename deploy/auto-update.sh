@@ -9,7 +9,7 @@
 #   - 仓库是公开仓库，origin 用 https 匿名只读拉取，无需 Deploy Key；
 #   - 仓库属主是服务用户 pyfaweb，deploy 靠「附加组 pyfaweb + 目录 g+w +
 #     core.sharedRepository=group」获得写权限；git 的 ownership 检查由
-#     /etc/gitconfig 的 safe.directory 放行（一次性配置见 README §9）；
+#     /etc/gitconfig 的 safe.directory 放行（一次性配置见 docs/operations.md §2.1）；
 #   - web.yml / web.env / eve.db / webdata/ / saveddata/ / *.db / session.key 都在
 #     .gitignore 里，git reset --hard 不会触碰它们；本脚本也**绝不**执行 git clean；
 #   - 重启走 sudoers 里给 deploy 的 NOPASSWD systemctl restart pyfa-web；

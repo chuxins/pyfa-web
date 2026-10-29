@@ -96,7 +96,7 @@ A FastAPI server that reuses pyfa's own engine and editing commands, and a React
   tube of the hull, and above all it fires **one** weapon -- its attack -- rather than its
   attack and the anti-fighter missiles together. The game data switches both of those
   damaging abilities on, so the engine keeps the primary one (`fighterAbilityAttackM`) and
-  leaves the missiles to the pilot (README §5.8)
+  leaves the missiles to the pilot (docs/changes.md §8)
 * the same stats the desktop window shows: firepower (with spool-up ranges),
   capacitor, tank, resistances, resources, targeting, remote reps, mining
 * the desktop's graphs as charts: a Graphs tab next to the stats runs pyfa's own
@@ -472,28 +472,33 @@ the same key in `web.yml`, so a deployment can override a checked-in file.
 
 `PYFA_WEB_ROOT_PATH` (or `root_path:` in `web.yml`, or `--root-path`) names the
 prefix a reverse proxy strips before a request reaches this server --
-`/eveskillplanner`, say -- so the server itself stays a root-path application and
+`/AssemblyPlanning`, say -- so the server itself stays a root-path application and
 no route changes. The proxy is the one that has to strip it:
 
 ```nginx
-location ^~ /eveskillplanner/api/ {
-    rewrite ^/eveskillplanner/(.*)$ /$1 break;
+location ^~ /AssemblyPlanning/api/ {
+    rewrite ^/AssemblyPlanning/(.*)$ /$1 break;
     proxy_pass http://127.0.0.1:8091;
     proxy_buffering off;          # JSON and SSE: never rewritten
-    proxy_redirect ~^/(.*)$ /eveskillplanner/$1;   # the app's own "/"-relative redirects
+    proxy_redirect ~^/(.*)$ /AssemblyPlanning/$1;   # the app's own "/"-relative redirects
 }
 ```
 
 `public_url` still carries the prefix, so the registered SSO callback is
-`https://example.com/eveskillplanner/api/auth/callback`. What the root path is
+`https://example.com/AssemblyPlanning/api/auth/callback`. What the root path is
 used for is the URLs the app *generates*: `/api/docs` then loads
-`/eveskillplanner/api/openapi.json` rather than a path that would miss the mount.
-The front end's own `/assets/*`, `/api/*` and `/img/*` are baked into the bundle
-at build time, so a deployment under a sub-path either rebuilds it with a Vite
-`base` or rewrites those three prefixes in the proxy (which is what the
-`eve-tools.xyz` deployment does: it keeps the default `base`, so a rebuilt bundle
-needs no change to the proxy rules). Swagger's "Try it out" resolves those operations
-against the domain root, so on a sub-path prefer `/api/openapi.json` or `curl`.
+`/AssemblyPlanning/api/openapi.json` rather than a path that would miss the mount.
+
+The front end's own `/assets/*`, `/api/*`, `/img/*`, `/images/*` and `/fonts/*`
+prefixes are baked into the bundle at build time by Vite's `base`
+(`web/frontend/vite.config.ts`: `PYFA_BASE`, default `/AssemblyPlanning/`). A
+deployment on another sub-path, or at the domain root, rebuilds `web/static` with
+the matching `PYFA_BASE` (`PYFA_BASE=/ npm run build`) and needs no proxy
+rewriting; `root_path` and `PYFA_BASE` have to agree. Rewriting the bundle in the
+proxy is not supported: it cannot see the URLs the client composes at runtime, and
+it makes `ETag`/304 disagree with the rewritten body. Swagger's "Try it out"
+resolves those operations against the page's root path, so on a sub-path prefer
+`/api/openapi.json` or `curl`.
 
 ## How it is put together
 
@@ -681,9 +686,10 @@ arguments `canvasPanel.py` builds, calls `getPlotPoints` / `getPlotSegments` /
 
 Nothing is cached across requests (each user has a private database), and
 `graphs.data` is imported lazily on the first request because it needs the
-headless wx shim the engine installs at startup. The browser renders the series
-with ECharts (Vue-era `GraphsPanel.vue`, now under `legacy/vue-frontend/`), re-reading the theme's CSS variables so dark
-and light mode both work.
+headless wx shim the engine installs at startup. The endpoints are wired into the
+React client (`api.ts`: `graphList` / `graphPlot` / `graphPoint`), but the current
+UI has no graph panel yet: the Vue-era `GraphsPanel.vue` (ECharts) went away with
+the Vue front end, which is no longer in the repository.
 
 Built-in target profiles are generated once with English names (eos' `_t` in
 `eos/saveddata/targetProfile.py` is a no-op, so the desktop shows them the same

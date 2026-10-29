@@ -39,7 +39,6 @@ dist/
 dist_assets/
 # 前端源码只有一个（web/frontend）；产物提交在 web/static，node_modules 一律不入库
 node_modules/
-legacy/*/node_modules/
 
 # ---- 临时调试产物（CDP 脚本、接口快照、截图等）----
 .agent_tmp/

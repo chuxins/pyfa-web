@@ -1,6 +1,7 @@
 [Unit]
 Description=pyfa-web（EVE 装配模拟 / 技能规划，FastAPI @127.0.0.1:8091）
 Documentation=file:///opt/pyfa-web/README.md
+Documentation=file:///opt/pyfa-web/docs/operations.md
 After=network-online.target
 Wants=network-online.target
 

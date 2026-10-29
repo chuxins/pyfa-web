@@ -3,7 +3,22 @@
 - 日期：2026-10-05
 - 基线：pyfa-web `master@fbf0bb74`（2026-10-05）/ pyfa `v2.69.0`（`c07d4084` 抽取）
 - 目标：把桌面 pyfa 尚未进入 web 的功能按 P1→P5 补齐，使 pyfa-web 达到"日常配装全流程可替代桌面"
-- 状态：**评审稿，未开始实现**
+- 状态：**部分落地**（2026-10-30 核对，见下方「落地状态」）
+
+## 落地状态（2026-10-30 核对）
+
+P1 与 P4 已落地；P2 只落地了**配装级**价格；P3、P5 未开始。原文档写于 2026-10-05，之后前端由
+Vue 3 换成 React（`web/frontend/`），所以下文出现的 `.vue` 文件名、`stores/*.ts` 路径与现状已不对应：
+读路径时以 `web/frontend/src/` 下同名的 `.tsx` / `store/*.ts` 为准（这些 `.vue` 文件已不在仓库里）。
+
+| 项 | 状态 | 证据 / 还差什么 |
+| --- | --- | --- |
+| P1 导入/导出（M1） | ✅ 已落地 | 后端 `web/api/port.py` + `web/services/port.py` + `web/tests/test_port.py`；前端 `components/ImportExportDialog.tsx` + `store/port.ts` |
+| P2 价格 | ◐ 部分 | 有 `GET /api/fits/{id}/price`、`POST /api/fits/{id}/price/refresh`（`web/services/prices.py`、`web/tests/test_prices.py`、`components/FitPrice.tsx`）；缺 `GET /api/items/{id}/price`、`GET /api/prices/status`、以及前端按 itemId 的 TTL 缓存层 |
+| P3 伤害模式/目标画像/植入体套装管理 | ✗ 未开始 | 无 `web/api/profiles.py`、`web/tests/test_profiles.py`、`ProfileManagerDialog`；目标画像目前只在 `/api/fits/{id}/graphs` 里被只读列出 |
+| P4 角色/技能（M4） | ✅ 已落地 | `web/api/characters.py`（技能、植入体、ESI 同步）+ `web/services/{character,skills,charimplants,customskills}.py` + `web/tests/{test_skills,test_implants}.py` + `components/SkillsSidebar.tsx`、`CharacterSelection.tsx` |
+| P5 残项 | ✗ 未开始 | 无 `CompareDialog`、无物品统计 CSV 端点、无 `optimizeFitPrice` 命令、无 `SettingsDialog`；`/api/meta` 只报 gamedata 版本 |
+
 
 ## 0. 设计原则
 
@@ -24,7 +39,7 @@
 | 用户绑定 | `web/deps.py`：`user_context` / `get_user_data` / `user_or_guest` / `require_user` | 全部新端点依赖 |
 | 无头 wx | `pyfa_compat/wx_headless.py`（`CallAfter`→Dispatcher，`PostEvent`→EventBus） | `service/price.py` 等 wx 依赖点已可运行 |
 | ESI token | 登录时写入该用户 saveddata.db 的 `SsoCharacter`；`EsiAccess.refresh` 自动刷新（`web/services/esiFittings.py` 已验证） | P4 技能拉取直接复用 |
-| 前端 | Vue3+Pinia；`api.ts`（含 401→登录提示）、`stores/fitting.ts`、`i18n.ts`（en/zh） | 新组件/ store 照此 |
+| 前端 | React 18 + zustand（原方案 Vue3+Pinia，已换）；`api.ts`（含 401→登录提示）、`store/fitting.ts`、`i18n.ts`（en/zh） | 新组件/ store 照此 |
 
 ## 2. 统一约定（新模块共用）
 
@@ -280,11 +295,11 @@ DELETE /api/character/implants/{item_id}
 | 里程碑 | 内容 | 估计 | 依赖 |
 |---|---|---|---|
 | M0 | 冒烟验证：Port / Price / Pattern 无头调用 + 每模块 1 个冒烟测试 | ✅ 完成（`web/tests/test_smoke_m0.py`，11 项全绿） | 无 |
-| M1 | P1 导入/导出（API + 前端 + 测试） | ✅ 完成（后端 `web/api/port.py` + `web/services/port.py` + `web/tests/test_port.py` 21 项；前端 `stores/port.ts` + `components/ImportExportDialog.vue` + i18n en/zh + 顶栏入口按钮；全量 pytest 259 通过，vue-tsc / vite build 通过） | M0 |
-| M2 | P2 价格（桥接 + API + 前端 + 测试） | 3~5 天 | M0 |
-| M3 | P3 模式/画像/套装（API + 命令 + 前端 + 测试） | 3~5 天 | M0 |
-| M4 | P4 角色/技能（SSO scope + API + 前端 + 测试） | 1~2 周 | M1（SSE）、M3（requirements） |
-| M5 | P5 残项（对比/CSV/优化价格/设置页） | ~1 周 | M2、M3 |
+| M1 | P1 导入/导出（API + 前端 + 测试） | ✅ 完成（后端 `web/api/port.py` + `web/services/port.py` + `web/tests/test_port.py` 21 项；前端 `store/port.ts` + `components/ImportExportDialog.tsx` + i18n en/zh + 顶栏入口按钮；当时全量 pytest 259 通过，vue-tsc / vite build 通过） | M0 |
+| M2 | P2 价格（桥接 + API + 前端 + 测试） | ◐ 部分完成：配装级 `GET/POST /api/fits/{id}/price[/refresh]` 已上线；物品级查询、`/api/prices/status`、前端 TTL 缓存与设置项未做 | M0 |
+| M3 | P3 模式/画像/套装（API + 命令 + 前端 + 测试） | ✗ 未开始（3~5 天） | M0 |
+| M4 | P4 角色/技能（SSO scope + API + 前端 + 测试） | ✅ 完成（`web/api/characters.py` + `web/services/{character,skills,charimplants}.py` + `web/tests/{test_skills,test_implants}.py` + `components/SkillsSidebar.tsx`；配装技能要求缺口展示随 M3 未做） | M1（SSE） |
+| M5 | P5 残项（对比/CSV/优化价格/设置页） | ✗ 未开始（~1 周） | M2、M3 |
 
 合计 **4~6 周（单人）**；M1~M3 文件不重叠，可并行。
 每个里程碑完成标准：pytest 全绿 + 前端手测清单（含移动端）+ `web/docs/web.md` Limitations 逐条勾销。
@@ -293,10 +308,10 @@ DELETE /api/character/implants/{item_id}
 
 1. **价格缓存位置**（开放问题 #1）：推荐 per-user 存储；实施后观察重复拉取量，必要时加全局只读 LRU。**需评审确认**。
 2. **`service/port` 的 callback 参数**：✅ **M0 已排除**——所有 export 的 `callback` 均带 `None` 默认值（`exportEft/exportDna/exportMultiBuy/exportFitStats/exportXml/exportESI`），不传即同步返回文本；测试 `test_port_exports_return_text_without_gui_callback`、`test_port_export_callback_is_optional_and_still_works` 钉住此行为，包装层**无需** `noop` 兜底。
-3. **HTML 导出**：桌面实现（`gui/mainFrame` 相关）可能含 wx 依赖；若无纯函数实现，web 前端用 Vue 模板自实现等价 HTML（低优先）。
+3. **HTML 导出**：桌面实现（`gui/mainFrame` 相关）可能含 wx 依赖；若无纯函数实现，web 前端用 React 组件自实现等价 HTML（低优先）。
 4. **P4 多角色**：桌面支持多角色切换；web 当前账号 = 单角色。本期做单角色，多角色列为后续（涉及 userdb 结构变更）。
 5. **每用户游戏数据语言**：需改 `eos/db/gamedata` 列绑定，属引擎级改造，**明确不纳入本期**。
 6. **价格 worker 线程生命周期**：✅ **M0 已确认**——`PriceWorkerThread` 是进程级 daemon 线程，其线程**没有** saveddata context，`fetchPrices` 内 `Fit.getInstance()` 会命中 web 的 `UnboundSession` guard，因此 `Price.getPrices` 的**异步 worker 路径在 web 端不可用**（`trigger` 后回调永不触发）。M0 只验证了同步 `fetchPrices` + `wx.CallAfter → Dispatcher` 桥接（context 传播正确）；P2 必须改为请求线程内同步 fetch，或把抓取任务经 `web.events.Dispatcher` 提交（Dispatcher 会携带调用方的 context）。`optimizeFitPrice`（P5）依赖同一修复。
-7. **上游同步边界**：pyfa 引擎更新时 `service/port` 等文件会变；保持"仅 `web/` + `pyfa_compat` 为本地改动"的边界（README §5 的 diff 流程），禁止 web 层反向修改引擎文件。
+7. **上游同步边界**：pyfa 引擎更新时 `service/port` 等文件会变；保持"仅 `web/` + `pyfa_compat` 为本地改动"的边界（`docs/changes.md` 的 diff 流程），禁止 web 层反向修改引擎文件。
 8. **`fill()` 的空槽模块（M0 新发现）**：`importDna/importEft` 返回的 fit 经 `svcFit.recalc + fill` 会用 `EmptyModule` 填满全部机架槽（仅内存，不入库）。`exportFitStats` 走 `getTotalDps()` 会遍历这些空模块并在 `getCycleParameters` 撞 `owner=None`。桌面行为是**先 `db.save(fit)` 再 `getFit(id)` 重载**（重载后不含空槽模块），web 导出端点必须同样对已保存的 fit 操作，或在调用前 `fit.unfill()`；P1 测试须覆盖「保存 → 重载 → 导出」链路。
 
