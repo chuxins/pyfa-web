@@ -20,6 +20,32 @@ from service.esi import Esi
 
 pyfalog = Logger(__name__)
 
+#: Untrained skills simulate at this level, matching the in-game fitting window
+#: (see :func:`ensure_simulation_floor`).
+SIMULATION_FLOOR = 1
+
+
+def ensure_simulation_floor(char):
+    """Untrained skills read as level 1, exactly as the game's fitting window does.
+
+    The in-game fitting window assembles a fit without checking prerequisites and
+    applies every skill-keyed bonus at level 1 for skills the pilot has not
+    trained; pyfa's engine instead uses the real level (0), so the two disagree
+    whenever a fit leans on a skill the pilot lacks (e.g. a Black Ops fit on a
+    pilot still training Caldari Battleship shows 90% of the in-game DPS). This
+    web mirrors the game: an SSO pilot's ``defaultLevel`` is set to 1, which is
+    exactly the level pyfa gives to skills missing from the sheet.
+
+    The All 5 / All 0 presets are untouched (the engine fixes their levels by
+    name), and a skill the pilot has trained still reads its real level.
+    Returns True when the floor was applied (a one-time write per character).
+    """
+    if char.ro or char.defaultLevel == SIMULATION_FLOOR:
+        return False
+    char.defaultLevel = SIMULATION_FLOOR
+    eos.db.commit()
+    return True
+
 
 def list_characters(userData):  # noqa: ARG001
     """The characters the strip offers: the presets, then the signed-in pilots.
@@ -36,6 +62,10 @@ def list_characters(userData):  # noqa: ARG001
     ]
     for sso in sorted(_sso_characters(), key=lambda row: row.characterName.lower()):
         for char in sso.characters:
+            # The strip is the first thing every page load asks for, so it is also
+            # where a pilot whose sheet predates the level-1 simulation floor gets
+            # backfilled (see ensure_simulation_floor).
+            ensure_simulation_floor(char)
             characters.append({
                 "id": char.ID,
                 "name": char.name,
@@ -58,6 +88,10 @@ def ensure_sso_character(userData, character_id, character_name, server_name):  
     char = sChar.getCharacter(character_name)
     if char is None:
         char = sChar.new(character_name)
+
+    # The pilot's own sheet follows the game's fitting window: skills missing
+    # from it simulate at level 1 (see ensure_simulation_floor).
+    ensure_simulation_floor(char)
 
     client_hash = pyfaConfig.getClientSecret()
     sso = eos.db.saveddata_session.query(SsoCharacter).filter(

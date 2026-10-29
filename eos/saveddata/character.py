@@ -360,6 +360,14 @@ class Skill(HandledItem):
             elif self.character.alphaClone:
                 return min(self.activeLevel or 0, self.character.alphaClone.getSkillLevel(self) or 0)
 
+            # A skill the pilot has not trained simulates at the character's floor
+            # (the web sets an SSO pilot's floor to 1 so the fit numbers match the
+            # in-game fitting window, which applies untrained skills at level 1).
+            # The floor is read here, at level time, so it also covers skills the
+            # engine materialised at their old level before the floor was set.
+            floor = getattr(self.character, "defaultLevel", None) or 0
+            return max(self.activeLevel or 0, floor)
+
         return self.activeLevel or 0
 
     def setLevel(self, level, persist=False, ignoreRestrict=False):
