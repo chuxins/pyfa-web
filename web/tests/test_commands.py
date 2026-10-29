@@ -66,6 +66,11 @@ def test_edits_stay_unsaved_until_the_save_endpoint(user_client):
     assert response.json()["dirty"] is True
     assert any(not m["isEmpty"] for m in response.json()["racks"]["high"])
 
+    # 刷新页面（重新 GET）也应当看到「未保存」，否则保存按钮会是灰的
+    reloaded = user_client.get("/api/fits/{}".format(fit_id)).json()
+    assert reloaded["dirty"] is True
+    assert any(m["itemId"] == AUTOCANNON_ID for m in reloaded["racks"]["high"])
+
     # 放弃：回到没装模块的状态
     discarded = user_client.post("/api/fits/{}/discard".format(fit_id))
     assert discarded.status_code == 200, discarded.text

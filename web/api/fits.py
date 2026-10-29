@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from logbook import Logger
 from pydantic import BaseModel, Field
 
-from web.deps import event_channel, get_app_state, get_user_data, user_or_guest, persist_after_response
+from web.deps import UserData, event_channel, get_app_state, get_user_data, user_or_guest, persist_after_response
 from web.events import publish
 from web.services import commands as commandService
 from web.services import esiFittings
@@ -111,9 +111,18 @@ def create_fit(payload: FitCreate, user=Depends(user_or_guest)):
     return serialize_fit(sFit.getFit(fitId), includeStats=False)
 
 
+def _dirty(userData, fit_id: int) -> bool:
+    """这个装配当前是不是有「未保存的编辑」（服务器把 commit 降级成 flush 了）。"""
+    context = getattr(userData, "context", None)
+    if context is None or not getattr(context, "defer_commit", False):
+        return False
+    return getattr(context, "draft_fit_id", None) == fit_id
+
+
 @router.get("/{fit_id}")
 def get_fit(
     fit_id: int,
+    userData: UserData = Depends(get_user_data),
     sections: str | None = Query(None, description="Comma separated stat section names"),
     stats: bool = Query(True),
 ):
@@ -121,7 +130,10 @@ def get_fit(
     wanted = None
     if sections:
         wanted = [s.strip() for s in sections.split(",") if s.strip() in SECTION_NAMES]
-    return serialize_fit(fit, includeStats=stats, statsSections=wanted)
+    payload = serialize_fit(fit, includeStats=stats, statsSections=wanted)
+    # 刷新页面后也要知道「还有没保存的改动」，否则保存按钮是灰的、改动无从提交
+    payload["dirty"] = _dirty(userData, fit_id)
+    return payload
 
 
 @router.get("/{fit_id}/modules/{position}/effect")
