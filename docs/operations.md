@@ -1,8 +1,10 @@
 # 部署与运维
 
-> **现网**：<https://eve-tools.xyz/AssemblyPlanning/> —— 服务器 `103.210.237.192`，`pyfa-web.service` 监听 `127.0.0.1:8091`，nginx 只 strip 子路径前缀（前缀由构建期 Vite `base` 补齐）。
+> **现网①**：<https://eve-tools.xyz/AssemblyPlanning/> —— 服务器 `103.210.237.192`，`pyfa-web.service` 监听 `127.0.0.1:8091`，nginx 只 strip 子路径前缀（前缀由构建期 Vite `base` 补齐）。
 >
-> 索引：§1 当前服务器与换机记录 · §2 自动部署（含参数、命令、回滚）· §3 初次上线（2026-10-01，历史）
+> **现网②（2026-11-14 起）**：<https://eve-toolsbot.com/AssemblyPlanning/> —— 服务器 `47.108.149.69`，部署方式与①相同（见 §1.2）。
+>
+> 索引：§1 当前服务器与换机记录 · §1.2 第二台服务器（eve-toolsbot.com）· §2 自动部署（含参数、命令、回滚）· §3 初次上线（2026-10-01，历史）
 
 ## 1. 2026-10-25 换机重建（103.210.237.192）—— 当前服务器
 
@@ -106,6 +108,27 @@ PYFA_WEB_SSO_CLIENT_SECRET=...
 
 部署在域名根时用 `PYFA_BASE=/ npm run build` 重建即可，反代不需要改动。
 
+## 1.2 第二台服务器：eve-toolsbot.com / 47.108.149.69（2026-11-14）
+
+与 §1 的 eve-tools.xyz 并行部署的第二个站点，共用同一套 git 仓库与 `deploy/` 资产，流程一致：
+push 即部署（GitHub Actions 双作业，见 §2）+ 服务器侧 `pyfa-web-update.timer` 兜底轮询。
+
+| 项 | 值 |
+| --- | --- |
+| 主机 | `47.108.149.69`（Ubuntu 26.04.1，1.7 GB 内存 + 2 GB swap，磁盘 40 G）—— 与 aurabot/SnowLuma/QQ 机器人同机 |
+| 系统访问 | `root` + `~/.ssh/eve-isk-deploy`（公钥已装 `/root/.ssh/authorized_keys`；Actions 用 `SSH_HOST2/SSH_USER2/SSH_KEY2` secrets） |
+| Python | 系统 `python3.14.4`（Ubuntu 26.04 自带），venv 为 `/opt/pyfa-web/.venv`，owner `pyfaweb` |
+| 服务 | `pyfa-web.service`（`User=pyfaweb`，`127.0.0.1:8091`，`Restart=always`），`enabled` |
+| 内存上限 | drop-in：`MemoryHigh=900M` / `MemoryMax=1300M`（整机只有 1.7 G，DSH 已占约 1.2 G 上限；**eve.db 预置**，首启不重建，平时约 250 MB） |
+| 配置 | `web.yml`：`data_dir=/var/lib/pyfa-web`、`port=8091`、`public_url=https://eve-toolsbot.com/AssemblyPlanning`、`root_path=/AssemblyPlanning`、`language=zh_CN`；`web.env`：本机自建 CCP 应用凭据（回调 `https://eve-toolsbot.com/AssemblyPlanning/api/auth/callback`，与 eve-tools.xyz 那个应用不同） |
+| eve.db | 部署时从本地仓库预置（100 MB，`gamedata.build=3532181`），避免小内存机器首启重建 OOM（§1 坑①） |
+| nginx | `/etc/nginx/conf.d/pyfa-web.conf`（见 `deploy/nginx.conf` 的同款参考）：只 strip 前缀、`/api/` 关缓冲 SSE 3600s、`/assets/` 一年长缓存、`sw.js`/入口 HTML 不缓存、维护页 503、安全响应头 snippets；80 段 ACME + 跳转 https。原 `aurabot-80.conf` 的 apex 跳转已让位（备份 `aurabot-80.conf.bak-20261114`） |
+| 证书 | certbot **手动 DNS-01**（`--manual-auth-hook`，Beaver 备案拦截导致 HTTP-01 不可用），`eve-toolsbot.com`，到期 2027-02-12；续期需重新上传 `/tmp/dns-auth-hook.sh` 并手动加 TXT（与 aurabot/snowluma 证书同理） |
+| 兜底/看门狗 | `pyfa-web-update.timer`（2 分钟）+ `pyfa-web-watchdog.timer`（5 分钟），均已 `enabled` |
+| 依赖源 | `/etc/pip.conf` 指向清华源（pip 与自动更新脚本的依赖安装都走它） |
+| 踩坑 | ① 依赖安装把 1.7 G 小机拖死过（uv 并发下载 + 内存本就吃紧 → sshd 无法 fork，HTTP 仍通）：改用 **pip 顺序安装**、控制并发，eve.db 预置后无重建峰值；② 部署脚本经管道上传时若内容为空（PowerShell 管道编码），改 scp 上传；③ `pyfa-web-update.service` 曾因 `\r` 中断漏装，导致 timer 报 "unit to trigger not loaded"——补装 unit 即可 |
+| 外部访问 | ⚠️ **2026-11-14 时 eve-toolsbot.com 的 80/443 仍被阿里云边缘（Beaver）按备案状态拦截（外部访问 403）**；服务器本机经 DNS 访问一切正常。域名备案关联到新实例（`iZ2vcfnzvbt0yzcq6i5zbxZ`）审核通过后外部即可访问，无需再改服务器 |
+
 ## 2. 自动部署（push 即部署 + 兜底轮询）
 
 2026-10-02 起本目录在服务器上是 **git 克隆**（`origin=https://github.com/chuxins/pyfa-web.git`，分支 `master`），
@@ -117,7 +140,7 @@ push 到 `master` 后由 GitHub Actions 经 SSH 以 `deploy` 用户执行 `deplo
 | 仓库侧 | `deploy/auto-update.sh`、`deploy/pyfa-web.service` + `deploy/pyfa-web.service.d/memory.conf`、`deploy/pyfa-web-update.service`、`deploy/pyfa-web-update.timer`、`.github/workflows/deploy.yml`、`.gitattributes`（部署文件统一 LF） |
 | 服务器侧 | **2026-10-25 换机后**：SSH 与部署都用 `root`，脚本内部 `runuser` 降权到 `pyfaweb` 跑 git，因此不再需要 `deploy` 用户与 `/etc/sudoers.d/pyfaweb-deploy`（旧机器那套保留在本节末尾的 §2.1 作为历史）；仍需 `/etc/gitconfig` 的 `safe.directory=/opt/pyfa-web`（root 直接查仓库时用） |
 | 仓库可见性 | **公开仓库**，服务器用 https 匿名只读拉取，**不需要 Deploy Key** |
-| Actions secrets | `SSH_HOST=103.210.237.192`、`SSH_USER=root`、`SSH_KEY`（2026-10-25 换机时更新；对应公钥在服务器 `/root/.ssh/authorized_keys`，见 §1） |
+| Actions secrets | 第一台（eve-tools.xyz）：`SSH_HOST=103.210.237.192`、`SSH_USER=root`、`SSH_KEY`（2026-10-25 换机时更新；对应公钥在服务器 `/root/.ssh/authorized_keys`，见 §1）；第二台（eve-toolsbot.com，2026-11-14 加入）：`SSH_HOST2=47.108.149.69`、`SSH_USER2=root`、`SSH_KEY2`（对应 `~/.ssh/eve-isk-deploy`）——两台各自独立，缺哪台只红哪台 |
 | 触发 | `push` 到 `master`（也可在 Actions 页 `workflow_dispatch` 手动跑）；`pyfa-web-update.timer` 每 2 分钟兜底 |
 | 并发 | 两种触发各跑一次脚本可能撞在一起：脚本在 `/run/lock/pyfa-web-update.lock` 上取 `flock` 串行化，后到的排队（跑完再判断多半就是「已是最新」）；锁文件打不开时不阻塞部署 |
 | 受保护数据 | `web.yml`、`web.env`、`eve.db*`、`webdata/`、`saveddata/`、`session.key`、`logs/` 均在 `.gitignore` 内；脚本用 `git reset --hard`，**绝不**执行 `git clean` |

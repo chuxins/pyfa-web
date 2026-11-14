@@ -6,10 +6,17 @@ name: Deploy to server
 # check-runs 再决定要不要 reset（见 deploy/auto-update.sh 的 CI 闸门）。
 #
 # 需要的仓库 Secrets（Settings → Secrets and variables → Actions）：
-#   SSH_HOST  服务器地址（当前：103.210.237.192）
-#   SSH_USER  root
-#   SSH_KEY   登录私钥全文（当前对应 ~/.ssh/eve-test.pem，公钥在服务器
-#             /root/.ssh/authorized_keys；脚本以 root 运行时自己降权到 pyfaweb）
+#   第一台（eve-tools.xyz，103.210.237.192）：
+#     SSH_HOST  服务器地址（当前：103.210.237.192）
+#     SSH_USER  root
+#     SSH_KEY   登录私钥全文（当前对应 ~/.ssh/eve-test.pem，公钥在服务器
+#               /root/.ssh/authorized_keys；脚本以 root 运行时自己降权到 pyfaweb）
+#   第二台（eve-toolsbot.com，47.108.149.69，2026-11-14 加入）：
+#     SSH_HOST2  服务器地址（47.108.149.69）
+#     SSH_USER2  root
+#     SSH_KEY2   登录私钥全文（当前对应 ~/.ssh/eve-isk-deploy，公钥在服务器
+#                /root/.ssh/authorized_keys）
+#   两台各自独立，缺哪台的 secret 就只红哪台，不影响另一台。
 on:
   workflow_run:
     workflows: ["CI"]
@@ -56,6 +63,44 @@ jobs:
           # ssh-keyscan：服务器不回 banner 时它只是超时退出，配上它那句
           # 2>/dev/null 与 bash 的 -e，整步会一声不响地失败 —— 2026-10-25
           # 起的连续 7 次部署失败就是这样被吞掉的，日志里没有任何原因。
+          ssh -i ~/.ssh/id_deploy \
+              -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new \
+              -o UserKnownHostsFile="${HOME}/.ssh/known_hosts" \
+              -o ConnectTimeout=20 \
+              -o ServerAliveInterval=15 \
+              -o ServerAliveCountMax=4 \
+              -o LogLevel=VERBOSE \
+              "${SSH_USER}@${SSH_HOST}" 'bash /opt/pyfa-web/deploy/auto-update.sh'
+
+  # 第二台：eve-toolsbot.com / 47.108.149.69（2026-11-14 加入）
+  deploy-evetoolsbot:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH 到 eve-toolsbot.com 服务器执行自动更新
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST2 }}
+          SSH_USER: ${{ secrets.SSH_USER2 }}
+          SSH_KEY: ${{ secrets.SSH_KEY2 }}
+        run: |
+          set -euo pipefail
+
+          missing=""
+          [ -n "${SSH_HOST}" ] || missing="${missing} SSH_HOST2"
+          [ -n "${SSH_USER}" ] || missing="${missing} SSH_USER2"
+          [ -n "${SSH_KEY}" ] || missing="${missing} SSH_KEY2"
+          if [ -n "${missing}" ]; then
+            echo "::error::缺少 secrets:${missing}（Settings → Secrets and variables → Actions）"
+            exit 1
+          fi
+
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "${SSH_KEY}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+
           ssh -i ~/.ssh/id_deploy \
               -o IdentitiesOnly=yes \
               -o StrictHostKeyChecking=accept-new \
