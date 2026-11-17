@@ -222,6 +222,15 @@ def getFit(lookfor, eager=None):
     return fit
 
 
+def noDraft():
+    """过滤掉「还没保存」的导入草稿（见 fits_table 的 ``draft`` 列）。
+
+    草稿装配是被直接打开来给用户看/改的，不是装配方案的一部分：列表、搜索、备份都不该
+    带上它。``getFit`` 这类按 id 取单个装配的查询不加这个过滤，因为草稿必须能被打开。
+    """
+    return Fit.draft.isnot(True)
+
+
 def getFitsWithShip(shipID, ownerID=None, where=None, eager=None):
     """
     Get all the fits using a certain ship.
@@ -230,7 +239,7 @@ def getFitsWithShip(shipID, ownerID=None, where=None, eager=None):
     if isinstance(shipID, int):
         if ownerID is not None and not isinstance(ownerID, int):
             raise TypeError("OwnerID must be integer")
-        filter = Fit.shipID == shipID
+        filter = and_(Fit.shipID == shipID, noDraft())
         if ownerID is not None:
             filter = and_(filter, Fit.ownerID == ownerID)
 
@@ -319,14 +328,21 @@ def countFitsWithShip(lookfor, ownerID=None, where=None, eager=None):
 def getFitList(eager=None):
     eager = processEager(Fit, eager)
     with sd_lock:
-        fits = removeInvalid(saveddata_session.query(Fit).options(*eager).all())
+        fits = removeInvalid(saveddata_session.query(Fit).options(*eager).filter(noDraft()).all())
 
+    return fits
+
+
+def getDraftFits():
+    """这次会话里还没保存的导入草稿（放弃时整行删除，见 web/api/commands.py）。"""
+    with sd_lock:
+        fits = saveddata_session.query(Fit).filter(Fit.draft.is_(True)).all()
     return fits
 
 
 def getFitListLite():
     with sd_lock:
-        stmt = select(fits_table.c.ID, fits_table.c.name, fits_table.c.shipID)
+        stmt = select(fits_table.c.ID, fits_table.c.name, fits_table.c.shipID).where(fits_table.c.draft.isnot(True))
         data = eos.db.saveddata_session.execute(stmt).fetchall()
     fits = []
     for fitID, fitName, shipID in data:
@@ -465,7 +481,7 @@ def searchFits(nameLike, where=None, eager=None):
     nameLike = "%{0}%".format(sqlizeString(nameLike))
 
     # Add any extra components to the search to our where clause
-    filter = processWhere(Fit.name.like(nameLike, escape="\\"), where)
+    filter = processWhere(and_(Fit.name.like(nameLike, escape="\\"), noDraft()), where)
     eager = processEager(Fit, eager)
     with sd_lock:
         fits = removeInvalid(saveddata_session.query(Fit).options(*eager).filter(filter).limit(100).all())

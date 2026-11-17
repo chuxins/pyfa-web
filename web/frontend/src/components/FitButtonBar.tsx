@@ -56,7 +56,8 @@ export const FitButtonBar = () => {
   async function doPaste() {
     setPasteError(undefined)
     if (!pasteText.trim()) return
-    const result = await importText(pasteText)
+    // 剪贴板导入不直接入库：导入成功会直接打开新装配，等用户点保存才真正保存到网站。
+    const result = await importText(pasteText, null, false)
     if (result === null) {
       setPasteError(t("the import text could not be read; check the format and try again"))
       return

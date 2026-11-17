@@ -31,6 +31,10 @@ from web.config import WebConfig
 
 pyfalog = Logger(__name__)
 
+#: 匿名请求共享的那个「用户」标识。EVE 的 character id 是整数，所以这个字符串不会和
+#: 真实用户撞车；registry.reset_user 靠它把匿名会话和登录会话分开处理。
+GUEST_USER_ID = "guest"
+
 
 class UserData:
     """Runtime resources for one user."""
@@ -230,7 +234,7 @@ class UserDataRegistry:
         with self._lock:
             if self.guest is None:
                 directory = self.config.system_dir / "guest"
-                self.guest = UserData("guest", directory, directory / "saveddata.db").open()
+                self.guest = UserData(GUEST_USER_ID, directory, directory / "saveddata.db").open()
             return self.guest
 
     def evict_idle(self, now=None):
@@ -268,10 +272,13 @@ class UserDataRegistry:
         回滚只把数据库退回上一个已提交点，SQLAlchemy 的身份映射与 pyfa 服务里缓存的
         ORM 对象还是「回滚前」的那批；把它们整体丢掉、重新开一个会话，下一次请求就是
         干干净净从库里读出来的状态。撤销栈（command_processors）同样清空。
+
+        ``user_id`` 既可能是 character id（登录用户），也可能是 ``GUEST_USER_ID``
+        （匿名请求用的共享库，见 :meth:`get_guest`）—— 后者必须重建 ``get_guest``
+        缓存的那一份，否则会去 ``users/guest`` 新建一个空库，把匿名会话指到别处。
         """
         with self._lock:
-            if user_id is None:
-                # 匿名请求用的是共享的 guest 库（见 get_guest）
+            if user_id is None or user_id == GUEST_USER_ID:
                 if self.guest is not None:
                     self.guest.close()
                     self.guest.command_processors = {}

@@ -491,6 +491,9 @@ def serialize_fit(fit, includeStats=True, statsSections=None):
         "fromGame": bool(getattr(fit, "fromGame", False)),
         "importedToGame": bool(getattr(fit, "importedToGame", False)),
         "esiFittingId": getattr(fit, "esiFittingId", None),
+        #: 剪贴板导入、还没点保存的装配：它被直接打开，但不在装配列表里
+        #: （见 web/services/port.py 与 web/api/commands.py）
+        "draft": bool(getattr(fit, "draft", False)),
         "implantLocation": int(getattr(fit, "implantLocation", ImplantLocation.FIT)),
         "systemSecurity": int(getattr(fit, "systemSecurity", 0) or 0),
         "pilotSecurity": getattr(fit, "pilotSecurity", None),

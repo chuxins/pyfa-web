@@ -228,6 +228,7 @@ const ZH_CN: Record<string, string> = {
   "Fit saved": "装配已保存",
   "Save (unsaved changes)": "保存（有未保存改动）",
   "Changes discarded": "已放弃改动",
+  "Discarded the import": "已放弃这份导入",
   "Saved the previous fit's changes": "上一份装配的改动已保存",
   "Unsaved changes": "有未保存的改动",
   "Discard changes": "放弃改动",

@@ -111,8 +111,16 @@ def create_fit(payload: FitCreate, user=Depends(user_or_guest)):
     return serialize_fit(sFit.getFit(fitId), includeStats=False)
 
 
-def _dirty(userData, fit_id: int) -> bool:
-    """这个装配当前是不是有「未保存的编辑」（服务器把 commit 降级成 flush 了）。"""
+def _dirty(userData, fit) -> bool:
+    """这个装配当前是不是有「未保存」的状态。
+
+    两种都算：剪贴板导入进来、还没点保存的草稿装配（``fits.draft``，见
+    web/services/port.py），以及在装配上改了东西但还没提交的编辑（服务器把 commit
+    降级成 flush 了）。
+    """
+    if getattr(fit, "draft", False):
+        return True
+    fit_id = getattr(fit, "ID", fit)
     context = getattr(userData, "context", None)
     if context is None or not getattr(context, "defer_commit", False):
         return False
@@ -132,7 +140,7 @@ def get_fit(
         wanted = [s.strip() for s in sections.split(",") if s.strip() in SECTION_NAMES]
     payload = serialize_fit(fit, includeStats=stats, statsSections=wanted)
     # 刷新页面后也要知道「还有没保存的改动」，否则保存按钮是灰的、改动无从提交
-    payload["dirty"] = _dirty(userData, fit_id)
+    payload["dirty"] = _dirty(userData, fit)
     return payload
 
 
@@ -363,6 +371,8 @@ def duplicate_fit(fit_id: int, user=Depends(user_or_guest)):
     clone.name = "{} (copy)".format(fit.name)
     clone.fromGame = False
     clone.importedToGame = False
+    # 另存为出来的是正经装配：即使复制的是剪贴板导入的草稿，也必须立刻进列表
+    clone.draft = False
     eos.db.save(clone)
     publish(event_channel(user), "fit.created", fitId=clone.ID)
     return serialize_fit_summary(clone)

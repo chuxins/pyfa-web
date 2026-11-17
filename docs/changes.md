@@ -1,4 +1,4 @@
-# 相对上游 pyfa 的改动
+﻿# 相对上游 pyfa 的改动
 
 本文记录本目录相对上游 `pyfa` 的每一处改动：为什么改、怎么改、用什么测试钉住它。
 上游基线：分支 `master` / 提交 `c07d408490c0a85e24f2baea984e0f617bfd48f4`（`v2.69.0`）。
@@ -250,4 +250,50 @@ All 0 预设不受影响）。
   `web/docs/web.md` 的图表面板一段），故整目录删除。历史仍可取回：
   `git show 711bca76:legacy/vue-frontend/src/App.vue`。
 - 随目录一起删掉的两条排除规则：`.gitignore` 的 `legacy/*/node_modules/`、`.dockerignore` 的 `legacy`。
+
+## 12. 剪贴板导入改为「直接打开、不自动保存」（2026-11-17）
+
+现象：界面上的「从剪贴板导入」本意是"粘进来的装配先看一眼"，实际行为却是**导入即入库** ——
+装配立刻出现在船树/列表里（用户视角＝已经保存了），而且**保存任何别的装配时会把它一起提交**，
+因为旧实现的草稿只是"事务里没 commit"，而落盘走的是整个会话的事务（旧说明见 `web/services/port.py`
+原先那段 docstring）。放弃它还得靠同一事务的 rollback，代价是连别的未保存改动一起丢。
+
+目标：导入成功 → 直接打开这份装配；它**不算装配方案**；点保存才入册，点放弃就像没导入过。
+
+修法（数据模型 + 查询 + 两个端点 + 前端）：
+
+1. **数据列**：`fits.draft`（`eos/db/saveddata/fit.py`，迁移 `eos/db/migrations/upgrade53.py`，
+   `ALTER TABLE fits ADD COLUMN draft BOOLEAN NOT NULL DEFAULT 0`）。草稿需要 id 才能被打开、编辑、
+   撤销，所以行照写，只是带上"不是方案"的标记 —— 这也顺带解决了"保存别的装配把草稿一起落盘"。
+2. **不进列表**：`eos/db/saveddata/queries.py` 新增 `noDraft()`，`getFitList` / `getFitListLite` /
+   `getFitsWithShip` / `searchFits` 全部过滤掉草稿（船树、按船列表、搜索、备份导出都据此）；
+   `getFit` 不过滤，草稿必须能按 id 打开。另加 `getDraftFits()` 给清理用。
+3. **导入**（`web/services/port.py`）：`save=false` 时 `_save_imported_fits(..., draft=True)`，
+   插入即 `draft=1`（不会有一瞬间以普通装配的身份出现）；新的剪贴板导入会清掉上一份草稿
+   （`purge_draft_fits(keep=…)`，先建后删，避免新草稿捡到旧草稿释放出来的 id）；
+   粘贴到已打开装配的条目级文本没有新行，仍用原来的 `defer_commit` 草稿。
+4. **端点**：`web/api/fits.py:_dirty()` 把 `draft` 也算"未保存"；`POST /api/fits/{id}/save`
+   清 `draft` 并广播 `fits.imported`（别的标签页的船树跟着刷新）；`POST /api/fits/{id}/discard`
+   对草稿**整行删除**并返回 `removed: true`，让浏览器知道这份装配已经不存在了。
+   `serialize_fit` 带上 `draft` 字段（`web/services/serialize.py`）。
+5. **前端**（`web/frontend/src/`）：`store/fitting.ts` 换装配时不再顺手保存草稿（那正是"导入即保存"
+   的另一条路径），`discard()` 处理 `removed`（回到"没打开装配"而不是去读一个 404）；
+   `api.ts` 补类型，`i18n.ts` 补词条；`web/static` 重新构建。
+6. 顺带修掉 `web/userdata.py:reset_user()` 对匿名会话的处理：它原先用 `user_id == None` 判匿名，
+   而 guest 的 `user_id` 是字符串 `"guest"`，于是放弃草稿时会去 `users/guest` 新建一个空库、
+   把匿名会话指到别处（真正的 guest 库没被重建）。改为 `GUEST_USER_ID` 常量判断。
+
+实测（本机 `TestClient` 探针 18 项 + `web/tests`）：
+
+| 检查 | 结果 |
+| --- | --- |
+| 导入 → 打开 | `POST /api/port/import {save:false}` 201；`GET /api/fits/{id}` 200，`dirty=true`、`draft=true`，内容正确 |
+| 不进库 | `GET /api/fits`、`?shipId=`、`?q=` 三处都查不到它；库里该行 `draft=1` |
+| 保存才入册 | `POST /api/fits/{id}/save` → `dirty=false`、`draft=false`，随后出现在列表里 |
+| 别人的保存不影响它 | 保存另一份装配后，草稿仍不在列表、仍是 `draft=1` |
+| 换一份导入 | 旧草稿 404（已删除），新草稿可打开（id 不复用） |
+| 放弃 | `POST /api/fits/{id}/discard` → `removed:true`，随后 GET 404，库中其它装配不受影响 |
+| 回归 | `web/tests` **389 passed**（新增 4 项钉住「不入库 / 保存才入册 / 不被别的保存带走 / 另存为草稿不算草稿」） |
+| 前端产物 | `npm ci && npm run build`（node 24.22.1 + npm 11.19.1 + vite 5.4.21）：`tsc --noEmit` 通过，`web/static/index.html` 指向新的 `assets/index-kcPxVvCX.js`（322 KB）；`images/`、`fonts/`、`assets/*.css`、`assets/images-*.dat` 与重建前逐字节相同（文件集合 6350 ↔ 6350，差别只有 JS 文件名） |
+
 

@@ -24,8 +24,8 @@ def make_fit(client, name="Port Test", ship_id=RIFTER_ID):
     return response.json()["id"]
 
 
-def import_text(client, text, target_fit_id=None):
-    payload = {"text": text}
+def import_text(client, text, target_fit_id=None, save=True):
+    payload = {"text": text, "save": save}
     if target_fit_id is not None:
         payload["targetFitId"] = target_fit_id
     return client.post("/api/port/import", json=payload)
@@ -107,6 +107,112 @@ def test_import_whole_fit_text_with_target_creates_new_fit(user_client):
 def test_import_apply_to_missing_fit_is_404(user_client):
     response = import_text(user_client, DRONE_TEXT, target_fit_id=999999)
     assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Unsaved imports (clipboard: open the fit, do not add it to the library)
+# ---------------------------------------------------------------------------
+
+def test_import_without_save_stays_unsaved_and_discardable(user_client):
+    """``save=false`` opens the pasted fit but keeps it out of the library: it is
+    not listed anywhere until saved, and discarding removes it entirely."""
+    response = import_text(user_client, DNA_RIFTER, save=False)
+    assert response.status_code == 201, response.text
+    payload = response.json()
+    assert payload["format"] == "dna"
+    assert len(payload["created"]) == 1
+    fit_id = payload["created"][0]["id"]
+
+    # The fit is openable and flagged as unsaved
+    detail = user_client.get("/api/fits/{}".format(fit_id)).json()
+    assert detail["ship"]["item"]["name"] == "Rifter"
+    assert detail["dirty"] is True
+    assert detail["draft"] is True
+
+    # ...but it is not a fit of the library yet: no list, hull list or search hit
+    listed = [fit["id"] for fit in user_client.get("/api/fits").json()["fits"]]
+    assert fit_id not in listed
+    by_ship = [fit["id"] for fit in user_client.get("/api/fits", params={"shipId": RIFTER_ID}).json()["fits"]]
+    assert fit_id not in by_ship
+    found = [fit["id"] for fit in user_client.get("/api/fits", params={"q": "Imported"}).json()["fits"]]
+    assert fit_id not in found
+
+    # Discarding the draft deletes it: it was never a fit of the library
+    discarded = user_client.post("/api/fits/{}/discard".format(fit_id))
+    assert discarded.status_code == 200, discarded.text
+    assert discarded.json()["removed"] is True
+    assert user_client.get("/api/fits/{}".format(fit_id)).status_code == 404
+
+
+def test_import_without_save_enters_the_library_only_when_saved(user_client):
+    """Clicking Save is what turns a pasted fit into a library fit."""
+    fit_id = import_text(user_client, DNA_RIFTER, save=False).json()["created"][0]["id"]
+
+    saved = user_client.post("/api/fits/{}/save".format(fit_id))
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["dirty"] is False
+    assert saved.json()["draft"] is False
+
+    listed = [fit["id"] for fit in user_client.get("/api/fits").json()["fits"]]
+    assert fit_id in listed
+
+
+def test_import_without_save_is_not_saved_by_saving_another_fit(user_client):
+    """Saving an unrelated fit must not drag the pasted draft into the library.
+
+    The draft has a row of its own (it needs an id to be opened), so this pins the
+    line between "unsaved" and "saved": only the draft's own Save changes it.
+    """
+    draft_id = import_text(user_client, DNA_RIFTER, save=False).json()["created"][0]["id"]
+
+    other_id = make_fit(user_client, "Unrelated")
+    assert user_client.post("/api/fits/{}/save".format(other_id)).status_code == 200
+
+    listed = [fit["id"] for fit in user_client.get("/api/fits").json()["fits"]]
+    assert other_id in listed
+    assert draft_id not in listed
+    assert user_client.get("/api/fits/{}".format(draft_id)).json()["draft"] is True
+
+
+def test_import_without_save_replaces_the_previous_draft(user_client):
+    """A new clipboard import throws the previous unsaved import away."""
+    first = import_text(user_client, DNA_RIFTER, save=False).json()["created"][0]["id"]
+    second = import_text(user_client, EFT_RIFTER, save=False).json()["created"][0]["id"]
+
+    assert user_client.get("/api/fits/{}".format(first)).status_code == 404
+    assert user_client.get("/api/fits/{}".format(second)).status_code == 200
+
+
+def test_duplicating_a_draft_fit_creates_a_library_fit(user_client):
+    """Save As on a pasted draft produces a normal fit, not another hidden draft."""
+    draft_id = import_text(user_client, DNA_RIFTER, save=False).json()["created"][0]["id"]
+
+    clone = user_client.post("/api/fits/{}/duplicate".format(draft_id))
+    assert clone.status_code == 201, clone.text
+    copy_id = clone.json()["id"]
+
+    listed = [fit["id"] for fit in user_client.get("/api/fits").json()["fits"]]
+    assert copy_id in listed
+    assert draft_id not in listed
+
+
+def test_import_without_save_applies_items_as_draft(user_client):
+    """Item-level text with ``save=false`` lands on the target fit as an
+    unsaved draft; saving the fit afterwards persists it."""
+    fit_id = make_fit(user_client, "Drone Draft Host")
+    response = import_text(user_client, DRONE_TEXT, target_fit_id=fit_id, save=False)
+    assert response.status_code == 201, response.text
+    payload = response.json()
+    assert payload["format"] == "drones"
+    assert payload["appliedToFitId"] == fit_id
+
+    detail = user_client.get("/api/fits/{}".format(fit_id)).json()
+    assert len(detail["drones"]) == 1
+    assert detail["dirty"] is True
+
+    saved = user_client.post("/api/fits/{}/save".format(fit_id))
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["dirty"] is False
 
 
 # ---------------------------------------------------------------------------

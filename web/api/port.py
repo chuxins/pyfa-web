@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from logbook import Logger
 from pydantic import BaseModel, Field
 
-from web.deps import UserData, event_channel, get_user_data, user_or_guest, persist_after_response
+from web.deps import UserData, event_channel, get_user_data, user_or_guest
 from web.events import publish
 from web.services import port as portService
 from web.userdb import User
@@ -27,6 +27,9 @@ class ImportRequest(BaseModel):
     text: str = Field(..., description="Pasted or uploaded fit text")
     targetFitId: int | None = Field(
         None, description="Fit to apply item-level imports to (desktop 'paste into fit')")
+    save: bool = Field(
+        True, description="False keeps the import as an unsaved draft (clipboard import): "
+                          "the fits are opened but not committed to the database")
 
 
 class ExportRequest(BaseModel):
@@ -46,7 +49,7 @@ def _port_errors(ex: portService.PortError):
     return HTTPException(status_code=ex.status, detail=ex.detail())
 
 
-@router.post("/import", status_code=201, dependencies=[Depends(persist_after_response)])
+@router.post("/import", status_code=201)
 def import_text(
     payload: ImportRequest,
     user: User | None = Depends(user_or_guest),
@@ -54,17 +57,23 @@ def import_text(
 ):
     """Import fit text: save new fits, or apply item text to an existing fit.
 
-    Open to guests like every other write. When fits are created a
-    ``fits.imported`` event is published so the ship tree refreshes.
+    Open to guests like every other write. When fits are created a ``fits.imported``
+    event is published so the ship tree refreshes.
+
+    With ``save=false`` the import stays an unsaved draft: the fits are created in
+    the session (and the first one is marked dirty) but nothing is committed, so
+    the browser can open the fit right away without adding it to the library --
+    that is what the "import from clipboard" button sends. No ``fits.imported``
+    event is published for a draft, because nothing was persisted yet.
     """
     channel = event_channel(user)
     try:
         result = portService.import_text(
             payload.text, target_fit_id=payload.targetFitId,
-            userData=userData, channel=channel)
+            userData=userData, channel=channel, save=payload.save)
     except portService.PortError as ex:
         raise _port_errors(ex)
-    if result["created"]:
+    if result["created"] and payload.save:
         publish(channel, "fits.imported",
                 fitIds=[fit["id"] for fit in result["created"]])
     if result["appliedToFitId"] is not None:

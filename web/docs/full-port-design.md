@@ -94,7 +94,8 @@ Vue 3 换成 React（`web/frontend/`），所以下文出现的 `.vue` 文件名
 
 ```
 POST /api/port/import
-  请求: { "text": string, "targetFitId": int|null }     # text = 粘贴或文件内容
+  请求: { "text": string, "targetFitId": int|null, "save": bool=true }
+        # text = 粘贴或文件内容；save=false 时不落盘（剪贴板导入：直接打开、等保存才入库）
   响应 201: {
     "format": "eft"|"eftConfig"|"dna"|"dnaAlt"|"xml"|"esiJson"|"mutant",
     "created": [FitSummary...],           # 新建的配装（makesNewFits=true 时）
@@ -140,6 +141,18 @@ POST /api/items/mutant/parse   # { "text": string } → 解析结果（物品/�
 > 应用型导入重载当前配装（走 undo 栈，history 同步更新）。导出选项卡只提供
 > 后端真正生效的选项：`optimizePrices`（P2 前必被拒绝）不显示，「Mutated
 > Attributes」在 EFT 中由后端恒为真，故不设复选框。
+>
+> **剪贴板导入（M2 增补）**：顶栏「剪贴板」弹层里的「从剪贴板导入」走
+> `POST /api/port/import` 的 `save=false`——导入成功后前端直接 `open()` 第一个
+> 新建装配（`dirty: true` / `draft: true`，保存按钮提示未保存改动），等用户点
+> 「保存」才进装配列表；放弃等于没导入过。后端实现（2026-11-17 收紧）：草稿行
+> 照写但带 `fits.draft = 1`（`eos/db/saveddata/fit.py`，迁移 `upgrade53.py`），
+> 因为草稿需要 id 才能被打开、编辑和撤销；`eos/db/saveddata/queries.py` 的
+> `noDraft()` 把它挡在所有列表/搜索/备份之外（`getFit` 不过滤，草稿仍可按 id
+> 打开）。`POST /api/fits/{id}/save` 清掉标记（此时才发 `fits.imported`），
+> `POST /api/fits/{id}/discard` 对草稿整行删除并回 `removed: true`；换一份新导入
+> 会清掉上一份草稿。粘贴到已打开装配的**条目级**文本没有新行，仍是
+> `defer_commit` 那一套"只 flush 不落盘"的编辑草稿。
 
 ### 3.4 测试（`web/tests/test_port.py`）
 

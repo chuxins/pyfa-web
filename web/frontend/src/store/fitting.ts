@@ -175,8 +175,10 @@ export const useFittingStore = create<FittingState>((set, get) => ({
   },
 
   async open(fitId: number) {
-    // 换装配前先把当前未保存的编辑落盘（否则它们会跟下一份一起被提交，或直接丢掉）
-    if (get().dirty && get().fit && get().fit!.id !== fitId) {
+    // 换装配前先把当前未保存的编辑落盘（否则它们会跟下一份一起被提交，或直接丢掉）。
+    // 剪贴板导入进来的草稿装配例外：它本来就没保存过，切走不能顺手把它存进装配方案，
+    // 否则「导入即保存」的老毛病又回来了；它留在库里当草稿，等用户回来再决定保存还是放弃。
+    if (get().dirty && get().fit && get().fit!.id !== fitId && !get().fit!.draft) {
       const saved = await get().save()
       if (saved) get().showNotice(t("Saved the previous fit's changes"), 3000)
     }
@@ -533,8 +535,19 @@ export const useFittingStore = create<FittingState>((set, get) => ({
     if (!fit) return
     set({ busy: true })
     try {
-      await api.discardFit(fit.id)
+      const result = await api.discardFit(fit.id)
       set({ dirty: false, selectedModule: null, weaponGroups: false })
+      if (result.removed) {
+        // 剪贴板导入进来、一次都没保存过的草稿：没有「上一版」可以读回来，服务器已经
+        // 把这一行删掉了，所以这里回到「没打开装配」的状态
+        set({
+          fit: null,
+          history: { canUndo: false, canRedo: false, depth: 0, undoName: null, redoName: null },
+        })
+        get().refreshSidebar()
+        get().showNotice(t("Discarded the import"), 2500)
+        return
+      }
       const fresh = await api.fit(fit.id)
       get().applyFit(fresh)
       set({ dirty: false })

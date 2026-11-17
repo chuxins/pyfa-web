@@ -239,6 +239,8 @@ export interface Fit {
   history?: History
   /** 有未保存的编辑（服务器把 commit 降级成 flush，等用户点保存） */
   dirty?: boolean
+  /** 剪贴板导入进来、还没保存过的草稿装配：打开着但它不在装配列表里 */
+  draft?: boolean
 }
 
 export interface DamageTypes {
@@ -842,8 +844,11 @@ export const api = {
   exportFitToGame: (fitId: number) =>
     request<EsiExportResult>("/api/esi/fittings/export", { method: "POST", body: JSON.stringify({ fitId }) }),
 
-  portImport: (text: string, targetFitId: number | null = null) =>
-    request<PortImportResult>("/api/port/import", { method: "POST", body: JSON.stringify({ text, targetFitId }) }),
+  portImport: (text: string, targetFitId: number | null = null, save = true) =>
+    request<PortImportResult>("/api/port/import", {
+      method: "POST",
+      body: JSON.stringify({ text, targetFitId, save }),
+    }),
   exportFit: (fitId: number, format: ExportFormat, options: Record<string, boolean> = {}) =>
     requestFile(`/api/fits/${fitId}/export`, { method: "POST", body: JSON.stringify({ format, options }) }),
   backupExport: () => requestFile("/api/backup/export", { method: "POST" }),
@@ -860,9 +865,12 @@ export const api = {
     request<Fit>(`/api/fits/${fitId}/commands`, { method: "POST", body: JSON.stringify({ command, args }) }),
   /** 把未保存的编辑真正落盘（唯一会持久化编辑的调用）。 */
   saveFit: (fitId: number) => request<Fit>(`/api/fits/${fitId}/save`, { method: "POST" }),
-  /** 放弃未保存的编辑：回滚到库里最后一次保存的状态。 */
+  /** 放弃未保存的编辑：回滚到库里最后一次保存的状态。
+   *
+   * 剪贴板导入进来、还从没保存过的草稿装配没有「最后一次保存的状态」可回滚，服务器会把
+   * 它整行删掉，并用 `removed: true` 告诉调用方别再读它。 */
   discardFit: (fitId: number) =>
-    request<{ fitId: number; discarded: boolean }>(`/api/fits/${fitId}/discard`, { method: "POST" }),
+    request<{ fitId: number; discarded: boolean; removed?: boolean }>(`/api/fits/${fitId}/discard`, { method: "POST" }),
   undo: (fitId: number) => request<Fit>(`/api/fits/${fitId}/undo`, { method: "POST" }),
   redo: (fitId: number) => request<Fit>(`/api/fits/${fitId}/redo`, { method: "POST" }),
   resetFit: (fitId: number) => request<void>(`/api/fits/${fitId}/reset`, { method: "POST" }),

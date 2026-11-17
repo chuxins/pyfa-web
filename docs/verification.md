@@ -1,4 +1,4 @@
-# 验证记录
+﻿# 验证记录
 
 本文件收集各次实测（本机 + 公网）。部署侧的现网状态与换机实测见 [operations.md](operations.md) §1。
 
@@ -56,3 +56,19 @@
 > **「假 code 换来 HTTP 500」不是本部署的问题**：CCP 的 token 端点在「客户端合法、授权码不存在」时返回的是 SSO 前端的
 > HTML 页（`Internal Server Error … Error code: 526069474480f5fcf63b20e0271f56c3`），而不是标准的 `invalid_grant` JSON；
 > 用错 secret 或未知 client 才得到 JSON 400。链路唯一未覆盖的一步就是真人登录本身（authorize → code → token → JWKS 验签 → 建会话）。
+
+## 4. 剪贴板导入的草稿行为（2026-11-17，本机 TestClient）
+
+说明见 [changes.md](changes.md) §12。用 `TestClient` 走真实 HTTP 流程（临时数据目录、`PYFA_WEB_DEV_AUTH_BYPASS=1`），
+18 项检查全绿：
+
+| 检查 | 结果 |
+| --- | --- |
+| 导入（`save:false`） | 201；`GET /api/fits/{id}` 200 且 `dirty=true`、`draft=true`，ship=Rifter |
+| 不在装配列表里 | `/api/fits`、`/api/fits?shipId=587`、`/api/fits?q=…` 三处都为空/无此项；库里该行 `draft=1` |
+| 保存后入册 | `/save` → `dirty=false`、`draft=false`；再查列表即可见，库里 `draft=0` |
+| 别的保存不带走它 | 另建一份装配并 `/save` 后，草稿仍不在列表、仍是 `draft=1` |
+| 换一份导入 | 旧草稿 404（已删除）；新草稿 200（先建后删，id 不复用） |
+| 放弃 | `/discard` → `removed=true`；随后 GET 404；库中其余装配不变 |
+| 回归 | `web/tests` **389 passed**（§12 新增 4 项） |
+

@@ -127,7 +127,9 @@ def save_fit(
     """把当前编辑提交到装配方案里（唯一会真正落盘的编辑路径）。
 
     编辑期间所有 commit 都被降级成 flush，所以这里强制提交一次，然后清掉「未保存」
-    标记。找不到装配时仍然是 404，和别的编辑端点一致。
+    标记。剪贴板导入进来的草稿装配也在这里转正：清掉 ``fits.draft`` 之后它才进装配
+    列表，所以这颗保存按钮就是它「入册」的动作。找不到装配时仍然是 404，和别的编辑
+    端点一致。
     """
     import eos.db
     from service.fit import Fit
@@ -135,11 +137,17 @@ def save_fit(
     fit = Fit.getInstance().getFit(fit_id)
     if fit is None:
         raise HTTPException(status_code=404, detail="fit not found")
+    promoted = bool(getattr(fit, "draft", False))
+    if promoted:
+        fit.draft = False
     eos.db.commit_now()
     _clear_draft(userData)
     payload = serialize_fit(fit, includeStats=True)
     payload["history"] = commandService.history_for(userData, fit_id)
     payload["dirty"] = False
+    if promoted:
+        # 从「草稿」变成「方案」：别的标签页/窗口的船树也要把它列出来
+        publish(event_channel(user), "fits.imported", fitIds=[fit_id], action="save")
     return payload
 
 
@@ -152,19 +160,31 @@ def discard_fit(
 ):
     """放弃本次编辑：回滚事务，重建这个用户的会话（缓存与撤销栈一起丢掉）。
 
-    返回的是「已作废」的信号，浏览器随后重新 GET 这个装配即可拿到库里的旧内容。
+    如果这个装配本身就是剪贴板导入进来、还没保存过的草稿（``fits.draft``），那
+    「放弃」等于把它整行删掉 —— 它从来没进过装配方案，删掉之后就和没导入过一样。
+    返回值里的 ``removed`` 告诉浏览器这份装配已经不存在了，别再读它。
     """
     import eos.db
+    from service.fit import Fit
+
+    fit = Fit.getInstance().getFit(fit_id)
+    removed = bool(getattr(fit, "draft", False))
 
     try:
         eos.db.rollback()
     finally:
         _clear_draft(userData)
+        if removed:
+            # 回滚已经丢掉了没保存的编辑，剩下的就是把这一行也清掉
+            Fit.getInstance().deleteFit(fit_id)
+            eos.db.commit_now()
         # 回滚只退数据库；SQLAlchemy 的身份映射和 pyfa 服务里还留着回滚前的对象，
         # 所以把这个用户的会话整个重建（下次请求就是干净的库里状态）。
         state = get_app_state(request)
         state.registry.reset_user(getattr(userData, "user_id", None))
-    return {"fitId": fit_id, "discarded": True}
+    if removed:
+        publish(event_channel(user), "fit.removed", fitIds=[fit_id])
+    return {"fitId": fit_id, "discarded": True, "removed": removed}
 
 
 @router.get("/fits/{fit_id}/history")

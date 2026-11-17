@@ -75,6 +75,10 @@ fits_table = Table("fits", saveddata_meta,
                    #: The id EVE assigned this fitting, kept so deleting the fit can also
                    #: delete the game's copy (see web/services/esiFittings.py)
                    Column("esiFittingId", Integer, nullable=True),
+                   #: 剪贴板导入的装配还没被用户保存：这样的行不算「装配方案」，不出现在
+                   #: 装配列表/搜索/备份里（见 eos/db/saveddata/queries.py）。点保存时
+                   #: 清掉这个标记，点放弃时整行删除（见 web/api/commands.py）。
+                   Column("draft", Boolean, nullable=False, default=0),
                    )
 
 projectedFits_table = Table("projectedFits", saveddata_meta,

@@ -75,11 +75,15 @@ def _service_fit():
     return Fit.getInstance()
 
 
-def _save_imported_fits(fits):
+def _save_imported_fits(fits, draft=False):
     """Persist fits exactly like the desktop paste path (importFitFromBuffer).
 
     Sets the caller's character / damage pattern / target profile and the
     implant-location default before ``db.save``.
+
+    ``draft=True`` writes the rows already marked as "not saved yet": the insert
+    carries ``fits.draft = 1`` from the start, so the fit is never briefly visible
+    as a library fit (see :func:`import_text` and eos/db/saveddata/queries.py).
     """
     from eos.const import ImplantLocation
 
@@ -97,17 +101,48 @@ def _save_imported_fits(fits):
         else:
             useCharImplants = sFit.serviceFittingOptions["useCharacterImplantsByDefault"]
             fit.implantLocation = ImplantLocation.CHARACTER if useCharImplants else ImplantLocation.FIT
+        fit.draft = draft
         eos.db.save(fit)
     return fits
 
 
-def import_text(text, target_fit_id=None, userData=None, channel=None):
+def purge_draft_fits(keep=()):
+    """删掉这一次会话里还没保存的导入草稿（换一份导入时调用）。
+
+    草稿只在「导入 → 看/改 → 保存」这段时间有意义，换一份新的导入时旧的就没用了；
+    留着只会占库（虽然它们不出现在任何列表里）。``keep`` 里的装配 id 是要保留的，
+    也就是刚导入的那几份 —— 先建后删，这样新草稿不会捡到旧草稿释放出来的 id。
+    """
+    import eos.db
+
+    keep = set(keep)
+    drafts = [fit for fit in eos.db.getDraftFits() if fit.ID not in keep]
+    if not drafts:
+        return 0
+    sFit = _service_fit()
+    for fit in drafts:
+        sFit.deleteFit(fit.ID)
+    eos.db.commit_now()
+    return len(drafts)
+
+
+def import_text(text, target_fit_id=None, userData=None, channel=None, save=True):
     """Import ``text``, desktop paste semantics.
 
     Without ``target_fit_id`` every recognised fit is saved as new. With one,
     item-level text (mutated module, drones, implants, ...) is applied to that
     fit through the undoable command stack; a whole-fit text still creates new
     fits, exactly like the desktop paste into an open fit does.
+
+    ``save=False`` turns the import into a *draft*: the browser's "import from
+    clipboard" opens the pasted fit directly instead of adding it to the library.
+    A new fit is still written to the database (it needs an id to be opened,
+    edited and undone), but from the very first insert it carries ``fits.draft``,
+    which keeps it out of every fit listing, search and backup until the user
+    clicks Save; discarding deletes the row (eos/db/saveddata/queries.py,
+    web/api/commands.py). Item-level text pasted onto an open fit has no row of its
+    own, so it keeps using the plain "uncommitted edits" draft (``defer_commit``)
+    that the editing commands use.
     """
     import xml.parsers.expat
 
@@ -120,6 +155,8 @@ def import_text(text, target_fit_id=None, userData=None, channel=None):
         fit = _service_fit().getFit(target_fit_id)
         if fit is None:
             raise PortError("importUnreadable", "fit not found", status=404)
+
+    context = getattr(userData, "context", None)
 
     try:
         result = Port.importAuto(text, activeFit=target_fit_id)
@@ -136,11 +173,27 @@ def import_text(text, target_fit_id=None, userData=None, channel=None):
     import_type, makes_new_fits, import_data = result
 
     if target_fit_id is not None and import_type in ADDITIONS_TYPES:
+        if not save and context is not None:
+            # 只改内存：命令里的 commit 被降级成 flush，等用户点保存才落盘
+            context.defer_commit = True
         applied = _apply_to_fit(import_type, import_data, target_fit_id, userData, channel)
+        if not save and context is not None:
+            context.draft_fit_id = target_fit_id
         return {"format": FORMAT_MAP[import_type], "created": [],
                 "appliedToFitId": target_fit_id, "skipped": applied["skipped"]}
 
-    created = [serialize_fit_summary(f) for f in _save_imported_fits(import_data)]
+    imported = _save_imported_fits(import_data, draft=not save)
+    created = [serialize_fit_summary(f) for f in imported]
+    if not save:
+        # 新的剪贴板导入取代上一份还没保存的导入（先建后删，免得 id 被复用）
+        purge_draft_fits(keep=[fit.ID for fit in imported])
+    if not save and context is not None and created:
+        # 打开的就是第一个新建的装配，所以只有它被标成「未保存」
+        context.draft_fit_id = created[0]["id"]
+    elif save:
+        import eos.db
+
+        eos.db.commit_now()
     return {"format": FORMAT_MAP.get(import_type, import_type), "created": created,
             "appliedToFitId": None, "skipped": []}
 

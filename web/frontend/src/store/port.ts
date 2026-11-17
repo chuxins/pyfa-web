@@ -17,7 +17,7 @@ interface PortState {
 
   setError: (error: unknown) => void
   showNotice: (text: string, timeout?: number) => void
-  importText: (text: string, targetFitId?: number | null) => Promise<PortImportResult | null>
+  importText: (text: string, targetFitId?: number | null, save?: boolean) => Promise<PortImportResult | null>
   exportFit: (fitId: number, format: ExportFormat, options?: Record<string, boolean>) => Promise<ExportedFile | null>
   exportBackup: () => Promise<ExportedFile | null>
   importBackup: (text: string) => Promise<unknown>
@@ -44,18 +44,30 @@ export const usePortStore = create<PortState>((set, get) => ({
     }, timeout)
   },
 
-  /** Import fit text. Without targetFitId every recognised fit is saved as new. */
-  async importText(text: string, targetFitId: number | null = null) {
+  /**
+   * Import fit text.
+   *
+   * Without ``targetFitId`` every recognised fit is saved as new. With
+   * ``save=false`` (the clipboard import) the fits stay unsaved on the server --
+   * they are opened directly instead of being added to the library, and only
+   * land in the database when the user clicks Save afterwards.
+   */
+  async importText(text: string, targetFitId: number | null = null, save = true) {
     set({ busy: true })
     try {
-      const result = await api.portImport(text, targetFitId)
+      const result = await api.portImport(text, targetFitId, save)
       set({ lastImport: result })
-      const browser = useBrowserStore.getState()
-      browser.quietUntil = Date.now() + 3000
-      void browser.refreshFits()
+      if (save) {
+        const browser = useBrowserStore.getState()
+        browser.quietUntil = Date.now() + 3000
+        void browser.refreshFits()
+      }
       if (result.appliedToFitId !== null) {
         const fitting = useFittingStore.getState()
         if (fitting.fit?.id === result.appliedToFitId) await fitting.reload()
+      } else if (result.created.length > 0 && !save) {
+        // 剪贴板导入：直接打开第一个新建的装配（未保存，保存按钮会提示未保存的改动）
+        await useFittingStore.getState().open(result.created[0].id)
       }
       return result
     } catch (error) {
