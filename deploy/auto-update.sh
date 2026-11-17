@@ -122,9 +122,10 @@ import json
 import sys
 
 data = json.load(open(sys.argv[1], encoding="utf-8-sig"))
-# 本仓库 deploy.yml 的 job 叫 deploy，它自己就会调这个脚本：把它算进闸门会变成
-# "部署等部署" —— 手动从 Actions 上线时会白跑一趟。只认 CI 的作业。
-IGNORED = {"deploy"}
+# 本仓库 deploy.yml 的作业（deploy / deploy-evetoolsbot）自己就会调这个脚本：把它们算进
+# 闸门会变成"部署等部署"——手动从 Actions 上线时会白跑一趟。只认 CI 的作业。
+# 注意：新增部署作业时要把作业名加进来，否则闸门会把部署作业未完成的结论当成拦截。
+IGNORED = {"deploy", "deploy-evetoolsbot"}
 runs = [
     run
     for run in (data.get("check_runs") or [])
